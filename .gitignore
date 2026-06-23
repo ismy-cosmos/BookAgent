@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Models & large files
+*.gguf
+*.bin
+*.pt
+*.safetensors
+models/
+
+# Data & outputs
+data/raw/
+data/processed/
+outputs/
+*.faiss
+*.index
+chroma_db/
+lancedb/
+
+# Audio/video
+*.mp3
+*.wav
+*.flac
+*.mp4
+
+# Env & secrets
+.env
+.env.*
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
