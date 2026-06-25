@@ -1,0 +1,8 @@
+# Q5_K_S from bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF (local GGUF)
+# Download via: huggingface-cli download bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF \
+#     Qwen_Qwen3-VL-8B-Instruct-Q5_K_S.gguf --local-dir models/
+FROM ./models/Qwen_Qwen3-VL-8B-Instruct-Q5_K_S.gguf
+
+PARAMETER num_ctx 32768
+PARAMETER temperature 0
+PARAMETER num_predict 512
