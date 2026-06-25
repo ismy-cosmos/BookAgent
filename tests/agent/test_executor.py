@@ -62,6 +62,16 @@ def test_safe_calculate_rejects_invalid_syntax():
         safe_calculate("not valid math !!!")
 
 
+def test_safe_calculate_no_scientific_notation():
+    from pipeline.agent.executor import safe_calculate
+    # Regression test: safe_calculate should avoid E-notation for trailing-zero integers
+    assert safe_calculate("125 * 8") == "1000"
+    assert safe_calculate("120000 * 0.15") == "18000"
+    # Verify existing precision test still passes
+    result = safe_calculate("0.1 + 0.2")
+    assert Decimal(result) == Decimal("0.3")
+
+
 # ── ChunkResult ───────────────────────────────────────────────────────────────
 
 def test_chunk_result_has_all_required_fields():

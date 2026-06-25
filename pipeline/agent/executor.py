@@ -181,6 +181,11 @@ def safe_calculate(expression: str) -> str:
     result = _eval_ast(tree.body)
     # Remove trailing zeros for clean display
     normalized = result.normalize()
+    # Decimal.normalize() uses E-notation for trailing-zero integers (e.g. 1E+3).
+    # Convert those back to plain integer strings.
+    sign, digits, exp = normalized.as_tuple()
+    if exp > 0:
+        normalized = normalized.quantize(Decimal(1))
     return str(normalized)
 
 
