@@ -46,10 +46,13 @@ def compute_metrics(rows: list[dict]) -> dict:
     triggered_rows = [r for r in rows if r["triggered_tool"] is not None]
     should_call_rows = [r for r in rows if r["expected_tool"] is not None]
     noop_rows = [r for r in rows if r["expected_tool"] is None]
+    # rows where model was expected to fire AND did fire
+    matched_rows = [r for r in rows if r["expected_tool"] is not None and r["triggered_tool"] is not None]
 
+    # C1: proportion of ALL rows where format_ok is True
     format_ok = (
-        sum(1 for r in triggered_rows if r["format_ok"]) / len(triggered_rows)
-        if triggered_rows else 1.0
+        sum(1 for r in rows if r["format_ok"]) / len(rows)
+        if rows else 1.0
     )
     trigger_precision = (
         sum(1 for r in should_call_rows if r["triggered_tool"] is not None) / len(should_call_rows)
@@ -59,10 +62,12 @@ def compute_metrics(rows: list[dict]) -> dict:
         sum(1 for r in noop_rows if r["triggered_tool"] is None) / len(noop_rows)
         if noop_rows else 1.0
     )
+    # C2: among rows where expected_tool is not None AND triggered_tool is not None,
+    # proportion where triggered_tool == expected_tool
     tool_accuracy = (
-        sum(1 for r in triggered_rows if r["triggered_tool"] == r["expected_tool"])
-        / len(triggered_rows)
-        if triggered_rows else 1.0
+        sum(1 for r in matched_rows if r["triggered_tool"] == r["expected_tool"])
+        / len(matched_rows)
+        if matched_rows else 1.0
     )
 
     return {
@@ -80,12 +85,12 @@ def is_passing(metrics: dict) -> bool:
 def save_csv(rows: list[dict], path: str) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
-        "id", "type", "question", "run",
-        "triggered_tool", "tool_args", "format_ok", "tool_accuracy",
-        "final_answer", "fill_ok_manual", "total_tokens", "latency_s",
+        "id", "type", "question", "expected_tool",
+        "triggered_tool", "format_ok", "fill_ok", "tool_accuracy_ok",
+        "final_answer", "total_tokens", "latency_s",
     ]
     with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -95,15 +100,17 @@ def _run_model(
     cases: list[dict],
     base_url: str,
     repeats: int,
+    executor: StubExecutor | None = None,
 ) -> tuple[list[dict], dict]:
-    executor = StubExecutor()
+    if executor is None:
+        executor = StubExecutor()
     client = OllamaAgentClient(model=model, executor=executor, base_url=base_url)
     rows: list[dict] = []
 
     for case in cases:
         for run_idx in range(1, repeats + 1):
             turn = client.run(case["question"])
-            tool_acc = (
+            tool_acc_ok = (
                 turn.triggered_tool == case["expected_tool"]
                 if turn.triggered_tool is not None
                 else None
@@ -116,10 +123,10 @@ def _run_model(
                 "triggered_tool": turn.triggered_tool,
                 "tool_args": json.dumps(turn.tool_args, ensure_ascii=False) if turn.tool_args else "",
                 "format_ok": turn.format_ok,
-                "tool_accuracy": tool_acc,
-                "expected_tool": case["expected_tool"],  # used by compute_metrics, not in CSV
+                "tool_accuracy_ok": tool_acc_ok,
+                "expected_tool": case["expected_tool"],
                 "final_answer": turn.final_answer,
-                "fill_ok_manual": "",  # human review
+                "fill_ok": turn.fill_ok,
                 "total_tokens": turn.total_tokens,
                 "latency_s": round(turn.latency_s, 3),
             })
@@ -164,11 +171,9 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Running model: {model} ...")
         rows, metrics = _run_model(model, cases, args.base_url, args.repeats)
 
-        # strip internal field before saving CSV
-        csv_rows = [{k: v for k, v in r.items() if k != "expected_tool"} for r in rows]
         tag = model.replace(":", "-").replace("/", "-")
         csv_path = str(Path(args.output_dir) / f"tool_calling_result_{tag}.csv")
-        save_csv(csv_rows, csv_path)
+        save_csv(rows, csv_path)
 
         avg_tokens = sum(r["total_tokens"] for r in rows) / len(rows)
         avg_latency = sum(r["latency_s"] for r in rows) / len(rows)

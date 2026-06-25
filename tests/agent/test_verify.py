@@ -75,10 +75,10 @@ def test_compute_metrics_tool_accuracy():
 def test_save_csv_writes_correct_columns(tmp_path):
     from pipeline.agent.verify_tools import save_csv
     rows = [{
-        "id": "calc-001", "type": "calc", "question": "问题", "run": 1,
+        "id": "calc-001", "type": "calc", "question": "问题", "expected_tool": "calculate",
         "triggered_tool": "calculate", "tool_args": '{"expression":"1+1"}',
-        "format_ok": True, "tool_accuracy": True,
-        "final_answer": "答案", "fill_ok_manual": "",
+        "format_ok": True, "tool_accuracy_ok": True,
+        "final_answer": "答案", "fill_ok": None,
         "total_tokens": 100, "latency_s": 1.5,
     }]
     out = tmp_path / "result.csv"
@@ -86,9 +86,9 @@ def test_save_csv_writes_correct_columns(tmp_path):
     assert out.exists()
     reader = list(csv.DictReader(open(out)))
     assert len(reader) == 1
-    expected_cols = {"id", "type", "question", "run", "triggered_tool",
-                     "tool_args", "format_ok", "tool_accuracy",
-                     "final_answer", "fill_ok_manual", "total_tokens", "latency_s"}
+    expected_cols = {"id", "type", "question", "expected_tool", "triggered_tool",
+                     "format_ok", "tool_accuracy_ok",
+                     "final_answer", "fill_ok", "total_tokens", "latency_s"}
     assert expected_cols.issubset(set(reader[0].keys()))
 
 
@@ -104,3 +104,67 @@ def test_is_passing_fails_on_low_metric():
     bad = {"format_ok": 0.97, "trigger_precision": 0.80,  # < 0.90
            "trigger_specificity": 0.94, "tool_accuracy": 0.92}
     assert is_passing(bad) is False
+
+
+def test_run_model_returns_agent_turn_list():
+    from pipeline.agent.verify_tools import _run_model
+    from pipeline.agent.client import AgentTurn
+    from pipeline.agent.executor import StubExecutor
+
+    mock_turn = AgentTurn(
+        format_ok=True,
+        triggered_tool="calculate",
+        fill_ok=None,
+        final_answer="42",
+        total_tokens=10,
+        latency_s=0.1,
+        question="?",
+        tool_args={"expression": "6*7"},
+    )
+
+    with patch("pipeline.agent.verify_tools.OllamaAgentClient") as MockClient:
+        mock_client_instance = MagicMock()
+        MockClient.return_value = mock_client_instance
+        mock_client_instance.run.return_value = mock_turn
+
+        result, _ = _run_model(
+            cases=[{"id": "c1", "type": "calc", "question": "6*7", "expected_tool": "calculate", "expected_answer": "42"}],
+            model="test-model",
+            executor=StubExecutor(),
+            repeats=1,
+            base_url="http://localhost:11434/v1",
+        )
+
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["triggered_tool"] == "calculate"
+
+
+def test_main_creates_csv_file(tmp_path):
+    from pipeline.agent.verify_tools import main
+    from pipeline.agent.client import AgentTurn
+
+    noop_turn = AgentTurn(
+        format_ok=True,
+        triggered_tool=None,
+        fill_ok=None,
+        final_answer="no",
+        total_tokens=5,
+        latency_s=0.05,
+        question="?",
+        tool_args=None,
+    )
+
+    with patch("pipeline.agent.verify_tools.OllamaAgentClient") as MockClient:
+        mock_client_instance = MagicMock()
+        MockClient.return_value = mock_client_instance
+        mock_client_instance.run.return_value = noop_turn
+
+        main([
+            "--cases", "eval/tool_calling_cases.jsonl",
+            "--models", "test-model",
+            "--output-dir", str(tmp_path),
+            "--base-url", "http://localhost:11434/v1",
+        ])
+
+    assert any(tmp_path.glob("*.csv"))
