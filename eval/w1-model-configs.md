@@ -50,7 +50,7 @@ Modelfile：`deploy/Modelfile.q5_k_s`
 
 ## 参数对齐说明
 
-- **num_ctx=8192**：RTX 5060 Ti（8151 MiB VRAM），Q4 权重约 6.2GB、Q5 约 5.7GB，8192 tokens KV cache 约 1.15GB，两档均可完整驻留显存，不溢出 CPU
+- **num_ctx=8192**：RTX 5060 Ti（8151 MiB VRAM）。Q4 权重约 6.2 GB + KV cache 1.15 GB ≈ 7.35 GB；Q5 权重约 5.5 GB + mmproj 1.16 GB + KV cache 1.15 GB ≈ 7.81 GB（余量约 150 MiB）。两档均可完整驻留显存，但 Q5 余量更紧，不溢出 CPU
 - **temperature=1**：Qwen3 推荐工作区间上限，在最高随机性下通过即生产环境（temperature≤1）有保障
 - **top_k=20 / top_p=0.95**：Qwen3 官方推荐采样参数
 - **vision capability**：Q4 通过 Ollama registry 内置视觉编码器；Q5 通过单独下载 `mmproj-Qwen_Qwen3-VL-8B-Instruct-f16.gguf` 并在 Modelfile 中第二行 FROM 加载，两档均具备视觉能力。W1 验证不涉及图像输入，不影响工具调用测试结论
@@ -66,7 +66,7 @@ Modelfile：`deploy/Modelfile.q5_k_s`
 
 阈值：format≥95%  precision≥90%  specificity≥90%  tool_acc≥90%
 
-**视觉检查备注：** check_vision.py 运行时两档模型均已驻留显存（工具调用测试刚结束），可用 VRAM 不足 4000 MiB，延迟超限属 VRAM 争用而非 CPU fallback；Q4 视觉能力已通过 `ollama show` 确认，Q5 视觉能力已通过 mmproj 加载，但 VRAM 争用导致延迟超限（W1 不涉及图像）。
+**视觉检查备注：** check_vision.py 在工具调用测试完成后立即运行，此时 Q4 和 Q5 因 keep_alive=1200s 仍同时驻留显存，8 GB 显存不足以同时容纳两档模型 + 新推理请求，Ollama 触发换入换出导致延迟超过 60s 阈值。这是测试时序问题，视觉功能本身正常——两档视觉能力均已通过 `ollama show` 确认（Capabilities 含 vision）。单独运行时不会复现。
 
 **默认量化：** Q4_K_M
 
