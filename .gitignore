@@ -46,3 +46,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Superpowers internal execution traces
+.superpowers/
+docs/superpowers/

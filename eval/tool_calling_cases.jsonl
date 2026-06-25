@@ -1,0 +1,30 @@
+{"id": "calc-001", "type": "calc", "question": "患者体重 70kg，按 0.5mg/kg 计算用药量，需要多少 mg？", "expected_tool": "calculate", "expected_answer": "35"}
+{"id": "calc-002", "type": "calc", "question": "0.1 加 0.2 精确等于多少？", "expected_tool": "calculate", "expected_answer": "0.3"}
+{"id": "calc-003", "type": "calc", "question": "2 的 10 次方是多少？", "expected_tool": "calculate", "expected_answer": "1024"}
+{"id": "calc-004", "type": "calc", "question": "合同违约金为总价的 15%，合同总价 120000 元，违约金是多少元？", "expected_tool": "calculate", "expected_answer": "18000"}
+{"id": "calc-005", "type": "calc", "question": "4GB 内存换算成字节是多少？（1GB = 1073741824 字节）", "expected_tool": "calculate", "expected_answer": "4294967296"}
+{"id": "calc-006", "type": "calc", "question": "125 乘以 8 等于多少？", "expected_tool": "calculate", "expected_answer": "1000"}
+{"id": "calc-007", "type": "calc", "question": "512 除以 16 是多少？", "expected_tool": "calculate", "expected_answer": "32"}
+{"id": "calc-008", "type": "calc", "question": "3 的 5 次方是多少？", "expected_tool": "calculate", "expected_answer": "243"}
+{"id": "calc-009", "type": "calc", "question": "（100 减去 37）再除以 2 等于多少？", "expected_tool": "calculate", "expected_answer": "31.5"}
+{"id": "calc-010", "type": "calc", "question": "十六进制 0xFF 转换为十进制是多少？", "expected_tool": "calculate", "expected_answer": "255"}
+{"id": "ret-001", "type": "retrieve", "question": "注意力机制的核心公式是什么？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-002", "type": "retrieve", "question": "书中对卷积神经网络（CNN）的描述是什么？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-003", "type": "retrieve", "question": "根据教材，什么是过拟合？有哪些解决方法？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-004", "type": "retrieve", "question": "反向传播算法的基本步骤是什么？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-005", "type": "retrieve", "question": "梯度消失问题是什么？如何解决？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-006", "type": "retrieve", "question": "什么是无罪推定原则？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-007", "type": "retrieve", "question": "正当防卫的法律定义是什么？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-008", "type": "retrieve", "question": "医学伦理的四项基本原则是什么？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-009", "type": "retrieve", "question": "人工智能的定义是什么？图灵测试是什么？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "ret-010", "type": "retrieve", "question": "书中如何描述 ResNet 残差连接的作用？", "expected_tool": "retrieve", "expected_answer": null}
+{"id": "noop-001", "type": "noop", "question": "你能做什么？", "expected_tool": null, "expected_answer": null}
+{"id": "noop-002", "type": "noop", "question": "你好", "expected_tool": null, "expected_answer": null}
+{"id": "noop-003", "type": "noop", "question": "你是一个 AI 助手吗？", "expected_tool": null, "expected_answer": null}
+{"id": "noop-004", "type": "noop", "question": "谢谢你的帮助", "expected_tool": null, "expected_answer": null}
+{"id": "noop-005", "type": "noop", "question": "请用中文说 hello", "expected_tool": null, "expected_answer": null}
+{"id": "noop-006", "type": "noop", "question": "你支持哪些功能？", "expected_tool": null, "expected_answer": null}
+{"id": "noop-007", "type": "noop", "question": "再见", "expected_tool": null, "expected_answer": null}
+{"id": "noop-008", "type": "noop", "question": "你叫什么名字？", "expected_tool": null, "expected_answer": null}
+{"id": "noop-009", "type": "noop", "question": "你能帮我翻译英文吗？", "expected_tool": null, "expected_answer": null}
+{"id": "noop-010", "type": "noop", "question": "今天心情不好，能陪我聊聊吗？", "expected_tool": null, "expected_answer": null}
