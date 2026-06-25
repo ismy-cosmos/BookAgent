@@ -5,6 +5,7 @@ import json
 import time
 from typing import Optional
 
+import httpx
 from openai import OpenAI
 
 from pipeline.agent.executor import ToolExecutor
@@ -22,6 +23,8 @@ class AgentTurn:
     fill_ok: Optional[bool]             # 回填质量（None = 人工复核）
     final_answer: str
     total_tokens: int
+    prompt_tokens: int
+    completion_tokens: int
     latency_s: float
 
 
@@ -45,14 +48,21 @@ class OllamaAgentClient:
         model: str,
         executor: ToolExecutor,
         base_url: str = "http://localhost:11434/v1",
-        num_ctx: int = 32768,
+        num_ctx: int = 8192,
         temperature: float = 0.0,
+        keep_alive: int = 1200,
     ) -> None:
         self._model = model
         self._executor = executor
         self._num_ctx = num_ctx
         self._temperature = temperature
-        self._openai = OpenAI(base_url=base_url, api_key="ollama")
+        self._keep_alive = keep_alive
+        # trust_env=False 防止系统代理（如 socks://）干扰本地 Ollama 连接
+        self._openai = OpenAI(
+            base_url=base_url,
+            api_key="ollama",
+            http_client=httpx.Client(trust_env=False),
+        )
 
     def run(self, question: str, system_prompt: str = "") -> AgentTurn:
         t0 = time.perf_counter()
@@ -65,6 +75,8 @@ class OllamaAgentClient:
         tool_args: Optional[dict] = None
         format_ok: bool = True
         total_tokens: int = 0
+        prompt_tokens: int = 0
+        completion_tokens: int = 0
 
         for _ in range(_MAX_ROUNDS):
             response = self._openai.chat.completions.create(
@@ -72,10 +84,16 @@ class OllamaAgentClient:
                 messages=messages,
                 tools=get_tools_param(),
                 temperature=self._temperature,
+                extra_body={
+                    "options": {"num_ctx": self._num_ctx},
+                    "keep_alive": self._keep_alive,
+                },
             )
 
             if response.usage:
                 total_tokens += response.usage.total_tokens
+                prompt_tokens += getattr(response.usage, "prompt_tokens", 0) or 0
+                completion_tokens += getattr(response.usage, "completion_tokens", 0) or 0
 
             choice = response.choices[0]
 
@@ -96,6 +114,8 @@ class OllamaAgentClient:
                         fill_ok=None,
                         final_answer="[TOOL_ARGS_PARSE_ERROR]",
                         total_tokens=total_tokens,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
                         latency_s=time.perf_counter() - t0,
                     )
 
@@ -122,6 +142,8 @@ class OllamaAgentClient:
                     fill_ok=None,
                     final_answer=final_answer,
                     total_tokens=total_tokens,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
                     latency_s=time.perf_counter() - t0,
                 )
 
@@ -134,5 +156,7 @@ class OllamaAgentClient:
             fill_ok=None,
             final_answer="[MAX_ROUNDS_EXCEEDED]",
             total_tokens=total_tokens,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
             latency_s=time.perf_counter() - t0,
         )
