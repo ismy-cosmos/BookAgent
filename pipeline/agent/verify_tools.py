@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -39,6 +40,15 @@ _THRESHOLDS = {
 def load_cases(path: str) -> list[dict]:
     with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
+
+
+def _percentile(values: list[float], p: float) -> float:
+    if not values:
+        return 0.0
+    sv = sorted(values)
+    idx = (len(sv) - 1) * p
+    lo, hi = int(idx), min(int(idx) + 1, len(sv) - 1)
+    return sv[lo] + (sv[hi] - sv[lo]) * (idx - lo)
 
 
 def compute_metrics(rows: list[dict]) -> dict:
@@ -85,9 +95,9 @@ def is_passing(metrics: dict) -> bool:
 def save_csv(rows: list[dict], path: str) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
-        "id", "type", "question", "expected_tool",
+        "id", "type", "run", "question", "expected_tool",
         "triggered_tool", "format_ok", "fill_ok", "tool_accuracy_ok",
-        "final_answer", "total_tokens", "latency_s",
+        "final_answer", "total_tokens", "prompt_tokens", "completion_tokens", "latency_s",
     ]
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
@@ -101,20 +111,40 @@ def _run_model(
     base_url: str,
     repeats: int,
     executor: StubExecutor | None = None,
+    num_ctx: int = 8192,
 ) -> tuple[list[dict], dict]:
     if executor is None:
         executor = StubExecutor()
-    client = OllamaAgentClient(model=model, executor=executor, base_url=base_url)
+    client = OllamaAgentClient(model=model, executor=executor,
+                               base_url=base_url, num_ctx=num_ctx)
     rows: list[dict] = []
 
+    total = len(cases) * repeats
+    done = 0
     for case in cases:
         for run_idx in range(1, repeats + 1):
+            done += 1
+            q_preview = case["question"][:60].replace("\n", " ")
+            print(f"\n[{done}/{total}] {case['id']}  Q: {q_preview}", flush=True)
             turn = client.run(case["question"])
             tool_acc_ok = (
                 turn.triggered_tool == case["expected_tool"]
                 if turn.triggered_tool is not None
                 else None
             )
+
+            # 打印本条详情
+            if turn.triggered_tool:
+                args_str = json.dumps(turn.tool_args, ensure_ascii=False) if turn.tool_args else "{}"
+                correct = "✓" if turn.triggered_tool == case["expected_tool"] else "✗"
+                print(f"  TOOL : {turn.triggered_tool}({args_str})  {correct}", flush=True)
+            else:
+                correct = "✓" if case["expected_tool"] is None else "✗"
+                print(f"  TOOL : (无)  {correct}  expected={case['expected_tool']}", flush=True)
+            ans_preview = turn.final_answer[:80].replace("\n", " ")
+            print(f"  ANS  : {ans_preview}", flush=True)
+            print(f"  STAT : {turn.total_tokens} tok  {turn.latency_s:.1f}s", flush=True)
+
             rows.append({
                 "id": case["id"],
                 "type": case["type"],
@@ -128,6 +158,8 @@ def _run_model(
                 "final_answer": turn.final_answer,
                 "fill_ok": turn.fill_ok,
                 "total_tokens": turn.total_tokens,
+                "prompt_tokens": turn.prompt_tokens,
+                "completion_tokens": turn.completion_tokens,
                 "latency_s": round(turn.latency_s, 3),
             })
 
@@ -135,9 +167,12 @@ def _run_model(
     return rows, metrics
 
 
-def _print_summary(model: str, metrics: dict, avg_tokens: float, avg_latency: float) -> None:
+def _print_summary(model: str, metrics: dict, avg_tokens: float,
+                   latencies: list[float]) -> None:
     passed = is_passing(metrics)
     verdict = "✓ PASS" if passed else "✗ FAIL"
+    p50 = _percentile(latencies, 0.50)
+    p95 = _percentile(latencies, 0.95)
     print(
         f"── {model:<40} "
         f"format={metrics['format_ok']:.0%}  "
@@ -145,7 +180,7 @@ def _print_summary(model: str, metrics: dict, avg_tokens: float, avg_latency: fl
         f"specificity={metrics['trigger_specificity']:.0%}  "
         f"tool_acc={metrics['tool_accuracy']:.0%}  "
         f"→ {verdict}  "
-        f"avg_tokens={avg_tokens:.0f}  latency={avg_latency:.1f}s"
+        f"avg_tok={avg_tokens:.0f}  p50={p50:.1f}s  p95={p95:.1f}s"
     )
 
 
@@ -157,6 +192,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--output-dir", default="eval/")
     parser.add_argument("--base-url", default="http://localhost:11434/v1")
+    parser.add_argument("--num-ctx", type=int, default=8192)
     args = parser.parse_args(argv)
 
     cases = load_cases(args.cases)
@@ -169,23 +205,26 @@ def main(argv: list[str] | None = None) -> None:
 
     for model in args.models:
         print(f"Running model: {model} ...")
-        rows, metrics = _run_model(model, cases, args.base_url, args.repeats)
+        rows, metrics = _run_model(model, cases, args.base_url, args.repeats,
+                                   num_ctx=args.num_ctx)
 
         tag = model.replace(":", "-").replace("/", "-")
         csv_path = str(Path(args.output_dir) / f"tool_calling_result_{tag}.csv")
         save_csv(rows, csv_path)
 
+        latencies = [r["latency_s"] for r in rows]
         avg_tokens = sum(r["total_tokens"] for r in rows) / len(rows)
-        avg_latency = sum(r["latency_s"] for r in rows) / len(rows)
         all_results[model] = {"metrics": metrics, "avg_tokens": avg_tokens,
-                               "avg_latency": avg_latency, "csv_path": csv_path}
+                               "latencies": latencies, "csv_path": csv_path}
         print(f"  → saved to {csv_path}")
+        subprocess.run(["ollama", "stop", model], capture_output=True, check=False)
+        print(f"  → unloaded: {model}")
 
     print(f"\n{'─' * 80}")
     print("SUMMARY")
     print(f"{'─' * 80}")
     for model, data in all_results.items():
-        _print_summary(model, data["metrics"], data["avg_tokens"], data["avg_latency"])
+        _print_summary(model, data["metrics"], data["avg_tokens"], data["latencies"])
 
     print(f"\nThresholds: format≥{_THRESHOLDS['format_ok']:.0%}  "
           f"precision≥{_THRESHOLDS['trigger_precision']:.0%}  "

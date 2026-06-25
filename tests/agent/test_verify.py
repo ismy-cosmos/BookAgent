@@ -117,6 +117,7 @@ def test_run_model_returns_agent_turn_list():
         fill_ok=None,
         final_answer="42",
         total_tokens=10,
+        prompt_tokens=7, completion_tokens=3,   # 新增
         latency_s=0.1,
         question="?",
         tool_args={"expression": "6*7"},
@@ -150,12 +151,14 @@ def test_main_creates_csv_file(tmp_path):
         fill_ok=None,
         final_answer="no",
         total_tokens=5,
+        prompt_tokens=4, completion_tokens=1,   # 新增
         latency_s=0.05,
         question="?",
         tool_args=None,
     )
 
-    with patch("pipeline.agent.verify_tools.OllamaAgentClient") as MockClient:
+    with patch("pipeline.agent.verify_tools.OllamaAgentClient") as MockClient, \
+         patch("pipeline.agent.verify_tools.subprocess") as _mock_sp:
         mock_client_instance = MagicMock()
         MockClient.return_value = mock_client_instance
         mock_client_instance.run.return_value = noop_turn
@@ -168,3 +171,38 @@ def test_main_creates_csv_file(tmp_path):
         ])
 
     assert any(tmp_path.glob("*.csv"))
+
+
+def test_percentile_median():
+    from pipeline.agent.verify_tools import _percentile
+    assert _percentile([1.0, 2.0, 3.0, 4.0, 5.0], 0.5) == pytest.approx(3.0)
+
+
+def test_percentile_p95():
+    from pipeline.agent.verify_tools import _percentile
+    vals = [float(i) for i in range(1, 21)]  # 1.0 .. 20.0
+    result = _percentile(vals, 0.95)
+    assert 19.0 <= result <= 20.0
+
+
+def test_percentile_single_element():
+    from pipeline.agent.verify_tools import _percentile
+    assert _percentile([5.0], 0.5) == pytest.approx(5.0)
+    assert _percentile([5.0], 0.95) == pytest.approx(5.0)
+
+
+def test_save_csv_includes_new_columns(tmp_path):
+    from pipeline.agent.verify_tools import save_csv
+    rows = [{
+        "id": "c1", "type": "calc", "run": 1, "question": "q",
+        "expected_tool": "calculate", "triggered_tool": "calculate",
+        "tool_args": "{}", "format_ok": True, "tool_accuracy_ok": True,
+        "final_answer": "42", "fill_ok": None,
+        "total_tokens": 60, "prompt_tokens": 40, "completion_tokens": 20,
+        "latency_s": 1.0,
+    }]
+    out = tmp_path / "r.csv"
+    save_csv(rows, str(out))
+    reader = list(csv.DictReader(open(out)))
+    for col in ("run", "prompt_tokens", "completion_tokens"):
+        assert col in reader[0], f"missing column: {col}"
