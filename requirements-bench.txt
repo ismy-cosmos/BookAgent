@@ -1,0 +1,3 @@
+# Benchmark-only dependencies — not promoted to requirements.txt until parser selected
+unstructured[pdf]>=0.16
+marker-pdf>=1.6
