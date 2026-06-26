@@ -1,9 +1,9 @@
 # 解析器选型实测对比 — 设计文档
 
 **日期**：2026-06-26  
-**分支**：`feat/w2-parser-selection`  
-**里程碑**：W2 前置任务（§C.8 解析器遴选）  
-**决策目标**：在 Unstructured 与 Marker-pdf 之间选定 W2 默认解析器，并在同一分支产出 `pipeline/parse/` 抽象接口骨架。
+**分支**：`feat/w1-parser-selection`  
+**里程碑**：W1 任务（§C.8 解析器遴选，原计划 W1 延至此完成）  
+**决策目标**：在 Unstructured 与 Marker-pdf 之间选定 W2 主干默认解析器，并在同一分支产出 `pipeline/parse/` 抽象接口骨架。
 
 ---
 
@@ -112,7 +112,7 @@ pipeline/parse/               # 同分支新建（接口原型）
   "id": "cs-01",
   "parser": "unstructured",
   "elapsed_sec": 0.42,
-  "char_count": 1823,
+  "char_count": 1823,        // 参考字段：粗略完整度代理，不参与评分；Markdown 格式符会虚胀 Marker 的值
   "elements": [
     {"type": "text", "content": "...", "page_num": 1}
   ]
@@ -211,4 +211,4 @@ class Parser(ABC):
 | 人工打分 | scorecard.csv 填完 | 无空白单元格 |
 | gen_report | report.md | 含速度表 + 评分汇总 + 建议行 |
 | 接口原型 | `pipeline/parse/` 四文件 | `from pipeline.parse import Parser, Element` 可导入 |
-| PR | feat/w2-parser-selection → main | 胜出解析器写入 requirements.txt |
+| PR | feat/w1-parser-selection → main | 胜出解析器写入 requirements.txt |
