@@ -1,0 +1,120 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  cs-03  |  执行追踪表  |  Thread 1/2/PC/eax/counter 多列表格
+  source: cs/threads-intro.pdf  page 10
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 0.18s   chars: 2064
+····································································································
+  [uncategorizedtext]10
+  [title]     CONCURRENCY: AN INTRODUCTION
+  [title]     OS
+  [narrativetext]Thread 1 before critical section mov 8049a1c,%eax add $0x1,%eax
+  [title]     Thread 2
+  [title]     (after instruction) PC eax counter 100 105 108
+  [uncategorizedtext]0 50 51
+  [uncategorizedtext]50 50 50
+  [title]     interrupt save T1 restore T2
+  [narrativetext]mov 8049a1c,%eax add $0x1,%eax mov %eax,8049a1c
+  [uncategorizedtext]100 105 108 113
+  [uncategorizedtext]0 50 51 51
+  [uncategorizedtext]50 50 50 51
+  [narrativetext]interrupt save T2 restore T1
+  [title]     mov %eax,8049a1c
+  [uncategorizedtext]108 113
+  [uncategorizedtext]51 51
+  [uncategorizedtext]51 51
+  [title]     Figure 26.7: The Problem: Up Close and Personal
+  [narrativetext]100 mov 105 add 108 mov
+  [uncategorizedtext]0x8049a1c, %eax $0x1, %eax %eax, 0x8049a1c
+  [narrativetext]With these assumptions, what happens is shown in Figure 26.7 (page 10). Assume the
+              counter starts at value 50, and trace through this example to make sure
+              you understand what is going on.
+  [narrativetext]What we have demonstrated here is called a race condition (or, more speciﬁcally, a
+              data race): the results depend on the timing of the code’s ex- ecution.
+              With some bad luck (i.e., context switches that occur at untimely points
+              in the execution), we get the wrong result. In fact, we may get a dif-
+              ferent result each time; thus, instead of a nice deterministic
+              computation (which we are used to from computers), we call this result
+              indeterminate, where it is not known what the output will be and it is
+              indeed likely to be different across runs.
+  [narrativetext]Because multiple threads executing this code can result in a race con- dition, we call
+              this code a critical section. A critical section is a piece of code that
+              accesses a shared variable (or more generally, a shared resource) and
+              must not be concurrently executed by more than one thread.
+  [narrativetext]What we really want for this code is what we call mutual exclusion. This property
+              guarantees that if one thread is executing within the critical section,
+              the others will be prevented from doing so.
+  [narrativetext]Virtually all of these terms, by the way, were coined by Edsger Dijk- stra, who was a
+              pioneer in the ﬁeld and indeed won the Turing Award because of this and
+              other work; see his 1968 paper on “Cooperating Se- quential Processes”
+              [D68] for an amazingly clear description of the prob- lem. We’ll be
+              hearing more about Dijkstra in this section of the book.
+  [uncategorizedtext]OPERATING SYSTEMS [VERSION 1.10]
+  [title]     WWW.OSTEP.ORG
+····································································································
+
+▶ MARKER
+  elapsed: 1.015s   chars: 3707
+····································································································
+|                         |                               |        |              |
+(after<br>instruction) |     |         |
+|-------------------------|-------------------------------|--------|--------------|-----------------
+-------|-----|---------|
+| OS                      | Thread<br>1                   | Thread | 2            | PC
+| eax | counter |
+|                         | before<br>critical<br>section |        |              | 100
+| 0   | 50      |
+|                         | mov<br>8049a1c,%eax           |        |              | 105
+| 50  | 50      |
+|                         | add<br>\$0x1,%eax             |        |              | 108
+| 51  | 50      |
+| interrupt<br>save<br>T1 |                               |        |              |
+|     |         |
+| restore                 | T2                            |        |              | 100
+| 0   | 50      |
+|                         |                               | mov    | 8049a1c,%eax | 105
+| 50  | 50      |
+|                         |                               | add    | \$0x1,%eax   | 108
+| 51  | 50      |
+|                         |                               | mov    | %eax,8049a1c | 113
+| 51  | 51      |
+| interrupt               |                               |        |              |
+|     |         |
+| save<br>T2              |                               |        |              |
+|     |         |
+| restore                 | T1                            |        |              | 108
+| 51  | 51      |
+|                         | mov<br>%eax,8049a1c           |        |              | 113
+| 51  | 51      |
+
+Figure 26.7: **The Problem: Up Close and Personal**
+
+| 100 | mov | 0x8049a1c, |      | %eax      |
+|-----|-----|------------|------|-----------|
+| 105 | add | \$0x1,     | %eax |           |
+| 108 | mov | %eax,      |      | 0x8049a1c |
+
+With these assumptions, what happens is shown in Figure 26.7 (page 10). Assume the counter starts at
+value 50, and trace through this example to make sure you understand what is going on.
+
+What we have demonstrated here is called a **race condition** (or, more specifically, a **data
+race**): the results depend on the timing of the code's execution. With some bad luck (i.e., context
+switches that occur at untimely points in the execution), we get the wrong result. In fact, we may
+get a different result each time; thus, instead of a nice **deterministic** computation (which we
+are used to from computers), we call this result **indeterminate**, where it is not known what the
+output will be and it is indeed likely to be different across runs.
+
+Because multiple threads executing this code can result in a race condition, we call this code a
+**critical section**. A critical section is a piece of code that accesses a shared variable (or more
+generally, a shared resource) and must not be concurrently executed by more than one thread.
+
+What we really want for this code is what we call **mutual exclusion**. This property guarantees
+that if one thread is executing within the critical section, the others will be prevented from doing
+so.
+
+Virtually all of these terms, by the way, were coined by Edsger Dijkstra, who was a pioneer in the
+field and indeed won the Turing Award because of this and other work; see his 1968 paper on
+"Cooperating Sequential Processes" [D68] for an amazingly clear description of the problem. We'll be
+hearing more about Dijkstra in this section of the book.
+····································································································

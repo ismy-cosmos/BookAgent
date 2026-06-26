@@ -1,0 +1,14 @@
+{
+  "id": "cl-02",
+  "parser": "marker",
+  "elapsed_sec": 11.291,
+  "char_count": 2291,
+  "elements": [
+    {
+      "type": "markdown",
+      "content": "Table 4.7 Atropine Medication Grid\n\n| Class/                   | Prototype/ | Nursing                                                                                                                                                         | Therapeutic                                                                                                                          | Side/Adverse                                                                                                                                                                                                                   |\n|--------------------------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| Subclass                 | Generic    | Considerations                                                                                                                                                  | Effects                                                                                                                              | Effects                                                                                                                                                                                                                        |\n| Muscarinic<br>Antagonist | atropine   | Use with caution in the elderly  Contraindicated in high environmental temperatures because can cause heatstroke Physostigmine reverses anticholinergic effects | Dose dependent: Small dose\\ninhibits secretions; moderate dose\\nincreases heart rate; large dose decreases gastrointestinal motility | Constipation, dizziness, drowsiness, dry mouth. flushed skin, blurred vision  Immediately report symptoms of overdose: Urine retention, abnormal heartbeat, dizziness, passing out, difficulty breathing, weakness, or tremors |",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

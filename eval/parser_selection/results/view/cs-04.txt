@@ -1,0 +1,93 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  cs-04  |  计算/公式  |  VPN/offset 位宽数学推导
+  source: cs/vm-paging.pdf  page 4
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 0.125s   chars: 1373
+····································································································
+  [uncategorizedtext]4
+  [title]     PAGING: INTRODUCTION
+  [narrativetext]The page size is 16 bytes in a 64-byte address space; thus we need to be able to
+              select 4 pages, and the top 2 bits of the address do just that. Thus, we
+              have a 2-bit virtual page number (VPN). The remaining bits tell us which
+              byte of the page we are interested in, 4 bits in this case; we call this
+              the offset.
+  [narrativetext]When a process generates a virtual address, the OS and hardware must combine to
+              translate it into a meaningful physical address. For ex- ample, let us
+              assume the load above was to virtual address 21:
+  [title]     movl 21, %eax
+  [narrativetext]Turning “21” into binary form, we get “010101”, and thus we can ex- amine this virtual
+              address and see how it breaks down into a virtual page number (VPN) and
+              offset:
+  [title]     VPN
+  [narrativetext]offset
+  [uncategorizedtext]0
+  [uncategorizedtext]1
+  [uncategorizedtext]0
+  [uncategorizedtext]1
+  [uncategorizedtext]0
+  [uncategorizedtext]1
+  [narrativetext]Thus, the virtual address “21” is on the 5th (“0101”th) byte of virtual page “01” (or
+              1). With our virtual page number, we can now index our page table and
+              ﬁnd which physical frame virtual page 1 resides within. In the page
+              table above the physical frame number (PFN) (also sometimes called the
+              physical page number or PPN) is 7 (binary 111). Thus, we can translate
+              this virtual address by replacing the VPN with the PFN and then issue
+              the load to physical memory (Figure 18.3).
+  [title]     VPN
+  [narrativetext]offset
+  [title]     Virtual Address
+  [uncategorizedtext]0
+  [uncategorizedtext]1
+  [uncategorizedtext]0
+  [uncategorizedtext]1
+  [uncategorizedtext]0
+  [uncategorizedtext]1
+  [title]     Address Translation
+  [title]     Physical Address
+  [uncategorizedtext]1
+  [uncategorizedtext]1
+  [uncategorizedtext]1
+  [uncategorizedtext]0
+  [uncategorizedtext]1
+  [uncategorizedtext]0
+  [uncategorizedtext]1
+  [title]     PFN
+  [narrativetext]offset
+  [title]     Figure 18.3: The Address Translation Process
+  [uncategorizedtext]OPERATING SYSTEMS [VERSION 1.10]
+  [title]     WWW.OSTEP.ORG
+····································································································
+
+▶ MARKER
+  elapsed: 0.944s   chars: 1366
+····································································································
+The page size is 16 bytes in a 64-byte address space; thus we need to be able to select 4 pages, and
+the top 2 bits of the address do just that. Thus, we have a 2-bit virtual page number (VPN). The
+remaining bits tell us which byte of the page we are interested in, 4 bits in this case; we call
+this the offset.
+
+When a process generates a virtual address, the OS and hardware must combine to translate it into a
+meaningful physical address. For example, let us assume the load above was to virtual address 21:
+
+movl 21, %eax
+
+Turning "21" into binary form, we get "010101", and thus we can examine this virtual address and see
+how it breaks down into a virtual page number (VPN) and offset:
+
+| VPN |   | offset |   |   |   |
+|-----|---|--------|---|---|---|
+| 0   | 1 | 0      | 1 | 0 | 1 |
+
+Thus, the virtual address "21" is on the 5th ("0101"th) byte of virtual page "01" (or 1). With our
+virtual page number, we can now index our page table and find which physical frame virtual page 1
+resides within. In the page table above the **physical frame number** (**PFN**) (also sometimes
+called the **physical page number** or **PPN**) is 7 (binary 111). Thus, we can translate this
+virtual address by replacing the VPN with the PFN and then issue the load to physical memory (Figure
+18.3).
+
+![](_page_0_Figure_8.jpeg)
+
+Figure 18.3: **The Address Translation Process**
+····································································································

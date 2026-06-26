@@ -1,0 +1,214 @@
+{
+  "id": "cs-02",
+  "parser": "unstructured",
+  "elapsed_sec": 0.168,
+  "char_count": 2023,
+  "elements": [
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "2",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "3",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "4",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "5",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "6",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "7",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "8",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "9",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "10",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "11",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "12",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "13",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "14",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "15",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "16",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "17",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "18",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "19",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "20",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "21",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "22",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "23",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "24",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "4",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "CONCURRENCY: AN INTRODUCTION",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "#include <stdio.h> #include <assert.h> #include <pthread.h> #include \"common.h\" #include \"common_threads.h\"",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "void *mythread(void *arg) {",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "printf(\"%s\\n\", (char *) arg); return NULL;",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "}",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "int main(int argc, char *argv[]) {",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "pthread_t p1, p2; int rc; printf(\"main: begin\\n\"); Pthread_create(&p1, NULL, mythread, \"A\"); Pthread_create(&p2, NULL, mythread, \"B\"); // join waits for the threads to finish Pthread_join(p1, NULL); Pthread_join(p2, NULL); printf(\"main: end\\n\"); return 0;",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "}",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Figure 26.2: Simple Thread Creation Code (t0.c)",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "After creating the two threads (let’s call them T1 and T2), the main thread calls pthread_join(), which waits for a particular thread to complete. It does so twice, thus ensuring T1 and T2 will run and com- plete before ﬁnally allowing the main thread to run again; when it does, it will print “main: end” and exit. Overall, three threads were employed during this run: the main thread, T1, and T2.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Let us examine the possible execution ordering of this little program. In the execution diagram (Figure 26.3, page 5), time increases in the down- wards direction, and each column shows when a different thread (the main one, or Thread 1, or Thread 2) is running.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Note, however, that this ordering is not the only possible ordering. In fact, given a sequence of instructions, there are quite a few, depending on which thread the scheduler decides to run at a given point. For example, once a thread is created, it may run immediately, which would lead to the execution shown in Figure 26.4 (page 5).",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "We also could even see “B” printed before “A”, if, say, the scheduler decided to run Thread 2 ﬁrst even though Thread 1 was created earlier; there is no reason to assume that a thread that is created ﬁrst will run ﬁrst. Figure 26.5 (page 6) shows this ﬁnal execution ordering, with Thread 2 getting to strut its stuff before Thread 1.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "As you might be able to see, one way to think about thread creation",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "OPERATING SYSTEMS [VERSION 1.10]",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "WWW.OSTEP.ORG",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

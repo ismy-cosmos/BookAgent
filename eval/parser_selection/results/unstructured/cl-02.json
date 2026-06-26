@@ -1,0 +1,184 @@
+{
+  "id": "cl-02",
+  "parser": "unstructured",
+  "elapsed_sec": 0.195,
+  "char_count": 675,
+  "elements": [
+    {
+      "type": "header",
+      "content": "Table 4.7 Atropine Medication Grid",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Class/ Subclass",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Prototype/ Generic",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Nursing Considerations",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Muscarinic Antagonist",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "atropine",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Use with caution in the elderly",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Contraindicated in",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "high environmental",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "temperatures",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "because can cause",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "heatstroke",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Physostigmine",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "reverses",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "anticholinergic",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "effects",
+      "page_num": 1
+    },
+    {
+      "type": "footer",
+      "content": "306 | 4.7 Muscarinic Antagonists",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Therapeutic Effects",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Dose dependent: Small dose inhibits secretions; moderate dose increases heart rate; large dose decreases gastrointestinal motility",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Side/Adverse Effects",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Constipation, dizziness, drowsiness, dry mouth. flushed skin, blurred vision",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Immediately",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "report",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "symptoms of",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "overdose:",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Urine",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "retention,",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "abnormal",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "heartbeat,",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "dizziness,",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "passing out,",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "difficulty",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "breathing,",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "weakness, or",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "tremors",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

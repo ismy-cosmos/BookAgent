@@ -1,0 +1,79 @@
+{
+  "id": "lw-04",
+  "parser": "unstructured",
+  "elapsed_sec": 0.176,
+  "char_count": 2763,
+  "elements": [
+    {
+      "type": "title",
+      "content": "THE FOURTH AMENDMENT",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Chapter 2",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "What Is a Search? The Basics",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "With the readings for this chapter, we begin our exploration of the Fourth Amendment to the Constitution of the United States. The Fourth Amendment is short, just 54 words, and it reflects the desires of those who wrote and ratified it to protect Americans against unreasonable government intrusion into their lives. The Amendment mentions some of the more important aspects of a person’s life—her house, her papers, her effects, even her “person,” that is, her body— and declares that government agents may not unreasonably search or seize those things. Here is the text:",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "“The right of the people to be secure in their persons, houses, papers, and effects, against unreasonable searches and seizures, shall not be violated, and no warrants shall issue, but upon probable cause, supported by oath or affirmation, and particularly describing the place to be searched, and the persons or things to be seized.”",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "These words have inspired arguments about their meanings. For example, what counts as a “house” and thereby merits protection from unreasonable searches? Is it limited to physical buildings in which people live, or is some area outside the structure included? We will see later that the Court eventually defined the concept of “curtilage,” which is an outdoor area that the Court treats as part of the “house.”",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Over the coming weeks, students will encounter vigorous debate over the meaning of “reasonable.” When is it reasonable for a police officer to stop and frisk a pedestrian about whom the officer has suspicion? When is it reasonable for police to search cars without warrants? For now, we will set aside the concept of reasonableness for one simple reason: Before something can be an “unreasonable search,” it must first be a “search.” The cases assigned for this chapter concern the definition of “search” for purposes of Fourth Amendment jurisprudence. (Similarly, before something can be an “unreasonable seizure,” it must first be a “seizure.” We will consider the definition of “seizure” later in the semester.)",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "In the first case, Katz v. United States, the Justices attempt to bring their definition of “search” into the modern world.",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Supreme Court of the United States",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Charles Katz v. United States",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "Decided Dec. 18, 1967 — 389 U.S. 347",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "MR. JUSTICE STEWART delivered the opinion of the Court.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "The petitioner was convicted in the District Court for the Southern District of California under an eight-count indictment charging him with transmitting wagering information by telephone from Los Angeles to Miami and Boston in violation of a federal statute. At trial the Government was permitted, over the petitioner’s objection, to introduce evidence of the petitioner’s end of",
+      "page_num": 1
+    },
+    {
+      "type": "footer",
+      "content": "Chapter 2 — Page 39",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

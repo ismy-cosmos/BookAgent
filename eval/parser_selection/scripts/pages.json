@@ -1,0 +1,17 @@
+[
+  {"id": "cs-01", "source": "cs/cpu-sched.pdf",        "page": 2,   "element_type": "纯正文",       "note": "调度器 workload 假设列表段落"},
+  {"id": "cs-02", "source": "cs/threads-intro.pdf",    "page": 4,   "element_type": "代码块",       "note": "C/pthread #include 多段代码"},
+  {"id": "cs-03", "source": "cs/threads-intro.pdf",    "page": 10,  "element_type": "执行追踪表",   "note": "Thread 1/2/PC/eax/counter 多列表格"},
+  {"id": "cs-04", "source": "cs/vm-paging.pdf",        "page": 4,   "element_type": "计算/公式",    "note": "VPN/offset 位宽数学推导"},
+  {"id": "cs-05", "source": "cs/vm-paging.pdf",        "page": 7,   "element_type": "位域结构图",   "note": "x86 PTE 位位置标注"},
+  {"id": "cs-06", "source": "cs/cpu-intro.pdf",        "page": 6,   "element_type": "状态机图",     "note": "Running/Ready/Blocked + Figure caption"},
+  {"id": "cl-01", "source": "clinical/Bookshelf_NBK595000.pdf", "page": 33,  "element_type": "纯正文",       "note": "药代动力学四阶段概述"},
+  {"id": "cl-02", "source": "clinical/Bookshelf_NBK595000.pdf", "page": 318, "element_type": "多列药物表格", "note": "Table 4.7 五列 Medication Grid，单元格多行"},
+  {"id": "cl-03", "source": "clinical/Bookshelf_NBK595000.pdf", "page": 53,  "element_type": "PK曲线图",     "note": "Figure 1.6 半衰期药时曲线 + caption"},
+  {"id": "cl-04", "source": "clinical/Bookshelf_NBK595000.pdf", "page": 70,  "element_type": "剂量/稳态文字","note": "半衰期定量描述，含隐式公式"},
+  {"id": "cl-05", "source": "clinical/Bookshelf_NBK595000.pdf", "page": 271, "element_type": "结构化药物条目","note": "Vancomycin Route/Dose/Check 嵌套结构"},
+  {"id": "lw-01", "source": "law/Criminal-Procedure-July2022_0.pdf", "page": 23, "element_type": "案件引用索引","note": "Case v. Case, U.S. 密集列表"},
+  {"id": "lw-02", "source": "law/Criminal-Procedure-July2022_0.pdf", "page": 25, "element_type": "纯正文",       "note": "Chapter 1 Introduction 叙述段"},
+  {"id": "lw-03", "source": "law/Criminal-Procedure-July2022_0.pdf", "page": 27, "element_type": "案例分析文本", "note": "Ed Brown v. Mississippi 引用 + 法律推理"},
+  {"id": "lw-04", "source": "law/Criminal-Procedure-July2022_0.pdf", "page": 42, "element_type": "修正案/法条",  "note": "第四修正案原文 + Katz 分析"}
+]

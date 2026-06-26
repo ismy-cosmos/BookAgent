@@ -1,0 +1,389 @@
+{
+  "id": "cl-05",
+  "parser": "unstructured",
+  "elapsed_sec": 0.408,
+  "char_count": 1046,
+  "elements": [
+    {
+      "type": "title",
+      "content": "Miscellaneous Antibacterials: Glycopeptides",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "vancomycin",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Check for allergies",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Route: IV but",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "for C-diff may",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "be",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "administered",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "PO or rectally",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "as an instilled",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "enema",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Obtain",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "culture prior to",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "administering",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "first dose Dosage",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "adjustment is",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "required for",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "renal",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "impairment",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Monitor",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "trough levels",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "IV should be",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "administered",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "in a diluted",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "solution over a",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "period of 60",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "minutes or",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "more to avoid",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "rapid-infusion-",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "related",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "reactions",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Monitor for systemic signs of infection:",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Nephrotoxicity",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Ototoxicity",
+      "page_num": 1
+    },
+    {
+      "type": "listitem",
+      "content": "WBCs",
+      "page_num": 1
+    },
+    {
+      "type": "listitem",
+      "content": "Fever",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Monitor",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "actual site of",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "infection for",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "improvement",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Monitor and",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "report trough",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "levels for",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "targeted dosing",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "C-diff can occur",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "up to two months",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "after therapy",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "ends",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Vancomycin",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "flushing",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "syndrome can",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "occur if drug is",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "infused too",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "rapidly. Signs and",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "symptoms",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "include",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "maculopapular",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "rash on face,",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "neck, trunk, and",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "limbs and",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "pruritus and",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "hypotension",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "caused by",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "histamine release.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Stop infusion and",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "contact provider.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Prepare to",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "administer",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "diphenhydramine 50mg IV or PO.",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Monitor BP",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "closely; IV fluids",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "and/or",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "vasopressors may",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "be required if hypotensive. Infusion may be",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "restarted at a",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "slower rate after",
+      "page_num": 1
+    },
+    {
+      "type": "footer",
+      "content": "3.20 Miscellaneous Antibacterials: Glycopeptides | 259",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

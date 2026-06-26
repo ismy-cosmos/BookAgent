@@ -1,0 +1,101 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  cs-01  |  纯正文  |  调度器 workload 假设列表段落
+  source: cs/cpu-sched.pdf  page 2
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 1.032s   chars: 2360
+····································································································
+  [uncategorizedtext]2
+  [title]     SCHEDULING: INTRODUCTION
+  [title]     a fully-operational scheduling discipline1.
+  [narrativetext]We will make the following assumptions about the processes, some-
+  [narrativetext]times called jobs, that are running in the system:
+  [listitem]  1. Each job runs for the same amount of time. 2. All jobs arrive at the same time. 3.
+              Once started, each job runs to completion. 4. All jobs only use the CPU
+              (i.e., they perform no I/O) 5. The run-time of each job is known.
+  [narrativetext]We said many of these assumptions were unrealistic, but just as some animals are more
+              equal than others in Orwell’s Animal Farm [O45], some assumptions are
+              more unrealistic than others in this chapter. In particu- lar, it might
+              bother you that the run-time of each job is known: this would make the
+              scheduler omniscient, which, although it would be great (prob- ably), is
+              not likely to happen anytime soon.
+  [title]     7.2 Scheduling Metrics
+  [narrativetext]Beyond making workload assumptions, we also need one more thing to enable us to
+              compare different scheduling policies: a scheduling met- ric. A metric
+              is just something that we use to measure something, and there are a
+              number of different metrics that make sense in scheduling.
+  [narrativetext]For now, however, let us also simplify our life by simply having a sin- gle metric:
+              turnaround time. The turnaround time of a job is deﬁned as the time at
+              which the job completes minus the time at which the job arrived in the
+              system. More formally, the turnaround time Tturnaround is:
+  [title]     Tturnaround = Tcompletion − Tarrival
+  [uncategorizedtext](7.1)
+  [narrativetext]Because we have assumed that all jobs arrive at the same time, for now Tarrival = 0
+              and hence Tturnaround = Tcompletion. This fact will change as we relax
+              the aforementioned assumptions.
+  [narrativetext]You should note that turnaround time is a performance metric, which will be our
+              primary focus this chapter. Another metric of interest is fair- ness, as
+              measured (for example) by Jain’s Fairness Index [J91]. Perfor- mance and
+              fairness are often at odds in scheduling; a scheduler, for ex- ample,
+              may optimize performance but at the cost of preventing a few jobs from
+              running, thus decreasing fairness. This conundrum shows us that life
+              isn’t always perfect.
+  [title]     7.3 First In, First Out (FIFO)
+  [narrativetext]The most basic algorithm we can implement is known as First In, First Out (FIFO)
+              scheduling or sometimes First Come, First Served (FCFS).
+  [narrativetext]1Said in the same way you would say “A fully-operational Death Star.”
+  [uncategorizedtext]OPERATING SYSTEMS [VERSION 1.10]
+  [title]     WWW.OSTEP.ORG
+····································································································
+
+▶ MARKER
+  elapsed: 3.056s   chars: 2464
+····································································································
+## a **fully-operational scheduling discipline**<sup>1</sup> .
+
+We will make the following assumptions about the processes, sometimes called **jobs**, that are
+running in the system:
+
+- 1. Each job runs for the same amount of time.
+- 2. All jobs arrive at the same time.
+- 3. Once started, each job runs to completion.
+- 4. All jobs only use the CPU (i.e., they perform no I/O)
+- 5. The run-time of each job is known.
+
+We said many of these assumptions were unrealistic, but just as some animals are more equal than
+others in Orwell's *Animal Farm* [O45], some assumptions are more unrealistic than others in this
+chapter. In particular, it might bother you that the run-time of each job is known: this would make
+the scheduler omniscient, which, although it would be great (probably), is not likely to happen
+anytime soon.
+
+## 7.2 Scheduling Metrics
+
+Beyond making workload assumptions, we also need one more thing to enable us to compare different
+scheduling policies: a **scheduling metric**. A metric is just something that we use to *measure*
+something, and there are a number of different metrics that make sense in scheduling.
+
+For now, however, let us also simplify our life by simply having a single metric: **turnaround
+time**. The turnaround time of a job is defined as the time at which the job completes minus the
+time at which the job arrived in the system. More formally, the turnaround time
+<sup>T</sup>turnaround is:
+
+$$T_{turnaround} = T_{completion} - T_{arrival} \tag{7.1}$$
+
+Because we have assumed that all jobs arrive at the same time, for now <sup>T</sup>arrival = 0 and
+hence <sup>T</sup>turnaround <sup>=</sup> <sup>T</sup>completion. This fact will change as we relax
+the aforementioned assumptions.
+
+You should note that turnaround time is a **performance** metric, which will be our primary focus
+this chapter. Another metric of interest is **fairness**, as measured (for example) by **Jain's
+Fairness Index** [J91]. Performance and fairness are often at odds in scheduling; a scheduler, for
+example, may optimize performance but at the cost of preventing a few jobs from running, thus
+decreasing fairness. This conundrum shows us that life isn't always perfect.
+
+## 7.3 First In, First Out (FIFO)
+
+The most basic algorithm we can implement is known as **First In, First Out** (**FIFO**) scheduling
+or sometimes **First Come, First Served** (**FCFS**).
+
+<sup>1</sup> Said in the same way you would say "A fully-operational Death Star."
+····································································································

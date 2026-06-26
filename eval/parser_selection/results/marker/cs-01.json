@@ -1,0 +1,14 @@
+{
+  "id": "cs-01",
+  "parser": "marker",
+  "elapsed_sec": 3.056,
+  "char_count": 2464,
+  "elements": [
+    {
+      "type": "markdown",
+      "content": "## a **fully-operational scheduling discipline**<sup>1</sup> .\n\nWe will make the following assumptions about the processes, sometimes called **jobs**, that are running in the system:\n\n- 1. Each job runs for the same amount of time.\n- 2. All jobs arrive at the same time.\n- 3. Once started, each job runs to completion.\n- 4. All jobs only use the CPU (i.e., they perform no I/O)\n- 5. The run-time of each job is known.\n\nWe said many of these assumptions were unrealistic, but just as some animals are more equal than others in Orwell's *Animal Farm* [O45], some assumptions are more unrealistic than others in this chapter. In particular, it might bother you that the run-time of each job is known: this would make the scheduler omniscient, which, although it would be great (probably), is not likely to happen anytime soon.\n\n## 7.2 Scheduling Metrics\n\nBeyond making workload assumptions, we also need one more thing to enable us to compare different scheduling policies: a **scheduling metric**. A metric is just something that we use to *measure* something, and there are a number of different metrics that make sense in scheduling.\n\nFor now, however, let us also simplify our life by simply having a single metric: **turnaround time**. The turnaround time of a job is defined as the time at which the job completes minus the time at which the job arrived in the system. More formally, the turnaround time <sup>T</sup>turnaround is:\n\n$$T_{turnaround} = T_{completion} - T_{arrival} \\tag{7.1}$$\n\nBecause we have assumed that all jobs arrive at the same time, for now <sup>T</sup>arrival = 0 and hence <sup>T</sup>turnaround <sup>=</sup> <sup>T</sup>completion. This fact will change as we relax the aforementioned assumptions.\n\nYou should note that turnaround time is a **performance** metric, which will be our primary focus this chapter. Another metric of interest is **fairness**, as measured (for example) by **Jain's Fairness Index** [J91]. Performance and fairness are often at odds in scheduling; a scheduler, for example, may optimize performance but at the cost of preventing a few jobs from running, thus decreasing fairness. This conundrum shows us that life isn't always perfect.\n\n## 7.3 First In, First Out (FIFO)\n\nThe most basic algorithm we can implement is known as **First In, First Out** (**FIFO**) scheduling or sometimes **First Come, First Served** (**FCFS**).\n\n<sup>1</sup> Said in the same way you would say \"A fully-operational Death Star.\"",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

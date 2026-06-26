@@ -1,0 +1,14 @@
+{
+  "id": "cl-04",
+  "parser": "marker",
+  "elapsed_sec": 0.749,
+  "char_count": 1996,
+  "elements": [
+    {
+      "type": "markdown",
+      "content": "## Duration, Dosing, and Steady State\n\nNow let's consider the implication of duration and dosing. Remember the duration of medication is correlated with the elimination. Half-life is the amount of time that it takes for half of the drug to be eliminated from the body.\n\nIf a medication has a short half-life (and is therefore eliminated more quickly from the body), the therapeutic effect is shorter. These medications may require repeated dosing throughout the day in order to achieve steady blood levels of active free drug and a sustained therapeutic effect.\n\nOther medications have a longer half-life (and therefore are eliminated more slowly from the body, resulting in longer therapeutic duration) and may only be administered once or twice per day. For example, oxycodone immediate release is prescribed every 4 to 6 hours for the therapeutic effect of immediate relief of severe pain, whereas oxycodone ER (extended release) is prescribed every 12 hours for the therapeutic effect of sustained relief of severe pain.\n\n**Steady state** refers to the point at which the amount of drug entering the body is equal to the amount of drug being eliminated, resulting in a stable drug concentration. 2 When steady state is achieved, there is a state of equilibrium in the body and the concentration of the drug remains constant, resulting in optimal therapeutic effect.\n\n## Clinical Example\n\nConsider this client care example and apply the principles of onset, peak, and duration: A 67-year-old female postoperative client rings the call light to request medication for pain related to the hip replacement procedure she had earlier that day. She notes her pain is \"excruciating, a definite 9 out of 10.\" Her brow is furrowed, and she is grimacing in obvious discomfort. As the nurse providing care for the client, you examine her postoperative medication orders and consider the pain medication options available to you. In reviewing the various options, it is important to consider how quickly a",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

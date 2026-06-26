@@ -1,0 +1,79 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  cl-04  |  剂量/稳态文字  |  半衰期定量描述，含隐式公式
+  source: clinical/Bookshelf_NBK595000.pdf  page 70
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 0.269s   chars: 2107
+····································································································
+  [narrativetext]Duration, Dosing, and Steady State Now let’s consider the implication of duration and
+              dosing. Remember the
+  [narrativetext]duration of medication is correlated with the elimination. Half-life is the
+  [narrativetext]amount of time that it takes for half of the drug to be eliminated from the
+  [title]     body.
+  [narrativetext]If a medication has a short half-life (and is therefore eliminated more
+  [narrativetext]quickly from the body), the therapeutic effect is shorter. These medications
+  [narrativetext]may require repeated dosing throughout the day in order to achieve steady
+  [title]     blood levels of active free drug and a sustained therapeutic effect.
+  [narrativetext]Other medications have a longer half-life (and therefore are eliminated
+  [narrativetext]more slowly from the body, resulting in longer therapeutic duration) and may
+  [narrativetext]only be administered once or twice per day. For example, oxycodone
+  [narrativetext]immediate release is prescribed every 4 to 6 hours for the therapeutic effect
+  [narrativetext]of immediate relief of severe pain, whereas oxycodone ER (extended release)
+  [narrativetext]is prescribed every 12 hours for the therapeutic effect of sustained relief of
+  [title]     severe pain.
+  [narrativetext]Steady state refers to the point at which the amount of drug entering the
+  [narrativetext]body is equal to the amount of drug being eliminated, resulting in a stable
+  [title]     drug concentration.
+  [uncategorizedtext]2
+  [narrativetext]When steady state is achieved, there is a state of
+  [narrativetext]equilibrium in the body and the concentration of the drug remains constant,
+  [narrativetext]resulting in optimal therapeutic effect.
+  [narrativetext]Clinical Example Consider this client care example and apply the principles of onset,
+              peak, and
+  [title]     duration: A 67-year-old female postoperative client rings the call light to
+  [narrativetext]request medication for pain related to the hip replacement procedure she
+  [narrativetext]had earlier that day. She notes her pain is “excruciating, a definite 9 out of 10.”
+  [narrativetext]Her brow is furrowed, and she is grimacing in obvious discomfort. As the
+  [narrativetext]nurse providing care for the client, you examine her postoperative medication
+  [narrativetext]orders and consider the pain medication options available to you. In
+  [narrativetext]reviewing the various options, it is important to consider how quickly a
+  [footer]    2. This work is a derivative of StatPearls by Wadhwa and Cascella and is licensed
+              under CC BY 4.0
+  [footer]    58 | 1.9 Efficacy, Dose-Response, Onset, Peak, and Duration
+····································································································
+
+▶ MARKER
+  elapsed: 0.749s   chars: 1996
+····································································································
+## Duration, Dosing, and Steady State
+
+Now let's consider the implication of duration and dosing. Remember the duration of medication is
+correlated with the elimination. Half-life is the amount of time that it takes for half of the drug
+to be eliminated from the body.
+
+If a medication has a short half-life (and is therefore eliminated more quickly from the body), the
+therapeutic effect is shorter. These medications may require repeated dosing throughout the day in
+order to achieve steady blood levels of active free drug and a sustained therapeutic effect.
+
+Other medications have a longer half-life (and therefore are eliminated more slowly from the body,
+resulting in longer therapeutic duration) and may only be administered once or twice per day. For
+example, oxycodone immediate release is prescribed every 4 to 6 hours for the therapeutic effect of
+immediate relief of severe pain, whereas oxycodone ER (extended release) is prescribed every 12
+hours for the therapeutic effect of sustained relief of severe pain.
+
+**Steady state** refers to the point at which the amount of drug entering the body is equal to the
+amount of drug being eliminated, resulting in a stable drug concentration. 2 When steady state is
+achieved, there is a state of equilibrium in the body and the concentration of the drug remains
+constant, resulting in optimal therapeutic effect.
+
+## Clinical Example
+
+Consider this client care example and apply the principles of onset, peak, and duration: A 67-year-
+old female postoperative client rings the call light to request medication for pain related to the
+hip replacement procedure she had earlier that day. She notes her pain is "excruciating, a definite
+9 out of 10." Her brow is furrowed, and she is grimacing in obvious discomfort. As the nurse
+providing care for the client, you examine her postoperative medication orders and consider the pain
+medication options available to you. In reviewing the various options, it is important to consider
+how quickly a
+····································································································

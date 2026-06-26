@@ -1,0 +1,119 @@
+{
+  "id": "cs-06",
+  "parser": "unstructured",
+  "elapsed_sec": 0.129,
+  "char_count": 1571,
+  "elements": [
+    {
+      "type": "uncategorizedtext",
+      "content": "6",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "THE ABSTRACTION: THE PROCESS",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Descheduled",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Running",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Ready",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Scheduled",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "I/O: initiate",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "I/O: done",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Blocked",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Figure 4.2: Process: State Transitions",
+      "page_num": 1
+    },
+    {
+      "type": "listitem",
+      "content": "Blocked: In the blocked state, a process has performed some kind of operation that makes it not ready to run until some other event takes place. A common example: when a process initiates an I/O request to a disk, it becomes blocked and thus some other process can use the processor.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "If we were to map these states to a graph, we would arrive at the di- agram in Figure 4.2. As you can see in the diagram, a process can be moved between the ready and running states at the discretion of the OS. Being moved from ready to running means the process has been sched- uled; being moved from running to ready means the process has been descheduled. Once a process has become blocked (e.g., by initiating an I/O operation), the OS will keep it as such until some event occurs (e.g., I/O completion); at that point, the process moves to the ready state again (and potentially immediately to running again, if the OS so decides).",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Let’s look at an example of how two processes might transition through some of these states. First, imagine two processes running, each of which only use the CPU (they do no I/O). In this case, a trace of the state of each process might look like this (Figure 4.3).",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "Time 1 2 3 4 5 6 7 8",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Process0 Running Running Running Running – – – –",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Process1 Ready Ready Ready Ready Running Running Running Running",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Notes",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Process0 now done",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Process1 now done",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Figure 4.3: Tracing Process State: CPU Only",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "OPERATING SYSTEMS [VERSION 1.10]",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "WWW.OSTEP.ORG",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

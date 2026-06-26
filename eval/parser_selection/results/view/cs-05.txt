@@ -1,0 +1,112 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  cs-05  |  位域结构图  |  x86 PTE 位位置标注
+  source: cs/vm-paging.pdf  page 7
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 0.172s   chars: 2758
+····································································································
+  [title]     PAGING: INTRODUCTION
+  [uncategorizedtext]31
+  [uncategorizedtext]12 11 9 8 7 6 5 4 3 2 1 0
+  [title]     PFN
+  [title]     G
+  [title]     T A P
+  [title]     D A
+  [title]     D C P
+  [title]     T W P
+  [title]     S U
+  [uncategorizedtext]/
+  [title]     W R
+  [uncategorizedtext]/
+  [title]     Figure 18.5: An x86 Page Table Entry (PTE)
+  [narrativetext]We also might have protection bits, indicating whether the page could be read from,
+              written to, or executed from. Again, accessing a page in a way not
+              allowed by these bits will generate a trap to the OS.
+  [narrativetext]There are a couple of other bits that are important but we won’t talk about much for
+              now. A present bit indicates whether this page is in phys- ical memory
+              or on disk (i.e., it has been swapped out). We will under- stand this
+              machinery further when we study how to swap parts of the address space
+              to disk to support address spaces that are larger than phys- ical
+              memory; swapping allows the OS to free up physical memory by moving
+              rarely-used pages to disk. A dirty bit is also common, indicating
+              whether the page has been modiﬁed since it was brought into memory.
+  [narrativetext]A reference bit (a.k.a. accessed bit) is sometimes used to track whether a page has
+              been accessed, and is useful in determining which pages are popular and
+              thus should be kept in memory; such knowledge is critical during page
+              replacement, a topic we will study in great detail in subse- quent
+              chapters.
+  [narrativetext]Figure 18.5 shows an example page table entry from the x86 architec- ture [I09]. It
+              contains a present bit (P); a read/write bit (R/W) which determines if
+              writes are allowed to this page; a user/supervisor bit (U/S) which
+              determines if user-mode processes can access the page; a few bits (PWT,
+              PCD, PAT, and G) that determine how hardware caching works for these
+              pages; an accessed bit (A) and a dirty bit (D); and ﬁnally, the page
+              frame number (PFN) itself.
+  [narrativetext]Read the Intel Architecture Manuals [I09] for more details on x86 pag- ing support. Be
+              forewarned, however; reading manuals such as these, while quite
+              informative (and certainly necessary for those who write code to use
+              such page tables in the OS), can be challenging at ﬁrst. A little pa-
+              tience, and a lot of desire, is required.
+  [narrativetext]ASIDE: WHY NO VALID BIT? You may notice that in the Intel example, there are no
+              separate valid and present bits, but rather just a present bit (P). If
+              that bit is set (P=1), it means the page is both present and valid. If
+              not (P=0), it means that the page may not be present in memory (but is
+              valid), or may not be valid. An access to a page with P=0 will trigger a
+              trap to the OS; the OS must then use additional structures it keeps to
+              determine whether the page is valid (and thus perhaps should be swapped
+              back in) or not (and thus the program is attempting to access memory
+              illegally). This sort of judiciousness is common in hardware, which
+              often just provide the minimal set of features upon which the OS can
+              build a full service.
+  [title]     © 2008–25, ARPACI-DUSSEAU
+  [footer]    THREE EASY PIECES
+  [uncategorizedtext]7
+  [title]     P
+····································································································
+
+▶ MARKER
+  elapsed: 37.641s   chars: 2702
+····································································································
+![](_page_0_Figure_2.jpeg)
+
+Figure 18.5: An x86 Page Table Entry (PTE)
+
+We also might have **protection bits**, indicating whether the page could be read from, written to,
+or executed from. Again, accessing a page in a way not allowed by these bits will generate a trap to
+the OS.
+
+There are a couple of other bits that are important but we won't talk about much for now. A
+**present bit** indicates whether this page is in physical memory or on disk (i.e., it has been
+**swapped out**). We will understand this machinery further when we study how to **swap** parts of
+the address space to disk to support address spaces that are larger than physical memory; swapping
+allows the OS to free up physical memory by moving rarely-used pages to disk. A **dirty bit** is
+also common, indicating whether the page has been modified since it was brought into memory.
+
+A **reference bit** (a.k.a. **accessed bit**) is sometimes used to track whether a page has been
+accessed, and is useful in determining which pages are popular and thus should be kept in memory;
+such knowledge is critical during **page replacement**, a topic we will study in great detail in
+subsequent chapters.
+
+Figure 18.5 shows an example page table entry from the x86 architecture [109]. It contains a present
+bit (P); a read/write bit (R/W) which determines if writes are allowed to this page; a
+user/supervisor bit (U/S) which determines if user-mode processes can access the page; a few bits
+(PWT, PCD, PAT, and G) that determine how hardware caching works for these pages; an accessed bit
+(A) and a dirty bit (D); and finally, the page frame number (PFN) itself.
+
+Read the Intel Architecture Manuals [I09] for more details on x86 paging support. Be forewarned,
+however; reading manuals such as these, while quite informative (and certainly necessary for those
+who write code to use such page tables in the OS), can be challenging at first. A little patience,
+and a lot of desire, is required.
+
+## ASIDE: WHY NO VALID BIT?
+
+You may notice that in the Intel example, there are no separate valid and present bits, but rather
+just a present bit (P). If that bit is set (P=1), it means the page is both present and valid. If
+not (P=0), it means that the page may not be present in memory (but is valid), or may not be valid.
+An access to a page with P=0 will trigger a trap to the OS; the OS must then use additional
+structures it keeps to determine whether the page is valid (and thus perhaps should be swapped back
+in) or not (and thus the program is attempting to access memory illegally). This sort of
+judiciousness is common in hardware, which often just provide the minimal set of features upon which
+the OS can build a full service.
+····································································································

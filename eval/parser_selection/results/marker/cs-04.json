@@ -1,0 +1,14 @@
+{
+  "id": "cs-04",
+  "parser": "marker",
+  "elapsed_sec": 0.944,
+  "char_count": 1366,
+  "elements": [
+    {
+      "type": "markdown",
+      "content": "The page size is 16 bytes in a 64-byte address space; thus we need to be able to select 4 pages, and the top 2 bits of the address do just that. Thus, we have a 2-bit virtual page number (VPN). The remaining bits tell us which byte of the page we are interested in, 4 bits in this case; we call this the offset.\n\nWhen a process generates a virtual address, the OS and hardware must combine to translate it into a meaningful physical address. For example, let us assume the load above was to virtual address 21:\n\nmovl 21, %eax\n\nTurning \"21\" into binary form, we get \"010101\", and thus we can examine this virtual address and see how it breaks down into a virtual page number (VPN) and offset:\n\n| VPN |   | offset |   |   |   |\n|-----|---|--------|---|---|---|\n| 0   | 1 | 0      | 1 | 0 | 1 |\n\nThus, the virtual address \"21\" is on the 5th (\"0101\"th) byte of virtual page \"01\" (or 1). With our virtual page number, we can now index our page table and find which physical frame virtual page 1 resides within. In the page table above the **physical frame number** (**PFN**) (also sometimes called the **physical page number** or **PPN**) is 7 (binary 111). Thus, we can translate this virtual address by replacing the VPN with the PFN and then issue the load to physical memory (Figure 18.3).\n\n![](_page_0_Figure_8.jpeg)\n\nFigure 18.3: **The Address Translation Process**",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}
