@@ -1,0 +1,89 @@
+{
+  "id": "cl-03",
+  "parser": "unstructured",
+  "elapsed_sec": 0.134,
+  "char_count": 1152,
+  "elements": [
+    {
+      "type": "title",
+      "content": "Figure 1.6 Half-Life Affecting Blood Concentration of Medication Over Time",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Half-life affects the duration of the therapeutic effect of a medication. Many",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "factors can influence half-life. For example, liver disease can prolong half-life if",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "it is no longer effectively metabolizing the medication. Information about",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "half-life of a specific medication can be found in evidence-based medication references. For example, in the “Clinical Pharmacology” section of the",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "DailyMed reference for",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "furosemide, the half-life is approximately two hours.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Depending on whether a drug is metabolized and eliminated by the",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "kidneys or liver, impairment in either of these systems can significantly alter",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "medication dosing, frequency of doses, anticipated therapeutic effect, and",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "even whether a particular medication can be used at all. Nurses must work",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "with other members of the health care team to prevent drug interactions that",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "could significantly affect a client’s health and well-being. Nurses must be",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "alert for signs of a toxic buildup of metabolites or active drugs, particularly if",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "the client has liver or kidney disease, so that they can alert the health care",
+      "page_num": 1
+    },
+    {
+      "type": "footer",
+      "content": "1.5 Metabolism | 41",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

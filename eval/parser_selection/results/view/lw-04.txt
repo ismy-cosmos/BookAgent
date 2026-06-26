@@ -1,0 +1,112 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  lw-04  |  修正案/法条  |  第四修正案原文 + Katz 分析
+  source: law/Criminal-Procedure-July2022_0.pdf  page 42
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 0.176s   chars: 2763
+····································································································
+  [title]     THE FOURTH AMENDMENT
+  [title]     Chapter 2
+  [title]     What Is a Search? The Basics
+  [narrativetext]With the readings for this chapter, we begin our exploration of the Fourth Amendment
+              to the Constitution of the United States. The Fourth Amendment is short,
+              just 54 words, and it reflects the desires of those who wrote and
+              ratified it to protect Americans against unreasonable government
+              intrusion into their lives. The Amendment mentions some of the more
+              important aspects of a person’s life—her house, her papers, her effects,
+              even her “person,” that is, her body— and declares that government
+              agents may not unreasonably search or seize those things. Here is the
+              text:
+  [narrativetext]“The right of the people to be secure in their persons, houses, papers, and effects,
+              against unreasonable searches and seizures, shall not be violated, and
+              no warrants shall issue, but upon probable cause, supported by oath or
+              affirmation, and particularly describing the place to be searched, and
+              the persons or things to be seized.”
+  [narrativetext]These words have inspired arguments about their meanings. For example, what counts as
+              a “house” and thereby merits protection from unreasonable searches? Is
+              it limited to physical buildings in which people live, or is some area
+              outside the structure included? We will see later that the Court
+              eventually defined the concept of “curtilage,” which is an outdoor area
+              that the Court treats as part of the “house.”
+  [narrativetext]Over the coming weeks, students will encounter vigorous debate over the meaning of
+              “reasonable.” When is it reasonable for a police officer to stop and
+              frisk a pedestrian about whom the officer has suspicion? When is it
+              reasonable for police to search cars without warrants? For now, we will
+              set aside the concept of reasonableness for one simple reason: Before
+              something can be an “unreasonable search,” it must first be a “search.”
+              The cases assigned for this chapter concern the definition of “search”
+              for purposes of Fourth Amendment jurisprudence. (Similarly, before
+              something can be an “unreasonable seizure,” it must first be a
+              “seizure.” We will consider the definition of “seizure” later in the
+              semester.)
+  [narrativetext]In the first case, Katz v. United States, the Justices attempt to bring their
+              definition of “search” into the modern world.
+  [title]     Supreme Court of the United States
+  [title]     Charles Katz v. United States
+  [uncategorizedtext]Decided Dec. 18, 1967 — 389 U.S. 347
+  [narrativetext]MR. JUSTICE STEWART delivered the opinion of the Court.
+  [narrativetext]The petitioner was convicted in the District Court for the Southern District of
+              California under an eight-count indictment charging him with
+              transmitting wagering information by telephone from Los Angeles to Miami
+              and Boston in violation of a federal statute. At trial the Government
+              was permitted, over the petitioner’s objection, to introduce evidence of
+              the petitioner’s end of
+  [footer]    Chapter 2 — Page 39
+····································································································
+
+▶ MARKER
+  elapsed: 0.809s   chars: 3136
+····································································································
+## **THE FOURTH AMENDMENT**
+
+## **Chapter 2**
+
+## **What Is a Search? The Basics**
+
+With the readings for this chapter, we begin our exploration of the Fourth Amendment to the
+Constitution of the United States. The Fourth Amendment is short, just 54 words, and it reflects the
+desires of those who wrote and ratified it to protect Americans against unreasonable government
+intrusion into their lives. The Amendment mentions some of the more important aspects of a person's
+life—her house, her papers, her effects, even her "person," that is, her body and declares that
+government agents may not unreasonably search or seize those things. Here is the text:
+
+"The right of the people to be secure in their persons, houses, papers, and effects, against
+unreasonable searches and seizures, shall not be violated, and no warrants shall issue, but upon
+probable cause, supported by oath or affirmation, and particularly describing the place to be
+searched, and the persons or things to be seized."
+
+These words have inspired arguments about their meanings. For example, what counts as a "house" and
+thereby merits protection from unreasonable searches? Is it limited to physical buildings in which
+people live, or is some area outside the structure included? We will see later that the Court
+eventually defined the concept of "curtilage," which is an outdoor area that the Court treats as
+part of the "house."
+
+Over the coming weeks, students will encounter vigorous debate over the meaning of "reasonable."
+When is it reasonable for a police officer to stop and frisk a pedestrian about whom the officer has
+suspicion? When is it reasonable for police to search cars without warrants? For now, we will set
+aside the concept of reasonableness for one simple reason: Before something can be an "unreasonable
+search," it must first be a "search." The cases assigned for this chapter concern the definition of
+"search" for purposes of Fourth Amendment jurisprudence. (Similarly, before something can be an
+"unreasonable seizure," it must first be a "seizure." We will consider the definition of "seizure"
+later in the semester.)
+
+In the first case, *Katz v. United States*, the Justices attempt to bring their definition of
+"search" into the modern world.
+
+Supreme Court of the United States
+
+**[Charles Katz](http://www.westlaw.com/Search/Results.html?query=advanced%3a+OAID(5022877819)&saveJ
+uris=False&contentType=BUSINESS-INVESTIGATOR&startIndex=1&contextData=(sc.Default)&categoryPageUrl=H
+ome%2fCompanyInvestigator&originationContext=document&vr=3.0&rs=cblt1.0&transitionType=DocumentItem)
+v. United States**
+
+Decided Dec. 18, 1967 — [389 U.S. 347](https://supreme.justia.com/cases/federal/us/389/347/)
+
+MR. JUSTICE STEWART delivered the opinion of the Court.
+
+The petitioner was convicted in the District Court for the Southern District of California under an
+eight-count indictment charging him with transmitting wagering information by telephone from Los
+Angeles to Miami and Boston in violation of a federal statute. At trial the Government was
+permitted, over the petitioner's objection, to introduce evidence of the petitioner's end of
+····································································································

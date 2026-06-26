@@ -1,0 +1,154 @@
+{
+  "id": "cl-01",
+  "parser": "unstructured",
+  "elapsed_sec": 0.237,
+  "char_count": 1851,
+  "elements": [
+    {
+      "type": "title",
+      "content": "1.2 Pharmacokinetics",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Pharmacokinetics – Examining the Interaction of Body and Drug",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Overview",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Pharmacokinetics is the term that describes the four stages of absorption,",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "distribution, metabolism, and excretion of drugs. Drugs are medications or",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "other substances that have a physiological effect when introduced to the",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "body. There are four basic stages a medication goes through within the",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "human body: absorption, distribution, metabolism, and excretion. This entire",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "process is sometimes abbreviated ADME.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Absorption is the first stage of pharmacokinetics and occurs after",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "medications enter the body and travel from the site of administration into the",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "body’s circulation. Distribution is the second stage of pharmacokinetics. It is",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "the process by which medication is spread throughout the body. Metabolism",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "is the third stage of pharmacokinetics and involves the breakdown of a drug",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "molecule. Excretion is the final stage of pharmacokinetics and refers to the",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "process in which the body eliminates waste. Each of these stages is described",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "separately in the following sections of this chapter.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Research scientists who specialize in pharmacokinetics must also pay",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "attention to another dimension of drug action within the body: time.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Scientists do not have the ability to visualize where a drug is going or how",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "long it is active. To compensate, they use mathematical models and precise",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "measurements of blood and urine to determine where a drug goes and how",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "much of the drug (or breakdown product) remains after the body processes it.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Other indicators, such as blood levels of liver enzymes, can help predict how",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "much of a drug is going to be absorbed.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Principles of chemistry are also applied while studying pharmacokinetics",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "because the interactions between drugs and body molecules represent a",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "series of chemical reactions. Understanding the chemical encounters",
+      "page_num": 1
+    },
+    {
+      "type": "footer",
+      "content": "1.2 Pharmacokinetics | 21",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

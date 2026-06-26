@@ -1,0 +1,34 @@
+{
+  "id": "lw-03",
+  "parser": "unstructured",
+  "elapsed_sec": 0.15,
+  "char_count": 3899,
+  "elements": [
+    {
+      "type": "narrativetext",
+      "content": "“The other two defendants, Ed Brown and Henry Shields, were also arrested and taken to the same jail. On Sunday night, April 1, 1934, the same deputy, accompanied by a number of white men, one of whom was also an officer, and by the jailer, came to the jail, and the two last named defendants were made to strip and they were laid over chairs and their backs were cut to pieces with a leather strap with buckles on it, and they were likewise made by the said deputy definitely to understand that the whipping would be continued unless and until they confessed, and not only confessed, but confessed in every matter of detail as demanded by those present; and in this manner the defendants confessed the crime, and, as the whippings progressed and were repeated, they changed or adjusted their confession in all particulars of detail so as to conform to the demands of their torturers. When the confessions had been obtained in the exact form and contents as desired by the mob, they left with the parting admonition and warning that, if the defendants changed their story at any time in any respect from that last stated, the perpetrators of the outrage would administer the same or equally effective treatment.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "“Further details of the brutal treatment to which these helpless prisoners were subjected need not be pursued. It is sufficient to say that in pertinent respects the transcript reads more like pages torn from some medieval account than a record made within the confines of a modern civilization which aspires to an enlightened constitutional government.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "“All this having been accomplished, on the next day, that is, on Monday, April 2, when the defendants had been given time to recuperate somewhat from the tortures to which they had been subjected, the two sheriffs, one of the county where the crime was committed, and the other of the county of the jail in which the prisoners were confined, came to the jail, accompanied by eight other persons, some of them deputies, there to hear the free and voluntary confession of these miserable and abject defendants. The sheriff of the county of the crime admitted that he had heard of the whipping but averred that he had no personal knowledge of it. He admitted that one of the defendants, when brought before him to confess, was limping and did not sit down, and that this particular defendant then and there stated that he had been strapped so severely that he could not sit down, and, as already stated, the signs of the rope on the neck of another of the defendants were plainly visible to all. Nevertheless the solemn farce of hearing the free and voluntary confessions was gone through with, and these two sheriffs and one other person then present were the three witnesses used in court to establish the so-called confessions, which were received by the court and admitted in evidence over the objections of the defendants duly entered of record as each of the said three witnesses delivered their alleged testimony. There was thus enough before the court when these confessions were first offered to make known to the court that they were not, beyond all reasonable doubt, free and voluntary; and the failure of the court then to exclude the confessions is sufficient to reverse the judgment, under every rule of procedure that has heretofore been prescribed, and hence it was not necessary subsequently to renew the objections by motion or otherwise.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "“The spurious confessions having been obtained—and the farce last mentioned having been gone through with on Monday, April 2d—the court, then in session, on the following day, Tuesday, April 3, 1934, ordered the grand jury to reassemble on the succeeding day, April 4, 1934, at 9 o’clock, and on the morning of the day last mentioned the grand jury returned an indictment against the defendants for murder. Late that afternoon the defendants were brought from the",
+      "page_num": 1
+    },
+    {
+      "type": "footer",
+      "content": "Chapter 1 – Page 24",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

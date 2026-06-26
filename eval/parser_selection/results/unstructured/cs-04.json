@@ -1,0 +1,199 @@
+{
+  "id": "cs-04",
+  "parser": "unstructured",
+  "elapsed_sec": 0.125,
+  "char_count": 1373,
+  "elements": [
+    {
+      "type": "uncategorizedtext",
+      "content": "4",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "PAGING: INTRODUCTION",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "The page size is 16 bytes in a 64-byte address space; thus we need to be able to select 4 pages, and the top 2 bits of the address do just that. Thus, we have a 2-bit virtual page number (VPN). The remaining bits tell us which byte of the page we are interested in, 4 bits in this case; we call this the offset.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "When a process generates a virtual address, the OS and hardware must combine to translate it into a meaningful physical address. For ex- ample, let us assume the load above was to virtual address 21:",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "movl 21, %eax",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Turning “21” into binary form, we get “010101”, and thus we can ex- amine this virtual address and see how it breaks down into a virtual page number (VPN) and offset:",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "VPN",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "offset",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Thus, the virtual address “21” is on the 5th (“0101”th) byte of virtual page “01” (or 1). With our virtual page number, we can now index our page table and ﬁnd which physical frame virtual page 1 resides within. In the page table above the physical frame number (PFN) (also sometimes called the physical page number or PPN) is 7 (binary 111). Thus, we can translate this virtual address by replacing the VPN with the PFN and then issue the load to physical memory (Figure 18.3).",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "VPN",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "offset",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Virtual Address",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Address Translation",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Physical Address",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "1",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "PFN",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "offset",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Figure 18.3: The Address Translation Process",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "OPERATING SYSTEMS [VERSION 1.10]",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "WWW.OSTEP.ORG",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

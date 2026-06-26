@@ -1,0 +1,14 @@
+{
+  "id": "cl-03",
+  "parser": "marker",
+  "elapsed_sec": 0.698,
+  "char_count": 1179,
+  "elements": [
+    {
+      "type": "markdown",
+      "content": "![](_page_0_Figure_0.jpeg)\n\n*Figure 1.6 Half-Life Affecting Blood Concentration of Medication Over Time*\n\nHalf-life affects the duration of the therapeutic effect of a medication. Many factors can influence half-life. For example, liver disease can prolong half-life if it is no longer effectively metabolizing the medication. Information about half-life of a specific medication can be found in evidence-based medication references. For example, in the \"Clinical Pharmacology\" section of the DailyMed reference for furosemide, the half-life is approximately two hours.\n\nDepending on whether a drug is metabolized and eliminated by the kidneys or liver, impairment in either of these systems can significantly alter medication dosing, frequency of doses, anticipated therapeutic effect, and even whether a particular medication can be used at all. Nurses must work with other members of the health care team to prevent drug interactions that could significantly affect a client's health and well-being. Nurses must be alert for signs of a toxic buildup of metabolites or active drugs, particularly if the client has liver or kidney disease, so that they can alert the health care",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

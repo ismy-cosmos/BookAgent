@@ -1,0 +1,109 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  lw-02  |  纯正文  |  Chapter 1 Introduction 叙述段
+  source: law/Criminal-Procedure-July2022_0.pdf  page 25
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 0.198s   chars: 2957
+····································································································
+  [narrativetext]on the exclusionary rule, confronting arguments on when the remedy of exclusion—which
+              quite often requires that a guilty person avoid conviction—is justified
+              by the need to encourage adherence by law enforcement to the rules
+              presented in this book concerning searches, seizures, interrogations,
+              and so on.
+  [narrativetext]Your authors have attempted to create a book that presents material clearly and does
+              not hide the ball. Students who read assigned material should be well
+              prepared for class, armed with knowledge of what rules the Supreme Court
+              has announced, along with the main arguments for and against the Court’s
+              choices.
+  [narrativetext]The remainder of this Introduction consists of further effort by your authors to
+              convince you of the importance of the material presented later in the
+              book. Many students possess this book because they are enrolled in a
+              required course or know that this material is tested on the bar exam.
+              Others of you plan to practice criminal law. Still others study criminal
+              procedure to learn more about important societal controversies.
+              Regardless, your authors do not take your attention for granted.
+  [title]     Why Is Criminal Procedure So Important?
+  [narrativetext]In this 1936 unanimous opinion by Chief Justice Charles Evans Hughes, the Supreme
+              Court reviewed a criminal case from Mississippi. Students will see
+              immediately why the actions of police, prosecutors, and judges upset the
+              Supreme Court Justices.
+  [title]     Supreme Court of the United States
+  [title]     Ed Brown v. Mississippi
+  [uncategorizedtext]Decided Feb. 17, 1936 — 297 U.S. 278 (1936)
+  [narrativetext]MR. CHIEF JUSTICE HUGHES delivered the [unanimous] opinion of the Court.
+  [narrativetext]The question in this case is whether convictions, which rest solely upon confessions
+              shown to have been extorted by officers of the state by brutality and
+              violence, are consistent with the due process of law required by the
+              Fourteenth Amendment of the Constitution of the United States.
+  [narrativetext]Petitioners were indicted for the murder of one Raymond Stewart, whose death occurred
+              on March 30, 1934. They were indicted on April 4, 1934 and were then
+              arraigned and pleaded not guilty. Counsel were appointed by the court to
+              defend them. Trial was begun the next morning and was concluded on the
+              following day, when they were found guilty and sentenced to death.
+  [narrativetext]Aside from the confessions, there was no evidence sufficient to warrant the submission
+              of the case to the jury. After a preliminary inquiry, testimony as to
+              the confessions was received over the objection of defendants’ counsel.
+              Defendants then testified that the confessions were false and had been
+              procured by physical torture. The case went to the jury with
+              instructions, upon the request of defendants’ counsel, that if the jury
+              had reasonable doubt as to the confessions having resulted from
+              coercion, and that they were not true, they were not to be considered as
+              evidence. On their appeal to the Supreme Court of the State, defendants
+              assigned as error the inadmissibility of the confessions. The judgment
+              was affirmed.
+  [footer]    Chapter 1 – Page 22
+····································································································
+
+▶ MARKER
+  elapsed: 0.764s   chars: 3037
+····································································································
+on the exclusionary rule, confronting arguments on when the remedy of exclusion—which quite often
+requires that a guilty person avoid conviction—is justified by the need to encourage adherence by
+law enforcement to the rules presented in this book concerning searches, seizures, interrogations,
+and so on.
+
+Your authors have attempted to create a book that presents material clearly and does not hide the
+ball. Students who read assigned material should be well prepared for class, armed with knowledge of
+what rules the Supreme Court has announced, along with the main arguments for and against the
+Court's choices.
+
+The remainder of this Introduction consists of further effort by your authors to convince you of the
+importance of the material presented later in the book. Many students possess this book because they
+are enrolled in a required course or know that this material is tested on the bar exam. Others of
+you plan to practice criminal law. Still others study criminal procedure to learn more about
+important societal controversies. Regardless, your authors do not take your attention for granted.
+
+## **Why Is Criminal Procedure So Important?**
+
+In this 1936 unanimous opinion by Chief Justice Charles Evans Hughes, the Supreme Court reviewed a
+criminal case from Mississippi. Students will see immediately why the actions of police,
+prosecutors, and judges upset the Supreme Court Justices.
+
+Supreme Court of the United States
+
+## **Ed Brown v. Mississippi**
+
+Decided Feb. 17, 1936 — [297 U.S. 278 \(1936\)](https://caselaw.findlaw.com/us-supreme-
+court/297/278.html)
+
+MR. CHIEF JUSTICE HUGHES delivered the [unanimous] opinion of the Court.
+
+The question in this case is whether convictions, which rest solely upon confessions shown to have
+been extorted by officers of the state by brutality and violence, are consistent with the due
+process of law required by the Fourteenth Amendment of the Constitution of the United States.
+
+Petitioners were indicted for the murder of one Raymond Stewart, whose death occurred on March 30,
+1934. They were indicted on April 4, 1934 and were then arraigned and pleaded not guilty. Counsel
+were appointed by the court to defend them. Trial was begun the next morning and was concluded on
+the following day, when they were found guilty and sentenced to death.
+
+Aside from the confessions, there was no evidence sufficient to warrant the submission of the case
+to the jury. After a preliminary inquiry, testimony as to the confessions was received over the
+objection of defendants' counsel. Defendants then testified that the confessions were false and had
+been procured by physical torture. The case went to the jury with instructions, upon the request of
+defendants' counsel, that if the jury had reasonable doubt as to the confessions having resulted
+from coercion, and that they were not true, they were not to be considered as evidence. On their
+appeal to the Supreme Court of the State, defendants assigned as error the inadmissibility of the
+confessions. The judgment was affirmed.
+····································································································

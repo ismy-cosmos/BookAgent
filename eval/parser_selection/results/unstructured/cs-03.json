@@ -1,0 +1,149 @@
+{
+  "id": "cs-03",
+  "parser": "unstructured",
+  "elapsed_sec": 0.18,
+  "char_count": 2064,
+  "elements": [
+    {
+      "type": "uncategorizedtext",
+      "content": "10",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "CONCURRENCY: AN INTRODUCTION",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "OS",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Thread 1 before critical section mov 8049a1c,%eax add $0x1,%eax",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Thread 2",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "(after instruction) PC eax counter 100 105 108",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0 50 51",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "50 50 50",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "interrupt save T1 restore T2",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "mov 8049a1c,%eax add $0x1,%eax mov %eax,8049a1c",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "100 105 108 113",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0 50 51 51",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "50 50 50 51",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "interrupt save T2 restore T1",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "mov %eax,8049a1c",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "108 113",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "51 51",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "51 51",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "Figure 26.7: The Problem: Up Close and Personal",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "100 mov 105 add 108 mov",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "0x8049a1c, %eax $0x1, %eax %eax, 0x8049a1c",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "With these assumptions, what happens is shown in Figure 26.7 (page 10). Assume the counter starts at value 50, and trace through this example to make sure you understand what is going on.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "What we have demonstrated here is called a race condition (or, more speciﬁcally, a data race): the results depend on the timing of the code’s ex- ecution. With some bad luck (i.e., context switches that occur at untimely points in the execution), we get the wrong result. In fact, we may get a dif- ferent result each time; thus, instead of a nice deterministic computation (which we are used to from computers), we call this result indeterminate, where it is not known what the output will be and it is indeed likely to be different across runs.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Because multiple threads executing this code can result in a race con- dition, we call this code a critical section. A critical section is a piece of code that accesses a shared variable (or more generally, a shared resource) and must not be concurrently executed by more than one thread.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "What we really want for this code is what we call mutual exclusion. This property guarantees that if one thread is executing within the critical section, the others will be prevented from doing so.",
+      "page_num": 1
+    },
+    {
+      "type": "narrativetext",
+      "content": "Virtually all of these terms, by the way, were coined by Edsger Dijk- stra, who was a pioneer in the ﬁeld and indeed won the Turing Award because of this and other work; see his 1968 paper on “Cooperating Se- quential Processes” [D68] for an amazingly clear description of the prob- lem. We’ll be hearing more about Dijkstra in this section of the book.",
+      "page_num": 1
+    },
+    {
+      "type": "uncategorizedtext",
+      "content": "OPERATING SYSTEMS [VERSION 1.10]",
+      "page_num": 1
+    },
+    {
+      "type": "title",
+      "content": "WWW.OSTEP.ORG",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

@@ -1,0 +1,14 @@
+{
+  "id": "cl-01",
+  "parser": "marker",
+  "elapsed_sec": 0.709,
+  "char_count": 1896,
+  "elements": [
+    {
+      "type": "markdown",
+      "content": "## 1.2 Pharmacokinetics\n\n## Pharmacokinetics – Examining the Interaction of Body and Drug\n\n## Overview\n\n**Pharmacokinetics** is the term that describes the four stages of absorption, distribution, metabolism, and excretion of drugs. **Drugs** are medications or other substances that have a physiological effect when introduced to the body. There are four basic stages a medication goes through within the human body: absorption, distribution, metabolism, and excretion. This entire process is sometimes abbreviated **ADME**.\n\n**Absorption** is the first stage of pharmacokinetics and occurs after medications enter the body and travel from the site of administration into the body's circulation. **Distribution** is the second stage of pharmacokinetics. It is the process by which medication is spread throughout the body. **Metabolism** is the third stage of pharmacokinetics and involves the breakdown of a drug molecule. **Excretion** is the final stage of pharmacokinetics and refers to the process in which the body eliminates waste. Each of these stages is described separately in the following sections of this chapter.\n\nResearch scientists who specialize in pharmacokinetics must also pay attention to another dimension of drug action within the body: time. Scientists do not have the ability to visualize where a drug is going or how long it is active. To compensate, they use mathematical models and precise measurements of blood and urine to determine where a drug goes and how much of the drug (or breakdown product) remains after the body processes it. Other indicators, such as blood levels of liver enzymes, can help predict how much of a drug is going to be absorbed.\n\nPrinciples of chemistry are also applied while studying pharmacokinetics because the interactions between drugs and body molecules represent a series of chemical reactions. Understanding the chemical encounters",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

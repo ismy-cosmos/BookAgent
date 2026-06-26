@@ -1,0 +1,101 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  cl-05  |  结构化药物条目  |  Vancomycin Route/Dose/Check 嵌套结构
+  source: clinical/Bookshelf_NBK595000.pdf  page 271
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 0.408s   chars: 1046
+····································································································
+  [title]     Miscellaneous Antibacterials: Glycopeptides
+  [title]     vancomycin
+  [narrativetext]Check for allergies
+  [title]     Route: IV but
+  [title]     for C-diff may
+  [narrativetext]be
+  [narrativetext]administered
+  [title]     PO or rectally
+  [narrativetext]as an instilled
+  [title]     enema
+  [title]     Obtain
+  [title]     culture prior to
+  [narrativetext]administering
+  [title]     first dose Dosage
+  [narrativetext]adjustment is
+  [narrativetext]required for
+  [title]     renal
+  [title]     impairment
+  [title]     Monitor
+  [title]     trough levels
+  [narrativetext]IV should be
+  [narrativetext]administered
+  [title]     in a diluted
+  [title]     solution over a
+  [title]     period of 60
+  [title]     minutes or
+  [narrativetext]more to avoid
+  [title]     rapid-infusion-
+  [narrativetext]related
+  [title]     reactions
+  [narrativetext]Monitor for systemic signs of infection:
+  [title]     Nephrotoxicity
+  [title]     Ototoxicity
+  [listitem]  WBCs
+  [listitem]  Fever
+  [title]     Monitor
+  [title]     actual site of
+  [title]     infection for
+  [title]     improvement
+  [title]     Monitor and
+  [title]     report trough
+  [title]     levels for
+  [narrativetext]targeted dosing
+  [narrativetext]C-diff can occur
+  [title]     up to two months
+  [title]     after therapy
+  [narrativetext]ends
+  [title]     Vancomycin
+  [narrativetext]flushing
+  [title]     syndrome can
+  [narrativetext]occur if drug is
+  [narrativetext]infused too
+  [title]     rapidly. Signs and
+  [title]     symptoms
+  [narrativetext]include
+  [title]     maculopapular
+  [narrativetext]rash on face,
+  [title]     neck, trunk, and
+  [title]     limbs and
+  [title]     pruritus and
+  [title]     hypotension
+  [narrativetext]caused by
+  [title]     histamine release.
+  [narrativetext]Stop infusion and
+  [title]     contact provider.
+  [narrativetext]Prepare to
+  [title]     administer
+  [narrativetext]diphenhydramine 50mg IV or PO.
+  [title]     Monitor BP
+  [title]     closely; IV fluids
+  [title]     and/or
+  [title]     vasopressors may
+  [narrativetext]be required if hypotensive. Infusion may be
+  [narrativetext]restarted at a
+  [title]     slower rate after
+  [footer]    3.20 Miscellaneous Antibacterials: Glycopeptides | 259
+····································································································
+
+▶ MARKER
+  elapsed: 8.882s   chars: 1078
+····································································································
+van<u>comycin</u> Miscellaneous Check for Monitor for Nephrotoxicity **Antibacterials:** allergies
+systemic signs Glycopeptides of infection: Ototoxicity Route: IV but C-diff can occur -WBCs for
+C-diff may up to two months -Fever be after therapy Monitor administered ends actual site of PO or
+rectally Vancomycin infection for as an instilled flushing improvement enema syndrome can Monitor
+and Obtain occur if drug is report trough culture prior to infused too levels for administering
+rapidly. Signs and targeted first dose symptoms dosing Dosage include adjustment is maculopapular
+required for rash on face. renal neck, trunk, and impairment limbs and Monitor pruritus and trough
+levels hypotension IV should be caused by administered histamine release. in a diluted Stop infusion
+and solution over a contact provider. period of 60 Prepare to minutes or administer more to avoid
+diphenhydramine rapid-infusion-50mg IV or PO. related Monitor BP reactions closely; IV fluids and/or
+vasopressors may be required if hypotensive. Infusion may be restarted at a slower rate after
+····································································································

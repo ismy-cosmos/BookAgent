@@ -1,0 +1,14 @@
+{
+  "id": "cs-06",
+  "parser": "marker",
+  "elapsed_sec": 0.697,
+  "char_count": 1890,
+  "elements": [
+    {
+      "type": "markdown",
+      "content": "![](_page_0_Figure_2.jpeg)\n\nFigure 4.2: **Process: State Transitions**\n\n• **Blocked**: In the blocked state, a process has performed some kind of operation that makes it not ready to run until some other event takes place. A common example: when a process initiates an I/O request to a disk, it becomes blocked and thus some other process can use the processor.\n\nIf we were to map these states to a graph, we would arrive at the diagram in Figure 4.2. As you can see in the diagram, a process can be moved between the ready and running states at the discretion of the OS. Being moved from ready to running means the process has been **scheduled**; being moved from running to ready means the process has been **descheduled**. Once a process has become blocked (e.g., by initiating an I/O operation), the OS will keep it as such until some event occurs (e.g., I/O completion); at that point, the process moves to the ready state again (and potentially immediately to running again, if the OS so decides).\n\nLet's look at an example of how two processes might transition through some of these states. First, imagine two processes running, each of which only use the CPU (they do no I/O). In this case, a trace of the state of each process might look like this (Figure 4.3).\n\n| Time | Process0 | Process1 | Notes                   |\n|------|----------|----------|-------------------------|\n| 1    | Running  | Ready    |                         |\n| 2    | Running  | Ready    |                         |\n| 3    | Running  | Ready    |                         |\n| 4    | Running  | Ready    | Process0<br>now<br>done |\n| 5    | –        | Running  |                         |\n| 6    | –        | Running  |                         |\n| 7    | –        | Running  |                         |\n| 8    | –        | Running  | Process1<br>now<br>done |\n\nFigure 4.3: **Tracing Process State: CPU Only**",
+      "page_num": 1
+    }
+  ],
+  "error": null
+}

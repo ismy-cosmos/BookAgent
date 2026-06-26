@@ -1,0 +1,72 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  cl-02  |  多列药物表格  |  Table 4.7 五列 Medication Grid，单元格多行
+  source: clinical/Bookshelf_NBK595000.pdf  page 318
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+▶ UNSTRUCTURED
+  elapsed: 0.195s   chars: 675
+····································································································
+  [header]    Table 4.7 Atropine Medication Grid
+  [title]     Class/ Subclass
+  [title]     Prototype/ Generic
+  [title]     Nursing Considerations
+  [title]     Muscarinic Antagonist
+  [title]     atropine
+  [narrativetext]Use with caution in the elderly
+  [narrativetext]Contraindicated in
+  [title]     high environmental
+  [title]     temperatures
+  [narrativetext]because can cause
+  [title]     heatstroke
+  [title]     Physostigmine
+  [title]     reverses
+  [title]     anticholinergic
+  [title]     effects
+  [footer]    306 | 4.7 Muscarinic Antagonists
+  [title]     Therapeutic Effects
+  [narrativetext]Dose dependent: Small dose inhibits secretions; moderate dose increases heart rate;
+              large dose decreases gastrointestinal motility
+  [title]     Side/Adverse Effects
+  [narrativetext]Constipation, dizziness, drowsiness, dry mouth. flushed skin, blurred vision
+  [title]     Immediately
+  [narrativetext]report
+  [title]     symptoms of
+  [title]     overdose:
+  [title]     Urine
+  [uncategorizedtext]retention,
+  [title]     abnormal
+  [narrativetext]heartbeat,
+  [uncategorizedtext]dizziness,
+  [narrativetext]passing out,
+  [title]     difficulty
+  [uncategorizedtext]breathing,
+  [title]     weakness, or
+  [title]     tremors
+····································································································
+
+▶ MARKER
+  elapsed: 11.291s   chars: 2291
+····································································································
+Table 4.7 Atropine Medication Grid
+
+| Class/                   | Prototype/ | Nursing
+| Therapeutic
+| Side/Adverse
+|
+|--------------------------|------------|-----------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+--|-------------------------------------------------------------------------------------------------
+-------------------------------------|--------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+--------------------------------------------------------------|
+| Subclass                 | Generic    | Considerations
+| Effects
+| Effects
+|
+| Muscarinic<br>Antagonist | atropine   | Use with caution in the elderly  Contraindicated in high
+environmental temperatures because can cause heatstroke Physostigmine reverses anticholinergic
+effects | Dose dependent: Small dose\ninhibits secretions; moderate dose\nincreases heart rate;
+large dose decreases gastrointestinal motility | Constipation, dizziness, drowsiness, dry mouth.
+flushed skin, blurred vision  Immediately report symptoms of overdose: Urine retention, abnormal
+heartbeat, dizziness, passing out, difficulty breathing, weakness, or tremors |
+····································································································
