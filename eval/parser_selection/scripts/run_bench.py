@@ -28,19 +28,19 @@ def run_unstructured(pdf_path: str) -> tuple[list[dict], float]:
     ], elapsed
 
 
-_marker_models = None  # loaded once on first call
+_marker_converter = None  # loaded once on first call (model loading is slow)
 
 
 def run_marker(pdf_path: str) -> tuple[list[dict], float]:
-    global _marker_models
-    from marker.convert import convert_single_pdf
-    from marker.models import load_all_models
-    if _marker_models is None:
-        _marker_models = load_all_models()
+    global _marker_converter
+    from marker.converters.pdf import PdfConverter
+    from marker.models import create_model_dict
+    if _marker_converter is None:
+        _marker_converter = PdfConverter(artifact_dict=create_model_dict())
     t0 = time.perf_counter()
-    full_text, _images, _meta = convert_single_pdf(pdf_path, _marker_models)
+    rendered = _marker_converter(pdf_path)
     elapsed = time.perf_counter() - t0
-    return [{"type": "markdown", "content": full_text or "", "page_num": 1}], elapsed
+    return [{"type": "markdown", "content": rendered.markdown or "", "page_num": 1}], elapsed
 
 
 import sys as _sys
