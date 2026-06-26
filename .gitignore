@@ -47,6 +47,9 @@ Thumbs.db
 *.log
 logs/
 
+# Parser selection raw source PDFs (too large for git)
+eval/parser_selection/fixtures/raw/
+
 # Superpowers internal execution traces
 .superpowers/
 docs/superpowers/
