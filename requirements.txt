@@ -19,3 +19,6 @@ Pillow>=10.0.0
 # W2: Parser — marker-pdf selected (W1 benchmark)
 marker-pdf>=1.6           # GPL/cc-by-nc-sa, requires Python <=3.12
 # unstructured[pdf]>=0.16  # not selected; kept for reference
+
+# W2: Token counting for chunker
+tiktoken>=0.7
