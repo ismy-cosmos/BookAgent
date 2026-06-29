@@ -50,8 +50,10 @@ logs/
 # Parser selection raw source PDFs (too large for git)
 eval/parser_selection/fixtures/raw/
 
-# Test dataset (too large for git)
-eval/testset/
+# Test dataset raw files and generated chunks (too large for git)
+# qa/ and README are tracked; raw/ and chunks/ have their own nested .gitignore
+eval/testset/*/raw/
+eval/testset/*/chunks/
 
 # Superpowers internal execution traces
 .superpowers/
