@@ -22,3 +22,8 @@ marker-pdf>=1.6           # GPL/cc-by-nc-sa, requires Python <=3.12
 
 # W2: Token counting for chunker
 tiktoken>=0.7
+
+# W2: EPUB parsing
+ebooklib>=0.18
+beautifulsoup4>=4.12
+lxml>=5.0
