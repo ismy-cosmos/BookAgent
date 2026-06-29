@@ -121,3 +121,21 @@ def test_split_at_sentence_chinese():
     elems = [_el("你好世界。这是第二句。这是第三句。", page_num=1)]
     chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
     assert len(chunks) >= 2  # 应被分割
+
+
+def test_long_element_pieces_carry_overlap():
+    c = Chunker(max_tokens=15, overlap_tokens=5)
+    # 单个元素超出 max_tokens，会被切成多片
+    long_text = (
+        "First complete sentence ends here. "
+        "Second complete sentence ends here. "
+        "Third complete sentence ends here."
+    )
+    elems = [_el(long_text, page_num=1)]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) >= 2
+    # 后续切片的内容应含有前一片末尾的词（overlap）
+    for i in range(1, len(chunks)):
+        prev_words = set(chunks[i-1].content.split())
+        curr_words = set(chunks[i].content.split())
+        assert prev_words & curr_words, f"chunk {i} has no overlap with chunk {i-1}"

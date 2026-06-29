@@ -30,6 +30,8 @@ class VLMImageParser:
         self._timeout = timeout
 
     def parse(self, image_path: str) -> list[Element]:
+        if not Path(image_path).exists():
+            raise ValueError(f"File not found: {image_path}")
         img_bytes = self._load_as_png_bytes(image_path)
         b64 = base64.b64encode(img_bytes).decode()
         resp = httpx.post(

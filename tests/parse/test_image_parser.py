@@ -67,6 +67,25 @@ def test_image_parser_jpg(tmp_path):
     assert elems[0].type == "figure"
 
 
+def test_image_parser_jpeg(tmp_path):
+    jpeg = tmp_path / "test.jpeg"
+    jpeg.write_bytes(b"\xff\xd8\xff" + b"\x00" * 10)
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"message": {"content": "A JPEG."}}
+
+    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp):
+        elems = VLMImageParser(ollama_base="http://fake", model="m").parse(str(jpeg))
+
+    assert elems[0].type == "figure"
+
+
+def test_image_parser_file_not_found(tmp_path):
+    with pytest.raises(ValueError, match="File not found"):
+        VLMImageParser(ollama_base="http://fake", model="m").parse(str(tmp_path / "missing.png"))
+
+
 def test_image_parser_bad_ollama_response(tmp_path):
     img = _make_fake_png(tmp_path)
     mock_resp = MagicMock()

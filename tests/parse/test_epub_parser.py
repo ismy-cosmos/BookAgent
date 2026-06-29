@@ -30,6 +30,55 @@ def test_mml_to_latex_plain_text():
     assert "E" in result
 
 
+def test_mml_to_latex_subscript_superscript():
+    from bs4 import BeautifulSoup
+    mml = "<math><msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup></math>"
+    soup = BeautifulSoup(mml, "xml")
+    result = _mml_to_latex(soup.find("math"))
+    assert "x" in result and "i" in result and "2" in result
+    assert "_" in result and "^" in result
+
+
+def test_mml_to_latex_munder():
+    from bs4 import BeautifulSoup
+    mml = "<math><munder><mo>lim</mo><mrow><mi>n</mi><mo>→</mo><mo>∞</mo></mrow></munder></math>"
+    soup = BeautifulSoup(mml, "xml")
+    result = _mml_to_latex(soup.find("math"))
+    assert "lim" in result
+    assert "underset" in result or "n" in result
+
+
+def test_mml_to_latex_mover():
+    from bs4 import BeautifulSoup
+    mml = "<math><mover><mi>x</mi><mo>→</mo></mover></math>"
+    soup = BeautifulSoup(mml, "xml")
+    result = _mml_to_latex(soup.find("math"))
+    assert "x" in result
+    assert "overset" in result or "over" in result.lower()
+
+
+def test_mml_to_latex_mfenced():
+    from bs4 import BeautifulSoup
+    mml = '<math><mfenced open="[" close="]"><mi>x</mi></mfenced></math>'
+    soup = BeautifulSoup(mml, "xml")
+    result = _mml_to_latex(soup.find("math"))
+    assert "x" in result
+    assert "[" in result or "left" in result.lower()
+
+
+def test_mml_to_latex_mtable():
+    from bs4 import BeautifulSoup
+    mml = """<math><mtable>
+      <mtr><mtd><mn>1</mn></mtd><mtd><mn>0</mn></mtd></mtr>
+      <mtr><mtd><mn>0</mn></mtd><mtd><mn>1</mn></mtd></mtr>
+    </mtable></math>"""
+    soup = BeautifulSoup(mml, "xml")
+    result = _mml_to_latex(soup.find("math"))
+    assert "pmatrix" in result
+    assert "1" in result and "0" in result
+    assert "&" in result
+
+
 def test_html_to_elements_heading():
     html = "<html><body><h2>Chapter 1</h2><p>Some text.</p></body></html>"
     elems = _html_to_elements(html)

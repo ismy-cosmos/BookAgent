@@ -81,7 +81,7 @@ def test_audio_parser_empty_segments(tmp_path):
     assert chunks == []
 
 
-def test_audio_parser_mixed_empty_segments(tmp_path):
+def test_audio_parser_seq_skips_blank_segments(tmp_path):
     audio = tmp_path / "mixed.mp3"
     audio.write_bytes(b"fake")
 
@@ -100,6 +100,9 @@ def test_audio_parser_mixed_empty_segments(tmp_path):
 
     assert len(chunks) == 2
     assert chunks[0].chunk_id == "b/mixed/0000"
-    assert chunks[1].chunk_id == "b/mixed/0002"  # seq=2，对应原始 segment index
+    # seq 使用 WhisperX 原始 segment index，空 segment 被跳过时出现跳号
+    # 此处 segment index 1 为空，故第二个有效 chunk 的 seq=2 而非 seq=1
+    assert chunks[1].chunk_id.endswith("/0002")
+    assert not chunks[1].chunk_id.endswith("/0001")
     assert "Hello" in chunks[0].content
     assert "World" in chunks[1].content

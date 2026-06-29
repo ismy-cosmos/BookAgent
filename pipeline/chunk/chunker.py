@@ -31,6 +31,23 @@ def _last_n_tokens(text: str, n: int) -> str:
     return enc.decode(ids[-n:]) if len(ids) >= n else text
 
 
+def _last_complete_sentences(text: str, max_tokens: int) -> str:
+    """Return trailing complete sentences of text that fit within max_tokens.
+    Falls back to _last_n_tokens if no single sentence fits."""
+    sentences = re.split(r'(?<=[.!?])\s+|(?<=[。！？])', text)
+    sentences = [s for s in sentences if s.strip()]
+    result: list[str] = []
+    total = 0
+    for sent in reversed(sentences):
+        t = _token_count(sent)
+        if total + t <= max_tokens:
+            result.insert(0, sent)
+            total += t
+        else:
+            break
+    return ' '.join(result) if result else _last_n_tokens(text, max_tokens)
+
+
 def _split_at_sentence(text: str, max_tokens: int) -> list[str]:
     if _token_count(text) <= max_tokens:
         return [text]
@@ -103,10 +120,10 @@ class Chunker:
             pn = elems[0].page_num
             return pn if pn != 0 else None
 
-        def _emit(elems: list[Element], etype: str, extra_content: str = "") -> None:
+        def _emit(elems: list[Element], etype: str, extra_content: str = "", overlap: str = "") -> None:
             nonlocal seq
             raw = " ".join(e.content for e in elems) if elems else extra_content
-            content = (overlap_text + raw).strip() if overlap_text else raw.strip()
+            content = (overlap + raw).strip() if overlap else raw.strip()
             if not content:
                 return
             tc = _token_count(content)
@@ -126,7 +143,7 @@ class Chunker:
             nonlocal buf, buf_tok, overlap_text
             if not buf:
                 return
-            _emit(buf, "text")
+            _emit(buf, "text", overlap=overlap_text)
             if carry_overlap:
                 last = chunks[-1].content
                 overlap_text = _last_n_tokens(last, self._overlap_tokens) + " "
@@ -149,7 +166,7 @@ class Chunker:
 
             if is_atomic:
                 flush(carry_overlap=True)
-                _emit([], etype=elem.type, extra_content=elem.content)
+                _emit([], etype=elem.type, extra_content=elem.content, overlap=overlap_text)
                 # atomic chunks don't carry overlap forward
                 overlap_text = ""
                 continue
@@ -159,10 +176,13 @@ class Chunker:
             if elem_tok > self._max_tokens:
                 # Long element: flush buffer (carry overlap), then split element itself
                 flush(carry_overlap=True)
-                for part in _split_at_sentence(elem.content, self._max_tokens):
+                split_target = max(1, self._max_tokens - self._overlap_tokens)
+                piece_overlap = overlap_text
+                for part in _split_at_sentence(elem.content, split_target):
                     part_elem = Element(type=elem.type, content=part, page_num=elem.page_num)
-                    _emit([part_elem], "text")
-                    overlap_text = _last_n_tokens(part, self._overlap_tokens) + " "
+                    _emit([part_elem], "text", overlap=piece_overlap)
+                    piece_overlap = _last_complete_sentences(part, self._overlap_tokens) + " "
+                overlap_text = piece_overlap
                 continue
 
             if buf and buf_tok + elem_tok > self._max_tokens:

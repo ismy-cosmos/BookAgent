@@ -75,3 +75,43 @@ def test_count_returns_int(mock_chroma):
     mock_col.count.return_value = 42
     store = ChromaStore(persist_dir=str(tmp))
     assert store.count("b") == 42
+
+
+def test_query_empty_collection_returns_empty_list(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    mock_col.query.return_value = {
+        "ids": [[]],
+        "documents": [[]],
+        "distances": [[]],
+        "metadatas": [[]],
+    }
+    store = ChromaStore(persist_dir=str(tmp))
+    results = store.query("b", [0.0] * 1024, n_results=5)
+    assert results == []
+
+
+def test_add_chunks_metadata_zero_page_start_preserved(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    store = ChromaStore(persist_dir=str(tmp))
+    c = Chunk(
+        chunk_id="b/f/pNone/0000",
+        book_id="b",
+        source_file="f.pdf",
+        element_type="text",
+        content="content",
+        token_count=1,
+        page_start=0,  # falsy but not None — must not become ""
+    )
+    store.add_chunks("b", [c], [[0.0] * 1024])
+    meta = mock_col.add.call_args.kwargs["metadatas"][0]
+    assert meta["page_start"] == 0
+
+
+def test_add_chunks_duplicate_id_does_not_raise(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    store = ChromaStore(persist_dir=str(tmp))
+    chunk = _chunk(chunk_id="b/f/p0001/0000")
+    embeddings = [[0.1] * 1024]
+    store.add_chunks("b", [chunk], embeddings)
+    store.add_chunks("b", [chunk], embeddings)  # 同一 id 再次添加
+    assert mock_col.add.call_count == 2  # 两次都调了 add，Chroma 自行覆盖

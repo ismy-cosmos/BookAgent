@@ -25,6 +25,23 @@ def _mml_to_latex(node) -> str:
         return "".join(children)
     if tag in ("mi", "mn", "mo", "mtext", "ms"):
         return node.get_text()
+    if tag == "msubsup" and len(children) >= 3:
+        return rf"{children[0]}_{{{children[1]}}}^{{{children[2]}}}"
+    if tag == "munder" and len(children) >= 2:
+        return rf"\underset{{{children[1]}}}{{{children[0]}}}"
+    if tag == "mover" and len(children) >= 2:
+        return rf"\overset{{{children[1]}}}{{{children[0]}}}"
+    if tag == "mfenced":
+        open_ch = node.get("open", "(")
+        close_ch = node.get("close", ")")
+        return rf"\left{open_ch}{''.join(children)}\right{close_ch}"
+    if tag == "mtd":
+        return "".join(children)
+    if tag == "mtr":
+        return " & ".join(c for c in children if c.strip())
+    if tag == "mtable":
+        rows = [c for c in children if c.strip()]
+        return r"\begin{pmatrix}" + r" \\ ".join(rows) + r"\end{pmatrix}"
     if tag == "math":
         return "".join(children)
     return node.get_text()
