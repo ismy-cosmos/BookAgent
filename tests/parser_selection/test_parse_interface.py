@@ -1,7 +1,6 @@
 import pytest
 from pipeline.parse import Element, Parser
 from pipeline.parse.unstructured import UnstructuredParser
-from pipeline.parse.marker import MarkerParser
 
 
 def test_element_default_metadata():
@@ -35,8 +34,3 @@ def test_parser_concrete_subclass_works():
 def test_unstructured_parser_stub_raises():
     with pytest.raises(NotImplementedError):
         UnstructuredParser().parse("any.pdf")
-
-
-def test_marker_parser_stub_raises():
-    with pytest.raises(NotImplementedError):
-        MarkerParser().parse("any.pdf")
