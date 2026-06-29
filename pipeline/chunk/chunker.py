@@ -8,7 +8,7 @@ import tiktoken
 from pipeline.parse.base import Element
 from .schema import Chunk
 
-_MAX_TOKENS = 512
+_MAX_TOKENS = 512  # 不含 overlap 前缀的目标 token 上限
 _OVERLAP_TOKENS = 50
 _ATOMIC_TYPES = {"table", "formula", "code", "figure"}
 _ENC = None
@@ -155,7 +155,7 @@ class Chunker:
         for elem in elements:
             is_heading = (
                 elem.type == "text"
-                and elem.content.strip().startswith("#")
+                and bool(re.match(r"#{1,6}\s", elem.content.strip()))
             )
             is_boundary = is_heading or elem.type == "section_break"
             is_atomic = elem.type in _ATOMIC_TYPES

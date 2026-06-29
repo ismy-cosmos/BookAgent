@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
-venv/
+bookagent.venv/
 dist/
 build/
 
@@ -20,7 +20,7 @@ data/processed/
 outputs/
 *.faiss
 *.index
-chroma_db/
+.chroma/
 lancedb/
 
 # Audio/video

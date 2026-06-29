@@ -104,7 +104,7 @@ def _ingest_file(
 
     if ext in _AUDIO_EXTS:
         parser = AudioParser()
-        chunks = parser.parse_to_chunks(file_path, book_id)
+        chunks = parser.parse_to_chunks(file_path, book_id, source_file=source_file)
     else:
         parser = _route_parser(file_path)
         elements = parser.parse(file_path)

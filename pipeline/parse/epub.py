@@ -95,8 +95,11 @@ def _html_to_elements(html: str) -> list:
             md = _table_to_markdown(tag)
             if md.strip():
                 elements.append(Element(type="table", content=md, page_num=0))
+        elif tag_name == "math":
+            latex = _mml_to_latex(tag)
+            if latex.strip():
+                elements.append(Element(type="formula", content=f"$${latex}$$", page_num=0))
         elif tag_name in ("div", "section", "article", "main"):
-            # 透明容器：递归处理子节点
             for child in tag.children:
                 if isinstance(child, Tag):
                     process_node(child)

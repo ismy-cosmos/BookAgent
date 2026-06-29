@@ -36,8 +36,8 @@ class AudioParser:
         self._model = model
         self._lang = language
 
-    def parse_to_chunks(self, audio_path: str, book_id: str) -> list[Chunk]:
-        source_file = Path(audio_path).name
+    def parse_to_chunks(self, audio_path: str, book_id: str, source_file: str = "") -> list[Chunk]:
+        resolved_name = source_file or Path(audio_path).name
         stem = Path(audio_path).stem
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -57,11 +57,11 @@ class AudioParser:
             text = seg["text"].strip()
             if not text:
                 continue
-            chunk_id = f"{book_id}/{stem}/{seq:04d}"
+            chunk_id = f"{book_id}/{Path(resolved_name).stem}/{seq:04d}"
             chunks.append(Chunk(
                 chunk_id=chunk_id,
                 book_id=book_id,
-                source_file=source_file,
+                source_file=resolved_name,
                 element_type="audio",
                 content=text,
                 token_count=len(_enc().encode(text)),
