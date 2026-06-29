@@ -34,21 +34,43 @@ def _last_n_tokens(text: str, n: int) -> str:
 def _split_at_sentence(text: str, max_tokens: int) -> list[str]:
     if _token_count(text) <= max_tokens:
         return [text]
-    parts: list[str] = []
-    sentences = re.split(r'(?<=[.!?。！？])\s+', text)
-    buf: list[str] = []
-    buf_tok = 0
+
+    # 第一级：句子边界（英文需要后跟空格，中文不需要）
+    sentences = re.split(r'(?<=[.!?])\s+|(?<=[。！？])', text)
+    sentences = [s for s in sentences if s.strip()]
+
+    # 第二级：单句超限时按空格分词
+    result: list[str] = []
     for sent in sentences:
-        st = _token_count(sent)
-        if buf and buf_tok + st > max_tokens:
-            parts.append(" ".join(buf))
-            buf, buf_tok = [sent], st
+        if _token_count(sent) <= max_tokens:
+            result.append(sent)
         else:
-            buf.append(sent)
-            buf_tok += st
-    if buf:
-        parts.append(" ".join(buf))
-    return parts or [text]
+            words = sent.split()
+            buf: list[str] = []
+            buf_tok = 0
+            for w in words:
+                wt = _token_count(w)
+                if buf and buf_tok + wt > max_tokens:
+                    result.append(' '.join(buf))
+                    buf, buf_tok = [w], wt
+                else:
+                    buf.append(w)
+                    buf_tok += wt
+            if buf:
+                result.append(' '.join(buf))
+
+    # 第三级：单词级仍超限（长URL无空格）→ 按 token 强制截断
+    enc = _get_enc()
+    final: list[str] = []
+    for part in result:
+        ids = enc.encode(part)
+        if len(ids) <= max_tokens:
+            final.append(part)
+        else:
+            for i in range(0, len(ids), max_tokens):
+                final.append(enc.decode(ids[i : i + max_tokens]))
+
+    return final or [text]
 
 
 def _make_chunk_id(book_id: str, source_stem: str, page_start: Optional[int], seq: int) -> str:
@@ -127,8 +149,6 @@ class Chunker:
 
             if is_atomic:
                 flush(carry_overlap=True)
-                saved_overlap = overlap_text
-                overlap_text = saved_overlap
                 _emit([], etype=elem.type, extra_content=elem.content)
                 # atomic chunks don't carry overlap forward
                 overlap_text = ""

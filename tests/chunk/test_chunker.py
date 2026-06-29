@@ -102,10 +102,10 @@ def test_seq_offset():
 def test_overlap_carries_into_next_chunk():
     # Use a tiny overlap to verify it happens
     c = Chunker(max_tokens=10, overlap_tokens=3)
-    # Build elements that will each flush (each ~10 tokens)
+    # Each element fits individually (<= 10 tokens), but together they exceed 10
     elems = [
-        _el("alpha beta gamma delta epsilon zeta eta theta"),  # ~8 tokens
-        _el("iota kappa lambda mu nu xi omicron pi"),          # ~8 tokens
+        _el("alpha beta gamma delta epsilon zeta eta theta"),  # 9 tokens
+        _el("iota kappa lambda mu nu xi omicron"),             # 10 tokens
     ]
     chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
     # second chunk should start with overlap from first
@@ -113,3 +113,11 @@ def test_overlap_carries_into_next_chunk():
     # overlap tokens should appear at start of chunk[1] content
     first_words = chunks[0].content.split()[-3:]
     assert any(w in chunks[1].content for w in first_words)
+
+
+def test_split_at_sentence_chinese():
+    c = Chunker(max_tokens=5)
+    # 中文句子用。分隔，无空格
+    elems = [_el("你好世界。这是第二句。这是第三句。", page_num=1)]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) >= 2  # 应被分割

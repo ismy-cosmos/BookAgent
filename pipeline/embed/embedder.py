@@ -1,6 +1,8 @@
 from __future__ import annotations
+import threading
 
 _MODEL_CACHE = None
+_MODEL_LOCK = threading.Lock()
 
 
 class Embedder:
@@ -12,8 +14,10 @@ class Embedder:
     def _get_model(cls):
         global _MODEL_CACHE
         if _MODEL_CACHE is None:
-            from FlagEmbedding import BGEM3FlagModel
-            _MODEL_CACHE = BGEM3FlagModel(cls.MODEL_NAME, use_fp16=True)
+            with _MODEL_LOCK:
+                if _MODEL_CACHE is None:
+                    from FlagEmbedding import BGEM3FlagModel
+                    _MODEL_CACHE = BGEM3FlagModel(cls.MODEL_NAME, use_fp16=True)
         return _MODEL_CACHE
 
     def embed(self, texts: list[str]) -> list[list[float]]:

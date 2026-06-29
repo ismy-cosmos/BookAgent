@@ -9,6 +9,11 @@ def reset_model_cache():
     emb_mod._MODEL_CACHE = None
     yield
     emb_mod._MODEL_CACHE = None
+    # also release the lock in case a test failed while holding it
+    try:
+        emb_mod._MODEL_LOCK.release()
+    except RuntimeError:
+        pass
 
 
 def _mock_model(texts):
@@ -54,3 +59,17 @@ def test_embedder_class_level_cache():
         e1.embed(["x"])
         e2.embed(["y"])
         assert mock_cls.call_count == 1  # shared model
+
+
+def test_embed_query_vector_dimension():
+    with patch("FlagEmbedding.BGEM3FlagModel", return_value=_mock_model(["q"])):
+        emb = Embedder()
+        vec = emb.embed_query("what is a process?")
+    assert len(vec) == 1024
+
+
+def test_embedder_model_load_failure():
+    with patch("FlagEmbedding.BGEM3FlagModel", side_effect=ImportError("no FlagEmbedding")):
+        emb = Embedder()
+        with pytest.raises(ImportError, match="no FlagEmbedding"):
+            emb.embed(["x"])

@@ -44,7 +44,7 @@ def _table_to_markdown(table_tag) -> str:
 
 def _html_to_elements(html: str) -> list:
     """Parse an HTML string into a list of Element objects (page_num always 0)."""
-    from bs4 import BeautifulSoup, NavigableString, Tag
+    from bs4 import BeautifulSoup, Tag
     from pipeline.parse.base import Element
 
     soup = BeautifulSoup(html, "lxml")
@@ -53,36 +53,40 @@ def _html_to_elements(html: str) -> list:
 
     _HEADING_LEVEL = {"h1": "#", "h2": "##", "h3": "###", "h4": "####"}
 
-    for tag in body.find_all(["h1", "h2", "h3", "h4", "p", "pre", "table"], recursive=True):
+    def process_node(tag: Tag) -> None:
         tag_name = tag.name
-
         if tag_name in _HEADING_LEVEL:
             text = tag.get_text(strip=True)
-            if not text:
-                continue
-            content = f"{_HEADING_LEVEL[tag_name]} {text}"
-            elements.append(Element(type="text", content=content, page_num=0))
-
+            if text:
+                elements.append(Element(
+                    type="text",
+                    content=f"{_HEADING_LEVEL[tag_name]} {text}",
+                    page_num=0,
+                ))
         elif tag_name == "p":
-            # Replace <math> nodes with $$...$$ LaTeX
             for math_tag in tag.find_all("math"):
                 latex = _mml_to_latex(math_tag)
                 math_tag.replace_with(f"$${latex}$$")
-            text = tag.get_text(separator=" ", strip=True)
-            text = re.sub(r"\s+", " ", text).strip()
-            if not text:
-                continue
-            elements.append(Element(type="text", content=text, page_num=0))
-
+            text = re.sub(r"\s+", " ", tag.get_text(separator=" ", strip=True)).strip()
+            if text:
+                elements.append(Element(type="text", content=text, page_num=0))
         elif tag_name == "pre":
             code = tag.get_text()
             if code.strip():
                 elements.append(Element(type="code", content=code.strip(), page_num=0))
-
         elif tag_name == "table":
             md = _table_to_markdown(tag)
             if md.strip():
                 elements.append(Element(type="table", content=md, page_num=0))
+        elif tag_name in ("div", "section", "article", "main"):
+            # 透明容器：递归处理子节点
+            for child in tag.children:
+                if isinstance(child, Tag):
+                    process_node(child)
+
+    for child in body.children:
+        if isinstance(child, Tag):
+            process_node(child)
 
     return elements
 
@@ -103,7 +107,7 @@ class EPUBParser:
                 continue
             html = item.get_content().decode("utf-8", errors="replace")
             spine_elements = _html_to_elements(html)
-            if i > 0 and spine_elements:
+            if spine_elements and all_elements:
                 all_elements.append(Element(type="section_break", content="", page_num=0))
             all_elements.extend(spine_elements)
 

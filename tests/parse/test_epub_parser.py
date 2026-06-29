@@ -19,8 +19,7 @@ def test_mml_to_latex_superscript():
     mml = "<math><msup><mi>x</mi><mn>2</mn></msup></math>"
     soup = BeautifulSoup(mml, "xml")
     result = _mml_to_latex(soup.find("math"))
-    assert "x" in result
-    assert "^" in result or "2" in result
+    assert "x" in result and "2" in result and ("^" in result or "sup" in result.lower())
 
 
 def test_mml_to_latex_plain_text():

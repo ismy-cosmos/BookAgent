@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 import pytest
 
 from scripts.ingest import (

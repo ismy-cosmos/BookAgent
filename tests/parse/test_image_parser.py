@@ -65,3 +65,34 @@ def test_image_parser_jpg(tmp_path):
         elems = VLMImageParser(ollama_base="http://fake", model="m").parse(str(jpg))
 
     assert elems[0].type == "figure"
+
+
+def test_image_parser_bad_ollama_response(tmp_path):
+    img = _make_fake_png(tmp_path)
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"unexpected": "format"}  # 缺少 message.content
+
+    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp):
+        with pytest.raises(ValueError, match="Unexpected Ollama response"):
+            VLMImageParser(ollama_base="http://fake", model="m").parse(img)
+
+
+def test_image_parser_http_error(tmp_path):
+    img = _make_fake_png(tmp_path)
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status.side_effect = Exception("HTTP 500")
+
+    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp):
+        with pytest.raises(Exception, match="HTTP 500"):
+            VLMImageParser(ollama_base="http://fake", model="m").parse(img)
+
+
+def test_image_parser_svg_conversion_error(tmp_path):
+    svg = tmp_path / "bad.svg"
+    svg.write_bytes(b"not valid svg")
+
+    with patch("pipeline.parse.image.httpx.post"):
+        with patch("cairosvg.svg2png", side_effect=Exception("SVG parse error")):
+            with pytest.raises(ValueError, match="SVG conversion failed"):
+                VLMImageParser(ollama_base="http://fake", model="m").parse(str(svg))

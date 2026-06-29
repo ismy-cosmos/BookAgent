@@ -47,12 +47,19 @@ class VLMImageParser:
             timeout=self._timeout,
         )
         resp.raise_for_status()
-        description = resp.json()["message"]["content"].strip()
+        data = resp.json()
+        try:
+            description = data["message"]["content"].strip()
+        except (KeyError, TypeError) as e:
+            raise ValueError(f"Unexpected Ollama response format: {data}") from e
         return [Element(type="figure", content=description, page_num=0)]
 
     def _load_as_png_bytes(self, image_path: str) -> bytes:
         path = Path(image_path)
         if path.suffix.lower() == ".svg":
-            import cairosvg
-            return cairosvg.svg2png(url=str(path))
+            try:
+                import cairosvg
+                return cairosvg.svg2png(url=str(path))
+            except Exception as e:
+                raise ValueError(f"SVG conversion failed for {image_path}: {e}") from e
         return path.read_bytes()

@@ -79,3 +79,27 @@ def test_audio_parser_empty_segments(tmp_path):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
     assert chunks == []
+
+
+def test_audio_parser_mixed_empty_segments(tmp_path):
+    audio = tmp_path / "mixed.mp3"
+    audio.write_bytes(b"fake")
+
+    def fake_run(cmd, check, **kwargs):
+        out = {
+            "segments": [
+                {"start": 0.0, "end": 5.0, "text": "Hello."},
+                {"start": 5.0, "end": 8.0, "text": "   "},   # 空白，跳过
+                {"start": 8.0, "end": 12.0, "text": "World."},
+            ]
+        }
+        (Path(cmd[cmd.index("--output_dir") + 1]) / "mixed.json").write_text(json.dumps(out))
+
+    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+        chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
+
+    assert len(chunks) == 2
+    assert chunks[0].chunk_id == "b/mixed/0000"
+    assert chunks[1].chunk_id == "b/mixed/0002"  # seq=2，对应原始 segment index
+    assert "Hello" in chunks[0].content
+    assert "World" in chunks[1].content
