@@ -8,9 +8,9 @@
 
 ```
 原始书籍
-  ├── PDF / EPUB ──→ 解析层（Unstructured / Marker + Qwen3-vl-8b 处理表格/公式/图）
-  ├── 图片         ──→ VLM caption → Markdown/LaTeX
-  └── 音频         ──→ WhisperX 本地 ASR（带时间戳，离线）
+  ├── PDF / EPUB ── 解析层（Unstructured / Marker + Qwen3-vl-8b 处理表格/公式/图）
+  ├── 图片         ── VLM caption → Markdown/LaTeX
+  └── 音频         ── WhisperX 本地 ASR（带时间戳，离线）
             ↓
   自适应语义分块 + 学科元数据标注
             ↓
