@@ -120,6 +120,12 @@ class Chunker:
             pn = elems[0].page_num
             return pn if pn != 0 else None
 
+        def _page_end(elems: list[Element]) -> Optional[int]:
+            if not elems:
+                return None
+            pn = elems[-1].page_num
+            return pn if pn != 0 else None
+
         def _emit(elems: list[Element], etype: str, extra_content: str = "", overlap: str = "") -> None:
             nonlocal seq
             raw = " ".join(e.content for e in elems) if elems else extra_content
@@ -128,6 +134,7 @@ class Chunker:
                 return
             tc = _token_count(content)
             ps = _page_start(elems)
+            pe = _page_end(elems)
             chunks.append(Chunk(
                 chunk_id=_make_chunk_id(book_id, source_stem, ps, seq),
                 book_id=book_id,
@@ -136,6 +143,7 @@ class Chunker:
                 content=content,
                 token_count=tc,
                 page_start=ps,
+                page_end=pe,
             ))
             seq += 1
 
@@ -166,7 +174,7 @@ class Chunker:
 
             if is_atomic:
                 flush(carry_overlap=True)
-                _emit([], etype=elem.type, extra_content=elem.content, overlap=overlap_text)
+                _emit([elem], etype=elem.type, overlap=overlap_text)
                 # atomic chunks don't carry overlap forward
                 overlap_text = ""
                 continue

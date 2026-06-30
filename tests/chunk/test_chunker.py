@@ -20,8 +20,36 @@ def test_single_short_element_becomes_one_chunk():
     assert chunks[0].book_id == "b"
     assert chunks[0].source_file == "ch01.pdf"
     assert chunks[0].page_start == 1
+    assert chunks[0].page_end == 1
     assert "short paragraph" in chunks[0].content
     assert chunks[0].chunk_id == "b/ch01/p0001/0000"
+
+
+def test_page_end_reflects_last_element_when_chunk_spans_pages():
+    """A buffer with no heading/atomic boundary in between can span pages —
+    page_end must reflect that, not silently report page_start's value."""
+    c = Chunker()
+    elems = [
+        _el("Page five content.", page_num=5),
+        _el("Page six content, same chunk.", page_num=6),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert chunks[0].page_start == 5
+    assert chunks[0].page_end == 6
+
+
+def test_page_end_spans_three_pages():
+    c = Chunker()
+    elems = [
+        _el("p7", page_num=7),
+        _el("p8", page_num=8),
+        _el("p9", page_num=9),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert chunks[0].page_start == 7
+    assert chunks[0].page_end == 9
 
 
 def test_heading_splits_into_separate_chunks():
@@ -82,7 +110,16 @@ def test_page_num_zero_gives_none_page_start():
     elems = [_el("Some content.", page_num=0)]
     chunks = c.chunk(elems, book_id="b", source_file="f.epub")
     assert chunks[0].page_start is None
+    assert chunks[0].page_end is None
     assert "/pNone/" in chunks[0].chunk_id
+
+
+def test_atomic_element_page_start_equals_page_end():
+    c = Chunker()
+    elems = [_el("| A | B |\n|---|---|\n| 1 | 2 |", "table", page_num=4)]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert chunks[0].page_start == 4
+    assert chunks[0].page_end == 4
 
 
 def test_token_count_is_set():

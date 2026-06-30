@@ -10,6 +10,7 @@ def test_chunk_defaults():
         token_count=2,
     )
     assert c.page_start is None
+    assert c.page_end is None
     assert c.start_sec is None
     assert c.end_sec is None
     assert c.low_confidence is False
@@ -50,7 +51,9 @@ def test_chunk_to_dict_round_trip():
         content="x",
         token_count=1,
         page_start=1,
+        page_end=2,
     )
     d = dataclasses.asdict(c)
     assert d["page_start"] == 1
+    assert d["page_end"] == 2
     assert d["start_sec"] is None
