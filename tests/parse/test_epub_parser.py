@@ -115,6 +115,34 @@ def test_html_to_elements_code_block():
     assert any(e.type == "code" for e in elems)
 
 
+def test_html_to_elements_list_items_not_dropped():
+    """<ul>/<li> 内容目前会被静默丢弃——这个测试记录正确行为，目前应该失败。"""
+    html = """<html><body>
+    <p>Intro text.</p>
+    <ul><li>First item</li><li>Second item</li></ul>
+    <p>Outro text.</p>
+    </body></html>"""
+    elems = _html_to_elements(html)
+    all_content = " ".join(e.content for e in elems)
+    assert "First item" in all_content
+    assert "Second item" in all_content
+
+
+def test_html_to_elements_blockquote_not_dropped():
+    """<blockquote> 内容目前会被静默丢弃——这个测试记录正确行为，目前应该失败。"""
+    html = "<html><body><p>Before.</p><blockquote><p>A quoted passage.</p></blockquote><p>After.</p></body></html>"
+    elems = _html_to_elements(html)
+    all_content = " ".join(e.content for e in elems)
+    assert "A quoted passage" in all_content
+
+
+def test_html_to_elements_img_becomes_figure():
+    """<img> 目前会被静默丢弃，应该生成一个 figure 类型的 Element——这个测试目前应该失败。"""
+    html = '<html><body><p>Before.</p><img src="fig1.png" alt="A diagram"/><p>After.</p></body></html>'
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" for e in elems)
+
+
 def test_html_to_elements_skips_empty():
     html = "<html><body><p>   </p><p>Real content.</p></body></html>"
     elems = _html_to_elements(html)
