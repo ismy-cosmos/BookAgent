@@ -3,6 +3,11 @@ import re
 
 from .base import Element, Parser
 
+# Fallback only — real parsing always derives the separator from the live
+# renderer (see MarkerParser._get_converter). Used by tests that build their
+# own fake paginated markdown and don't go through a real PdfConverter.
+_PAGE_SEP = "-" * 48
+
 
 class MarkerParser(Parser):
     """Marker-pdf parser adapter (v1.x PdfConverter API).
@@ -11,43 +16,117 @@ class MarkerParser(Parser):
     """
 
     _converter = None
+    _page_sep = None
 
     @classmethod
     def _get_converter(cls):
         if cls._converter is None:
             from marker.converters.pdf import PdfConverter
             from marker.models import create_model_dict
-            cls._converter = PdfConverter(artifact_dict=create_model_dict())
+            cls._converter = PdfConverter(
+                artifact_dict=create_model_dict(),
+                config={"paginate_output": True},
+            )
+            # Read the separator marker actually resolves/uses, rather than
+            # assuming it matches our own guess — avoids silently breaking
+            # page numbering if marker-pdf ever changes its default.
+            resolved_renderer = cls._converter.resolve_dependencies(cls._converter.renderer)
+            cls._page_sep = resolved_renderer.page_separator
         return cls._converter
 
     def parse(self, pdf_path: str) -> list[Element]:
         converter = self._get_converter()
         rendered = converter(pdf_path)
-        return _rendered_to_elements(rendered)
+        return _rendered_to_elements(rendered, page_sep=self._page_sep)
 
 
-def _rendered_to_elements(rendered) -> list[Element]:
-    """Convert a RenderedDocument to Element list.
+def _rendered_to_elements(rendered, page_sep: str) -> list[Element]:
+    """Convert a paginated MarkdownOutput to Element list.
 
-    Uses per-page children when available (page_num = page_id + 1).
-    Falls back to full-document markdown with page_num=0 (unknown).
+    With paginate_output=True, MarkdownRenderer inserts page_sep between
+    pages, producing sections[0] (pre-page artifact), sections[1] (page 1),
+    sections[2] (page 2), …  page_num = section index (1-based).
+
+    page_sep must be the separator the renderer actually used (see
+    MarkerParser._get_converter) — never assume a hardcoded value.
     """
-    children = getattr(rendered, "children", None)
-    if children:
-        elements: list[Element] = []
-        for page_obj in children:
-            page_num = getattr(page_obj, "page_id", 0) + 1
-            page_md = getattr(page_obj, "markdown", "") or ""
-            elements.extend(_markdown_to_elements(page_md, page_num))
-        return elements
+    markdown = getattr(rendered, "markdown", "") or ""
+    if not markdown.strip():
+        return []
 
-    return _markdown_to_elements(getattr(rendered, "markdown", "") or "", page_num=0)
+    sections = markdown.split(page_sep)
+    # sections[0] is always a pre-page artifact ({0} or empty); skip it.
+    # sections[i] (i >= 1) is the content of page i.
+    elements: list[Element] = []
+    for i, section in enumerate(sections[1:], start=1):
+        elements.extend(_markdown_to_elements(section, page_num=i))
+    return elements
+
+
+def _split_markdown_blocks(markdown: str) -> list[str]:
+    """Split markdown into top-level blocks on blank lines.
+
+    Fenced code blocks (```...```) and standalone ``$$`` math blocks are
+    treated as atomic: blank lines *inside* them do not split the block,
+    since multi-statement code listings and multi-line formulas commonly
+    contain blank lines of their own.
+    """
+    lines = markdown.strip("\n").split("\n")
+    blocks: list[str] = []
+    buf: list[str] = []
+    in_fence = False
+    in_math = False
+
+    def flush():
+        if buf:
+            text = "\n".join(buf).strip("\n")
+            if text.strip():
+                blocks.append(text)
+            buf.clear()
+
+    for line in lines:
+        stripped = line.strip()
+
+        if in_fence:
+            buf.append(line)
+            if stripped.startswith("```"):
+                in_fence = False
+                flush()
+            continue
+
+        if in_math:
+            buf.append(line)
+            if stripped == "$$":
+                in_math = False
+                flush()
+            continue
+
+        if stripped.startswith("```"):
+            flush()
+            in_fence = True
+            buf.append(line)
+            continue
+
+        if stripped == "$$":
+            flush()
+            in_math = True
+            buf.append(line)
+            continue
+
+        if stripped == "":
+            flush()
+            continue
+
+        buf.append(line)
+
+    flush()
+    return blocks
 
 
 def _markdown_to_elements(markdown: str, page_num: int) -> list[Element]:
     """Split a markdown string into typed Elements, one per block."""
     elements: list[Element] = []
-    for block in re.split(r"\n{2,}", markdown.strip()):
+    for block in _split_markdown_blocks(markdown):
         block = block.strip()
         if not block:
             continue
