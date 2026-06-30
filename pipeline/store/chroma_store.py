@@ -48,6 +48,7 @@ class ChromaStore:
                     "page_start": _meta_val(c.page_start),
                     "start_sec": _meta_val(c.start_sec),
                     "end_sec": _meta_val(c.end_sec),
+                    "low_confidence": c.low_confidence,
                 }
                 for c in chunks
             ],
@@ -79,6 +80,7 @@ class ChromaStore:
                 "page_start": _from_meta_val(meta.get("page_start")),
                 "start_sec": _from_meta_val(meta.get("start_sec")),
                 "end_sec": _from_meta_val(meta.get("end_sec")),
+                "low_confidence": meta.get("low_confidence", False),
             })
         return results
 

@@ -1,0 +1,109 @@
+# CS 测试集 QA 人工审查版
+
+总计 60 条，按来源章节分组。所有条目均已对照实际 PDF 内容核验，source_location 标注真实页码（早期 cs-b001~b027 部分用书内章节号 §x.x 辅助定位，对照解析结果已核实编号准确）。
+
+## cpu-intro.pdf（7 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-b001 | 事实题 | 操作系统对「进程」的精确定义是什么？进程与程序的区别是什么？ | cpu-intro.pdf §4.1 The Abstraction: A Process |
+| cs-b002 | 事实题 | 进程的机器状态（machine state）由哪三类主要成分构成？ | cpu-intro.pdf §4.1 The Abstraction: A Process |
+| cs-b003 | 事实题 | 操作系统通过什么技术在单个物理 CPU 上让多个进程同时运行？其核心代价是什么？ | cpu-intro.pdf 引言及 §4.1 |
+| cs-b004 | 事实题 | OS 将程序加载为进程时，在跳转到 main() 之前会依次完成哪些初始化步骤？ | cpu-intro.pdf §4.3 Process Creation: A Little More Detail |
+| cs-b005 | 事实题 | 进程的三种基本状态是什么？各自的含义及相互转换条件是什么？ | cpu-intro.pdf §4.4 Process States |
+| cs-b006 | 计算题 | 系统有 1 个 CPU，进程 A 和 B 同时到达（t=0）。A 先运行 5ms 后发起需 10ms 的 I/… | cpu-intro.pdf §4.4 Process States（I/O 重叠示例） |
+| cs-b007 | 无答案题 | cpu-intro 这一章讨论了进程调度算法（如 FIFO、Round Robin）的具体性能对比吗？ | cpu-intro.pdf（本章未涉及具体调度算法，仅介绍进程抽象概念，调度算法在 cpu-sched 章节） |
+
+## cpu-api.pdf（7 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-b008 | 事实题 | fork() 系统调用在父进程和子进程中分别返回什么值？调用失败时返回什么？ | cpu-api.pdf §5.1 The fork() System Call |
+| cs-b009 | 事实题 | exec() 系列调用成功执行后为什么不会返回到调用它的代码？ | cpu-api.pdf §5.2 The exec() System Call |
+| cs-b010 | 事实题 | wait() 的作用是什么？父进程不调用 wait() 而子进程先退出，会产生什么现象？ | cpu-api.pdf p4 §5.2 The wait() System Call；僵尸状态定义见 cpu-intro.pdf p9 ASIDE: Process List |
+| cs-b011 | 事实题 | fork() 后子进程是否会获得父进程文件描述符的独立副本？这一特性如何支撑 shell 的输出重定向功能？ | cpu-api.pdf p6-p7 §5.4 Why? Motivating The API（重定向示例） |
+| cs-b012 | 事实题 | shell 执行用户输入命令的典型三步流程是什么？ | cpu-api.pdf §5.4 Why? Motivating The API |
+| cs-b013 | 计算题 | 以下 C 代码执行后共会打印多少行 hello？ int main() { fork(); fork(); p… | cpu-api.pdf §5.1 The fork() System Call（fork 调用树分析） |
+| cs-b014 | 无答案题 | cpu-api 这章讲解了进程间通信（IPC）的具体实现机制（如管道、共享内存、消息队列）吗？ | cpu-api.pdf（本章只涵盖 fork/exec/wait 基本 API，未涉及 IPC 机制） |
+
+## cpu-sched.pdf（9 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-b015 | 事实题 | 调度领域中「周转时间」（turnaround time）的计算公式是什么？ | cpu-sched.pdf p2 §7.2 Scheduling Metrics |
+| cs-b016 | 事实题 | FIFO 调度在什么情况下会产生「护航效应」（convoy effect）？ | cpu-sched.pdf p3 §7.3 FIFO（Convoy Effect） |
+| cs-b017 | 事实题 | SJF（Shortest Job First）为什么在实际系统中难以直接应用？ | cpu-sched.pdf p4 §7.4 Shortest Job First (SJF) |
+| cs-b018 | 事实题 | STCF 与 SJF 的主要区别是什么？ | cpu-sched.pdf p5 §7.5 Shortest Time-to-Completion First (STCF) |
+| cs-b019 | 事实题 | Round Robin 调度为何能改善响应时间，但通常周转时间更差？ | cpu-sched.pdf p6-p8 §7.6 Response Time / §7.7 Round Robin |
+| cs-b020 | 事实题 | 调度器在处理含 I/O 的任务时，如何实现 CPU 与 I/O 的重叠利用？ | cpu-sched.pdf p9-p10 §7.8 Incorporating I/O |
+| cs-b021 | 计算题 | 三个任务 A(5ms)、B(10ms)、C(15ms) 同时在 t=0 到达，FIFO 按 A→B→C 顺序调… | cpu-sched.pdf p3 §7.3 FIFO（计算题，沿用书中方法论） |
+| cs-b022 | 计算题 | 同上三个任务（A=5, B=10, C=15，t=0 同时到达），改用 SJF 调度，平均周转时间是多少？与 … | cpu-sched.pdf p4 §7.4 SJF（计算题，沿用书中方法论） |
+| cs-b023 | 无答案题 | cpu-sched 这章讨论了多核处理器上的调度问题（如 SQMS/MQMS 架构）吗？ | cpu-sched.pdf（本章只讨论单核调度，多核在 cpu-sched-multi 章节） |
+
+## cpu-sched-multi.pdf（4 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-b024 | 事实题 | 多核调度中「缓存亲和性」（cache affinity）指的是什么？为什么调度器应尽量保持它？ | cpu-sched-multi.pdf p5 §10.3 One Final Issue: Cache Affinity |
+| cs-b025 | 事实题 | SQMS（单队列多处理器调度）的两个主要缺点是什么？ | cpu-sched-multi.pdf p6 §10.4 Single-Queue Scheduling |
+| cs-b026 | 事实题 | MQMS（多队列多处理器调度）如何解决负载不均衡问题？ | cpu-sched-multi.pdf p7-p10 §10.5 Multi-Queue Scheduling（work stealing） |
+| cs-b027 | 计算题 | 系统有 2 个 CPU，各自维护独立就绪队列。CPU0 有任务 A(10ms)、B(10ms)，CPU1 有任… | cpu-sched-multi.pdf p7-p9 §10.5 Multi-Queue Scheduling（负载不均衡示例） |
+
+## threads-intro.pdf（7 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-b028 | 事实题 | 线程与进程在地址空间上的核心区别是什么？ | threads-intro.pdf p1-p2 线程模型 |
+| cs-b029 | 事实题 | 使用多线程而非多进程的两个主要动机是什么？ | threads-intro.pdf p3 为何使用线程 |
+| cs-b030 | 事实题 | 什么是竞态条件（race condition）？结合 counter 共享变量的例子说明。 | threads-intro.pdf p11 竞态条件 |
+| cs-b031 | 事实题 | 临界区（critical section）指的是什么代码？我们希望对临界区实现什么性质，以避免竞态条件？ | threads-intro.pdf p11 临界区与互斥 |
+| cs-b032 | 事实题 | 为什么 counter++ 这样看起来只有一行的语句也可能不是原子的？ | threads-intro.pdf p9-p10 The Heart Of The Problem |
+| cs-b033 | 计算题 | 两个线程各对共享变量 counter（初始为 0）执行 1000 次 counter++，如果没有任何同步，c… | threads-intro.pdf p9-p11 竞态条件分析（推导题） |
+| cs-b034 | 无答案题 | threads-intro 这章介绍了无锁（lock-free）数据结构的实现方式吗？ | threads-intro.pdf（本章只引入竞态条件和互斥的基本概念，未涉及无锁数据结构） |
+
+## threads-api.pdf（6 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-b035 | 事实题 | pthread_create() 的四个参数分别是什么？ | threads-api.pdf p1 Thread Creation |
+| cs-b036 | 事实题 | pthread_join() 的作用是什么？是否所有多线程程序都必须调用它？ | threads-api.pdf p2-p3, p5 Thread Completion |
+| cs-b037 | 事实题 | 使用条件变量等待某个条件时，为什么书中建议用 while 循环重新检查条件，而不是用一次性的 if 判断？ | threads-api.pdf p8 One Last Oddity |
+| cs-b038 | 事实题 | POSIX 线程库提供了哪两种初始化互斥锁（mutex）的方式？ | threads-api.pdf p6 Locks 初始化 |
+| cs-b039 | 计算题 | 以下加锁代码有两处问题，分别是什么？ pthread_mutex_t lock; pthread_mutex_… | threads-api.pdf p6 Locks（破损示例代码分析） |
+| cs-b040 | 无答案题 | threads-api 这章详细讲解了读写锁（pthread_rwlock）的使用吗？ | threads-api.pdf（本章只讲 mutex 与 condition variable 基本 API，未提及读写锁） |
+
+## vm-paging.pdf（8 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-b041 | 事实题 | 分页机制中页（page）和页帧（page frame）的区别是什么？ | vm-paging.pdf p1-p2 A Simple Example |
+| cs-b042 | 事实题 | 一个虚拟地址在分页系统中如何被划分为 VPN 和 offset？ | vm-paging.pdf p3 地址结构 |
+| cs-b043 | 事实题 | 页表项（PTE）中有效位（valid bit）的作用是什么？ | vm-paging.pdf p6 What's In The Page Table |
+| cs-b044 | 事实题 | 为什么书中说最朴素的分页机制会让内存访问变慢？ | vm-paging.pdf p8-p9 Paging: Also Too Slow |
+| cs-b045 | 事实题 | 书中总结部分指出，分页相比之前的方案（如分段）有什么碎片方面的优势？为什么？ | vm-paging.pdf p12 Summary |
+| cs-b046 | 计算题 | 系统使用 32 位虚拟地址，页大小 4KB（2^12 字节），按书中地址划分方法，VPN 占多少位？页表最多需… | vm-paging.pdf p3 地址划分方法（推导题） |
+| cs-b047 | 计算题 | 仿照书中例子：虚拟地址空间 64 字节、页大小 16 字节，虚拟地址 21（二进制 010101）对应的 VP… | vm-paging.pdf p3-p4 地址转换示例（沿用书中数值） |
+| cs-b048 | 无答案题 | vm-paging 这章详细介绍了多级页表（multi-level page table）的具体实现吗？ | vm-paging.pdf（本章只用线性页表举例，p6 明确说更高级的数据结构留待后续章节） |
+
+## vm-segmentation.pdf（7 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-b049 | 事实题 | 分段（segmentation）机制如何进行地址转换？什么情况下会触发段错误（segmentation fau… | vm-segmentation.pdf p1-p4 地址转换与 Segmentation Fault |
+| cs-b050 | 事实题 | 分段机制会产生什么类型的碎片？书中是如何描述这一问题的？ | vm-segmentation.pdf p9 Managing Free Space |
+| cs-b051 | 事实题 | 分段系统通常将进程地址空间划分为哪几个段？ | vm-segmentation.pdf p1-p2 Segmentation: Generalized Base/Bounds |
+| cs-b052 | 事实题 | 分段相比之前整个地址空间用一对 base+bounds 映射的方式，解决了什么问题？ | vm-segmentation.pdf p1 引言 |
+| cs-b053 | 计算题 | 沿用书中 Figure 16.3 的代码段配置（base=32KB，bounds/size=2KB），若访问虚… | vm-segmentation.pdf p3 Figure 16.3 Segment Register Values |
+| cs-b054 | 无答案题 | vm-segmentation 这章讨论了现代 x86-64 处理器中分段寄存器的实际使用方式吗？ | vm-segmentation.pdf（本章只介绍经典分段概念与历史，未涉及 x86-64 具体实现） |
+| cs-b055 | 无答案题 | vm-segmentation 这章给出了不同外部碎片消减算法（如最佳适应、最差适应）的量化性能对比实验数据吗… | vm-segmentation.pdf p9（提到存在很多算法及压缩 compact 的思路，但未给出具体算法的量化对比数据） |
+
+## 音频 segment-01（5 条）
+
+| ID | 类型 | 问题 | 来源定位 |
+|---|---|---|---|
+| cs-a01 | 音频题 | 在这段 demo 开始时，Remzi 的机器上共有多少个进程？其中处于活跃运行状态的有几个？其余的在做什么？ | 音频 segment-01 01:14–01:41 |
+| cs-a02 | 音频题 | cpu.c 中的 spin 函数为什么要重复调用 getTime，而不是写一个真正的空循环？ | 音频 segment-01 03:16–03:38 |
+| cs-a03 | 音频题 | top 输出中进程 ID 0 是什么？它是什么时候创建的，负责什么？ | 音频 segment-01 02:19–02:49 |
+| cs-a04 | 计算题 | 运行两个 cpu.c 实例后，系统空闲率变为约 50%。据此推断该机器有多少个虚拟核心？ | 音频 segment-01 04:07–04:29 |
+| cs-a05 | 无答案题 | 在这段 demo 中，Remzi 用 top 查看了哪些内存统计数据？ | 音频 segment-01（全段均无内存数据细节） |
+

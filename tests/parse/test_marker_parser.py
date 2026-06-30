@@ -6,8 +6,10 @@ import pytest
 from pipeline.parse import Element
 from pipeline.parse.marker import (
     MarkerParser,
+    _PAGE_SEP,
     _classify_block,
     _markdown_to_elements,
+    _rendered_to_elements,
 )
 
 
@@ -88,60 +90,145 @@ def test_markdown_empty_string_returns_empty():
     assert _markdown_to_elements("", page_num=1) == []
 
 
-# ── MarkerParser.parse (mocked converter) ─────────────────────────────────────
+# ── _rendered_to_elements (paginate_output split) ─────────────────────────────
 
-def _fake_rendered(markdown: str, children=None):
+def _make_rendered(markdown: str):
     r = MagicMock()
     r.markdown = markdown
-    r.children = children
     return r
 
 
-def test_parse_fallback_when_no_children(tmp_path):
-    pdf = tmp_path / "test.pdf"
-    pdf.write_bytes(b"%PDF-1.4 fake")
+def _paginated(*page_contents: str) -> str:
+    """Build a paginated markdown string matching marker's paginate_output format."""
+    # marker prepends artifact section before the first page separator
+    return "{0}\n\n" + f"\n\n{_PAGE_SEP}\n\n".join([""] + list(page_contents))
 
-    rendered = _fake_rendered("# Title\n\nParagraph.", children=None)
-    mock_converter = MagicMock(return_value=rendered)
 
-    with patch.object(MarkerParser, "_get_converter", return_value=mock_converter):
-        elements = MarkerParser().parse(str(pdf))
-
+def test_rendered_two_pages_get_correct_page_nums():
+    md = _paginated("Page one content.", "Page two content.")
+    elements = _rendered_to_elements(_make_rendered(md), page_sep=_PAGE_SEP)
     assert len(elements) == 2
-    assert all(e.page_num == 0 for e in elements)
-    assert isinstance(elements[0], Element)
-
-
-def test_parse_uses_children_page_ids(tmp_path):
-    pdf = tmp_path / "test.pdf"
-    pdf.write_bytes(b"%PDF-1.4 fake")
-
-    page0 = MagicMock()
-    page0.page_id = 0
-    page0.markdown = "Page one content."
-    page1 = MagicMock()
-    page1.page_id = 1
-    page1.markdown = "Page two content."
-
-    rendered = _fake_rendered("ignored", children=[page0, page1])
-    mock_converter = MagicMock(return_value=rendered)
-
-    with patch.object(MarkerParser, "_get_converter", return_value=mock_converter):
-        elements = MarkerParser().parse(str(pdf))
-
-    assert len(elements) == 2
-    assert elements[0].page_num == 1  # page_id 0 → page_num 1
+    assert elements[0].page_num == 1
     assert elements[1].page_num == 2
+
+
+def test_rendered_three_pages():
+    md = _paginated("Alpha.", "Beta.", "Gamma.")
+    elements = _rendered_to_elements(_make_rendered(md), page_sep=_PAGE_SEP)
+    pages = [e.page_num for e in elements]
+    assert pages == [1, 2, 3]
+
+
+def test_rendered_artifact_section_produces_no_elements():
+    """sections[0] (pre-page artifact) must never appear in output."""
+    md = "{0}\n\n" + _PAGE_SEP + "\n\nReal content."
+    elements = _rendered_to_elements(_make_rendered(md), page_sep=_PAGE_SEP)
+    assert len(elements) == 1
+    assert elements[0].page_num == 1
+    assert "Real" in elements[0].content
+
+
+def test_rendered_empty_markdown_returns_empty():
+    assert _rendered_to_elements(_make_rendered(""), page_sep=_PAGE_SEP) == []
+
+
+def test_rendered_page_with_mixed_types():
+    md = _paginated("# Heading\n\nText.\n\n$$E=mc^2$$")
+    elements = _rendered_to_elements(_make_rendered(md), page_sep=_PAGE_SEP)
+    assert [e.type for e in elements] == ["text", "text", "formula"]
+    assert all(e.page_num == 1 for e in elements)
+
+
+def test_rendered_uses_whatever_separator_it_is_given():
+    """The split must use the passed-in separator, not a hardcoded one —
+    this is what lets MarkerParser stay correct if marker-pdf's default
+    page_separator ever changes."""
+    custom_sep = "===PAGEBREAK==="
+    md = "{0}\n\n" + f"\n\n{custom_sep}\n\n".join(["", "Page one.", "Page two."])
+    elements = _rendered_to_elements(_make_rendered(md), page_sep=custom_sep)
+    assert len(elements) == 2
+    assert elements[0].page_num == 1
+    assert elements[1].page_num == 2
+
+
+# ── _split_markdown_blocks / _markdown_to_elements: blocks with internal blank lines ──
+
+def test_markdown_code_block_with_internal_blank_line_stays_one_block():
+    """A fenced code block with a blank line between functions must not be
+    split into a broken 'half text + half code' pair."""
+    md = "```c\nint foo() {\n    return 1;\n}\n\nint bar() {\n    return 2;\n}\n```"
+    elements = _markdown_to_elements(md, page_num=1)
+    assert len(elements) == 1
+    assert elements[0].type == "code"
+    assert "foo" in elements[0].content
+    assert "bar" in elements[0].content
+    assert "```" not in elements[0].content
+
+
+def test_markdown_math_block_with_internal_blank_line_stays_one_block():
+    md = "$$\nx = 1\n\ny = 2\n$$"
+    elements = _markdown_to_elements(md, page_num=1)
+    assert len(elements) == 1
+    assert elements[0].type == "formula"
+    assert "x = 1" in elements[0].content
+    assert "y = 2" in elements[0].content
+
+
+def test_markdown_code_block_surrounded_by_paragraphs():
+    md = "Intro text.\n\n```python\ndef f():\n\n    return 1\n```\n\nOutro text."
+    elements = _markdown_to_elements(md, page_num=1)
+    assert [e.type for e in elements] == ["text", "code", "text"]
+    assert "f()" in elements[1].content or "def f" in elements[1].content
+
+
+# ── MarkerParser.parse (mocked converter) ─────────────────────────────────────
+
+def _fake_rendered(markdown: str):
+    r = MagicMock()
+    r.markdown = markdown
+    return r
+
+
+def test_parse_per_page_correct_page_nums(tmp_path):
+    pdf = tmp_path / "test.pdf"
+    pdf.write_bytes(b"%PDF-1.4 fake")
+
+    md = _paginated("# Chapter One\n\nFirst.", "# Chapter Two\n\nSecond.")
+    mock_converter = MagicMock(return_value=_fake_rendered(md))
+
+    with patch.object(MarkerParser, "_get_converter", return_value=mock_converter), \
+         patch.object(MarkerParser, "_page_sep", _PAGE_SEP):
+        elements = MarkerParser().parse(str(pdf))
+
+    assert len(elements) == 4
+    assert elements[0].page_num == 1
+    assert elements[1].page_num == 1
+    assert elements[2].page_num == 2
+    assert elements[3].page_num == 2
+
+
+def test_parse_empty_pdf_returns_empty(tmp_path):
+    pdf = tmp_path / "test.pdf"
+    pdf.write_bytes(b"%PDF-1.4 fake")
+
+    mock_converter = MagicMock(return_value=_fake_rendered(""))
+
+    with patch.object(MarkerParser, "_get_converter", return_value=mock_converter), \
+         patch.object(MarkerParser, "_page_sep", _PAGE_SEP):
+        elements = MarkerParser().parse(str(pdf))
+
+    assert elements == []
 
 
 def test_parse_returns_element_instances(tmp_path):
     pdf = tmp_path / "test.pdf"
     pdf.write_bytes(b"%PDF-1.4 fake")
 
-    rendered = _fake_rendered("Some text.\n\n$$x^2$$", children=None)
-    mock_converter = MagicMock(return_value=rendered)
+    md = _paginated("Some text.\n\n$$x^2$$")
+    mock_converter = MagicMock(return_value=_fake_rendered(md))
 
-    with patch.object(MarkerParser, "_get_converter", return_value=mock_converter):
+    with patch.object(MarkerParser, "_get_converter", return_value=mock_converter), \
+         patch.object(MarkerParser, "_page_sep", _PAGE_SEP):
         elements = MarkerParser().parse(str(pdf))
 
     assert all(isinstance(e, Element) for e in elements)

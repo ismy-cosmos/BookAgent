@@ -81,6 +81,122 @@ def test_audio_parser_empty_segments(tmp_path):
     assert chunks == []
 
 
+def test_audio_parser_default_language_is_auto_detect(tmp_path):
+    """默认不应该传 --language，让 whisperx 自动检测语种（与设计文档要求一致）。"""
+    audio = tmp_path / "segment-01.mp3"
+    audio.write_bytes(b"fake")
+
+    captured_cmd = []
+
+    def fake_run(cmd, check, **kwargs):
+        captured_cmd.extend(cmd)
+        _fake_whisperx_run(cmd, cmd[cmd.index("--output_dir") + 1], "segment-01")
+
+    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+        AudioParser().parse_to_chunks(str(audio), book_id="ostep")
+
+    assert "--language" not in captured_cmd
+
+
+def test_audio_parser_explicit_language_still_works(tmp_path):
+    """显式指定语种时，--language 仍应正确传给 whisperx。"""
+    audio = tmp_path / "segment-01.mp3"
+    audio.write_bytes(b"fake")
+
+    captured_cmd = []
+
+    def fake_run(cmd, check, **kwargs):
+        captured_cmd.extend(cmd)
+        _fake_whisperx_run(cmd, cmd[cmd.index("--output_dir") + 1], "segment-01")
+
+    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+        AudioParser(language="en").parse_to_chunks(str(audio), book_id="ostep")
+
+    assert "--language" in captured_cmd
+    assert captured_cmd[captured_cmd.index("--language") + 1] == "en"
+
+
+def test_audio_parser_default_model_is_small(tmp_path):
+    audio = tmp_path / "segment-01.mp3"
+    audio.write_bytes(b"fake")
+
+    captured_cmd = []
+
+    def fake_run(cmd, check, **kwargs):
+        captured_cmd.extend(cmd)
+        _fake_whisperx_run(cmd, cmd[cmd.index("--output_dir") + 1], "segment-01")
+
+    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+        AudioParser().parse_to_chunks(str(audio), book_id="ostep")
+
+    assert captured_cmd[captured_cmd.index("--model") + 1] == "small"
+
+
+def test_audio_parser_raises_clear_error_when_whisperx_missing(tmp_path):
+    audio = tmp_path / "segment-01.mp3"
+    audio.write_bytes(b"fake")
+
+    parser = AudioParser(whisperx_path="/nonexistent/path/to/whisperx")
+    with pytest.raises(RuntimeError, match="WhisperX"):
+        parser.parse_to_chunks(str(audio), book_id="ostep")
+
+
+def test_audio_parser_low_confidence_segment_flagged(tmp_path):
+    audio = tmp_path / "segment-01.mp3"
+    audio.write_bytes(b"fake")
+
+    def fake_run(cmd, check, **kwargs):
+        out = {
+            "segments": [
+                {
+                    "start": 0.0, "end": 5.0, "text": "Mumbled audio.",
+                    "words": [{"word": "Mumbled", "score": 0.3}, {"word": "audio.", "score": 0.4}],
+                },
+            ]
+        }
+        (Path(cmd[cmd.index("--output_dir") + 1]) / "segment-01.json").write_text(json.dumps(out))
+
+    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+        chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
+
+    assert chunks[0].low_confidence is True
+
+
+def test_audio_parser_high_confidence_segment_not_flagged(tmp_path):
+    audio = tmp_path / "segment-01.mp3"
+    audio.write_bytes(b"fake")
+
+    def fake_run(cmd, check, **kwargs):
+        out = {
+            "segments": [
+                {
+                    "start": 0.0, "end": 5.0, "text": "Clear audio.",
+                    "words": [{"word": "Clear", "score": 0.95}, {"word": "audio.", "score": 0.9}],
+                },
+            ]
+        }
+        (Path(cmd[cmd.index("--output_dir") + 1]) / "segment-01.json").write_text(json.dumps(out))
+
+    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+        chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
+
+    assert chunks[0].low_confidence is False
+
+
+def test_audio_parser_no_word_scores_defaults_not_low_confidence(tmp_path):
+    """没有 words 字段时（比如关闭了对齐），不应该被误判为低置信度。"""
+    audio = tmp_path / "segment-01.mp3"
+    audio.write_bytes(b"fake")
+
+    def fake_run(cmd, check, **kwargs):
+        _fake_whisperx_run(cmd, cmd[cmd.index("--output_dir") + 1], "segment-01")
+
+    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+        chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
+
+    assert chunks[0].low_confidence is False
+
+
 def test_audio_parser_seq_skips_blank_segments(tmp_path):
     audio = tmp_path / "mixed.mp3"
     audio.write_bytes(b"fake")
