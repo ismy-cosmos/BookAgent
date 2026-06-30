@@ -12,6 +12,7 @@ def test_chunk_defaults():
     assert c.page_start is None
     assert c.start_sec is None
     assert c.end_sec is None
+    assert c.low_confidence is False
 
 def test_chunk_audio_fields():
     c = Chunk(
@@ -26,6 +27,18 @@ def test_chunk_audio_fields():
     )
     assert c.start_sec == 74.0
     assert c.page_start is None
+
+def test_chunk_low_confidence_settable():
+    c = Chunk(
+        chunk_id="ostep/segment-01/0001",
+        book_id="ostep",
+        source_file="segment-01.mp3",
+        element_type="audio",
+        content="Mumbled audio.",
+        token_count=3,
+        low_confidence=True,
+    )
+    assert c.low_confidence is True
 
 def test_chunk_to_dict_round_trip():
     import dataclasses

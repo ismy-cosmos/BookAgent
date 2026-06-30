@@ -52,6 +52,38 @@ def test_add_chunks_metadata_none_to_empty_str(mock_chroma):
     assert meta["page_start"] == 1
 
 
+def test_add_chunks_metadata_low_confidence_passed_through(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    store = ChromaStore(persist_dir=str(tmp))
+    chunk = Chunk(
+        chunk_id="b/audio/0000",
+        book_id="b",
+        source_file="lecture.mp3",
+        element_type="audio",
+        content="mumbled text",
+        token_count=2,
+        start_sec=0.0,
+        end_sec=5.0,
+        low_confidence=True,
+    )
+    store.add_chunks("b", [chunk], [[0.0] * 1024])
+    meta = mock_col.add.call_args.kwargs["metadatas"][0]
+    assert meta["low_confidence"] is True
+
+
+def test_query_returns_low_confidence(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    mock_col.query.return_value = {
+        "ids": [["b/audio/0000"]],
+        "documents": [["mumbled text"]],
+        "distances": [[0.2]],
+        "metadatas": [[{"start_sec": 0.0, "end_sec": 5.0, "low_confidence": True}]],
+    }
+    store = ChromaStore(persist_dir=str(tmp))
+    results = store.query("b", [0.0] * 1024, n_results=1)
+    assert results[0]["low_confidence"] is True
+
+
 def test_query_returns_formatted_results(mock_chroma):
     _, mock_col, tmp = mock_chroma
     mock_col.query.return_value = {
