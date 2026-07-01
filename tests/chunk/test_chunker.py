@@ -211,6 +211,57 @@ def test_split_at_sentence_no_false_break_at_abbreviation():
         )
 
 
+def test_atomic_prefix_from_colon_ending_sentence():
+    """Last sentence of the preceding text chunk, if it ends with ':', is
+    prepended to the atomic chunk. Only the last sentence is used."""
+    c = Chunker()
+    elems = [
+        _el("Some intro text. The schedule is as follows:"),
+        _el("| T | Process |\n|---|---|\n| 0 | A |", "table"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    table_chunk = next(ch for ch in chunks if ch.element_type == "table")
+    assert "The schedule is as follows:" in table_chunk.content
+    assert "Some intro text" not in table_chunk.content
+
+
+def test_atomic_no_prefix_when_last_sentence_lacks_colon():
+    """No prefix when the preceding text's last sentence does not end with ':'."""
+    c = Chunker()
+    elems = [
+        _el("This is context without a colon at the end."),
+        _el("| A | B |\n|---|---|\n| 1 | 2 |", "table"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    table_chunk = next(ch for ch in chunks if ch.element_type == "table")
+    assert "This is context" not in table_chunk.content
+
+
+def test_atomic_no_prefix_after_heading():
+    """When atomic immediately follows a heading (empty buffer), no prefix is added."""
+    c = Chunker()
+    elems = [
+        _el("## Section Title", "text"),
+        _el("```\ncode block\n```", "code"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    code_chunk = next(ch for ch in chunks if ch.element_type == "code")
+    assert "Section Title" not in code_chunk.content
+
+
+def test_atomic_no_prefix_when_preceding_chunk_is_atomic():
+    """No prefix when chunks[-1].element_type is not 'text' (e.g. preceding table)."""
+    c = Chunker()
+    elems = [
+        _el("| X |\n|---|\n| 1 |", "table"),
+        _el("```\ncode\n```", "code"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    code_chunk = next(ch for ch in chunks if ch.element_type == "code")
+    assert "X" not in code_chunk.content
+    assert "1" not in code_chunk.content
+
+
 def test_long_element_first_piece_excludes_buffer_content():
     """When a long element is split, its first piece must not carry overlap
     from a preceding buffer flush — inter-piece overlap is kept but

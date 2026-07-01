@@ -106,6 +106,13 @@ def _split_at_sentence(text: str, max_tokens: int) -> list[str]:
     return final or [text]
 
 
+def _last_sentence(text: str) -> str:
+    """Return the last sentence from text using the same boundaries as _split_at_sentence."""
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z\d])|(?<=[。！？])', text)
+    sentences = [s for s in sentences if s.strip()]
+    return sentences[-1].strip() if sentences else text.strip()
+
+
 def _make_chunk_id(book_id: str, source_stem: str, page_start: Optional[int], seq: int) -> str:
     page_str = f"p{page_start:04d}" if page_start is not None else "pNone"
     return f"{book_id}/{source_stem}/{page_str}/{seq:04d}"
@@ -188,8 +195,15 @@ class Chunker:
                 continue
 
             if is_atomic:
+                had_preceding_buf = bool(buf)
                 flush()
-                _emit([elem], etype=elem.type)
+                prefix_sentence = ""
+                if had_preceding_buf and chunks and chunks[-1].element_type == "text":
+                    last_sent = _last_sentence(chunks[-1].content)
+                    if last_sent.endswith((':', '：')):
+                        prefix_sentence = last_sent
+                atomic_content = (prefix_sentence + " " + elem.content).strip() if prefix_sentence else elem.content
+                _emit([elem], etype=elem.type, content=atomic_content)
                 overlap_text = ""
                 i += 1
                 continue
