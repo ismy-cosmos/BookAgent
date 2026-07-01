@@ -59,6 +59,11 @@ def _rendered_to_elements(rendered, page_sep: str) -> list[Element]:
     # sections[i] (i >= 1) is the content of page i.
     elements: list[Element] = []
     for i, section in enumerate(sections[1:], start=1):
+        # Strip the trailing \n\n{N} left by marker's paginate_output format:
+        # each page div is rendered as "{page_id}[sep]\n\ncontent", so after
+        # splitting on [sep] the next page's {N} sticks to the end of this
+        # section. It's a pagination artifact, not document content.
+        section = re.sub(r"\n\n\{\d+\}\s*$", "", section)
         elements.extend(_markdown_to_elements(section, page_num=i))
     return elements
 
