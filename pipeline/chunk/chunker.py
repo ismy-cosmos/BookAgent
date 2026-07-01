@@ -172,7 +172,9 @@ class Chunker:
             buf = []
             buf_tok = 0
 
-        for elem in elements:
+        i = 0
+        while i < len(elements):
+            elem = elements[i]
             is_heading = (
                 elem.type == "text"
                 and bool(re.match(r"#{1,6}\s", elem.content.strip()))
@@ -182,12 +184,14 @@ class Chunker:
 
             if is_boundary:
                 flush()
+                i += 1
                 continue
 
             if is_atomic:
                 flush()
                 _emit([elem], etype=elem.type)
                 overlap_text = ""
+                i += 1
                 continue
 
             # Regular text element
@@ -201,6 +205,7 @@ class Chunker:
                     _emit([part_elem], "text", overlap=piece_overlap)
                     piece_overlap = _last_complete_sentences(part, self._overlap_tokens) + " "
                 overlap_text = ""
+                i += 1
                 continue
 
             if buf and buf_tok + elem_tok > self._max_tokens:
@@ -208,6 +213,7 @@ class Chunker:
 
             buf.append(elem)
             buf_tok += elem_tok
+            i += 1
 
         flush()
         return chunks
