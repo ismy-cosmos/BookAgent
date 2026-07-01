@@ -12,6 +12,7 @@ class Chunk:
     content: str
     token_count: int
     page_start: Optional[int] = None    # 1-indexed; None for audio/image
+    page_end: Optional[int] = None      # 1-indexed; == page_start unless content spans pages
     start_sec: Optional[float] = None   # audio only
     end_sec: Optional[float] = None     # audio only
     low_confidence: bool = False        # audio only; True if avg word-level ASR score < 0.6

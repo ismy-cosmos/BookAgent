@@ -52,29 +52,45 @@ def _split_at_sentence(text: str, max_tokens: int) -> list[str]:
     if _token_count(text) <= max_tokens:
         return [text]
 
-    # 第一级：句子边界（英文需要后跟空格，中文不需要）
-    sentences = re.split(r'(?<=[.!?])\s+|(?<=[。！？])', text)
+    # 第一级：句子边界。lookahead (?=[A-Z\d一-鿿]) 要求切分点后是大写/数字/中文，
+    # 避免 "e.g. " 这类缩写词被误判为句子结尾（其后跟小写字母）。
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z\d])|(?<=[。！？])', text)
     sentences = [s for s in sentences if s.strip()]
 
-    # 第二级：单句超限时按空格分词
-    result: list[str] = []
+    # 贪心打包：将短句累积到接近 max_tokens 再 flush，而非每句单独成片。
+    packed: list[str] = []
+    buf: list[str] = []
+    buf_tok = 0
     for sent in sentences:
-        if _token_count(sent) <= max_tokens:
-            result.append(sent)
+        st = _token_count(sent)
+        if buf and buf_tok + st > max_tokens:
+            packed.append(' '.join(buf))
+            buf, buf_tok = [sent], st
         else:
-            words = sent.split()
-            buf: list[str] = []
-            buf_tok = 0
+            buf.append(sent)
+            buf_tok += st
+    if buf:
+        packed.append(' '.join(buf))
+
+    # 第二级：packed 片段仍超限时按空格分词
+    result: list[str] = []
+    for piece in packed:
+        if _token_count(piece) <= max_tokens:
+            result.append(piece)
+        else:
+            words = piece.split()
+            buf2: list[str] = []
+            buf2_tok = 0
             for w in words:
                 wt = _token_count(w)
-                if buf and buf_tok + wt > max_tokens:
-                    result.append(' '.join(buf))
-                    buf, buf_tok = [w], wt
+                if buf2 and buf2_tok + wt > max_tokens:
+                    result.append(' '.join(buf2))
+                    buf2, buf2_tok = [w], wt
                 else:
-                    buf.append(w)
-                    buf_tok += wt
-            if buf:
-                result.append(' '.join(buf))
+                    buf2.append(w)
+                    buf2_tok += wt
+            if buf2:
+                result.append(' '.join(buf2))
 
     # 第三级：单词级仍超限（长URL无空格）→ 按 token 强制截断
     enc = _get_enc()
@@ -88,6 +104,25 @@ def _split_at_sentence(text: str, max_tokens: int) -> list[str]:
                 final.append(enc.decode(ids[i : i + max_tokens]))
 
     return final or [text]
+
+
+def _table_lacks_separator(content: str) -> bool:
+    """True if the markdown table has no separator row (|---|---|).
+    Used to detect the header-only first half of a cross-page table split."""
+    return not re.search(r'\|[\-\s]*-{2,}[\-\:\s]*\|', content)
+
+
+def _table_is_continuation(content: str) -> bool:
+    """True if the table content starts with a separator row (the body half of a split).
+    Marker emits the separator row first when a table body continues on the next page."""
+    return content.lstrip().startswith('-')
+
+
+def _last_sentence(text: str) -> str:
+    """Return the last sentence from text using the same boundaries as _split_at_sentence."""
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z\d])|(?<=[。！？])', text)
+    sentences = [s for s in sentences if s.strip()]
+    return sentences[-1].strip() if sentences else text.strip()
 
 
 def _make_chunk_id(book_id: str, source_stem: str, page_start: Optional[int], seq: int) -> str:
@@ -120,39 +155,45 @@ class Chunker:
             pn = elems[0].page_num
             return pn if pn != 0 else None
 
-        def _emit(elems: list[Element], etype: str, extra_content: str = "", overlap: str = "") -> None:
+        def _page_end(elems: list[Element]) -> Optional[int]:
+            if not elems:
+                return None
+            pn = elems[-1].page_num
+            return pn if pn != 0 else None
+
+        def _emit(elems: list[Element], etype: str, content: str = "", overlap: str = "") -> None:
             nonlocal seq
-            raw = " ".join(e.content for e in elems) if elems else extra_content
-            content = (overlap + raw).strip() if overlap else raw.strip()
-            if not content:
+            raw = content if content else (" ".join(e.content for e in elems) if elems else "")
+            text = (overlap + raw).strip() if overlap else raw.strip()
+            if not text:
                 return
-            tc = _token_count(content)
+            tc = _token_count(text)
             ps = _page_start(elems)
+            pe = _page_end(elems)
             chunks.append(Chunk(
                 chunk_id=_make_chunk_id(book_id, source_stem, ps, seq),
                 book_id=book_id,
                 source_file=source_file,
                 element_type=etype,
-                content=content,
+                content=text,
                 token_count=tc,
                 page_start=ps,
+                page_end=pe,
             ))
             seq += 1
 
-        def flush(carry_overlap: bool) -> None:
+        def flush() -> None:
             nonlocal buf, buf_tok, overlap_text
             if not buf:
                 return
             _emit(buf, "text", overlap=overlap_text)
-            if carry_overlap:
-                last = chunks[-1].content
-                overlap_text = _last_n_tokens(last, self._overlap_tokens) + " "
-            else:
-                overlap_text = ""
+            overlap_text = ""
             buf = []
             buf_tok = 0
 
-        for elem in elements:
+        i = 0
+        while i < len(elements):
+            elem = elements[i]
             is_heading = (
                 elem.type == "text"
                 and bool(re.match(r"#{1,6}\s", elem.content.strip()))
@@ -161,35 +202,70 @@ class Chunker:
             is_atomic = elem.type in _ATOMIC_TYPES
 
             if is_boundary:
-                flush(carry_overlap=False)
+                flush()
+                i += 1
                 continue
 
             if is_atomic:
-                flush(carry_overlap=True)
-                _emit([], etype=elem.type, extra_content=elem.content, overlap=overlap_text)
-                # atomic chunks don't carry overlap forward
+                had_preceding_buf = bool(buf)
+                flush()
+                prefix_sentence = ""
+                if had_preceding_buf and chunks and chunks[-1].element_type == "text":
+                    last_sent = _last_sentence(chunks[-1].content)
+                    if last_sent.endswith((':', '：')):
+                        prefix_sentence = last_sent
+
+                # Cross-page table split: merge header-only first half with body second half
+                cont_elem = None
+                if (elem.type == "table"
+                        and _table_lacks_separator(elem.content)
+                        and i + 1 < len(elements)
+                        and elements[i + 1].type == "table"
+                        and _table_is_continuation(elements[i + 1].content)):
+                    cont_elem = elements[i + 1]
+                    i += 1  # consume continuation; end i += 1 = total +2
+
+                atom_content = (
+                    elem.content.rstrip() + "\n" + cont_elem.content
+                    if cont_elem else elem.content
+                )
+                base_elems = [elem, cont_elem] if cont_elem else [elem]
+
+                caption_elem = None
+                if (i + 1 < len(elements)
+                        and elements[i + 1].type == "text"
+                        and re.match(r"^(Figure|Table)\s+[\d.]+\s*:", elements[i + 1].content, re.IGNORECASE)):
+                    caption_elem = elements[i + 1]
+                    i += 1  # 消费 caption
+
+                page_elems = base_elems + ([caption_elem] if caption_elem else [])
+                parts = [p for p in [prefix_sentence, atom_content,
+                                     caption_elem.content if caption_elem else ""] if p]
+                _emit(page_elems, etype=elem.type, content=" ".join(parts))
                 overlap_text = ""
+                i += 1
                 continue
 
             # Regular text element
             elem_tok = _token_count(elem.content)
             if elem_tok > self._max_tokens:
-                # Long element: flush buffer (carry overlap), then split element itself
-                flush(carry_overlap=True)
+                flush()
                 split_target = max(1, self._max_tokens - self._overlap_tokens)
-                piece_overlap = overlap_text
+                piece_overlap = ""
                 for part in _split_at_sentence(elem.content, split_target):
                     part_elem = Element(type=elem.type, content=part, page_num=elem.page_num)
                     _emit([part_elem], "text", overlap=piece_overlap)
                     piece_overlap = _last_complete_sentences(part, self._overlap_tokens) + " "
-                overlap_text = piece_overlap
+                overlap_text = ""
+                i += 1
                 continue
 
             if buf and buf_tok + elem_tok > self._max_tokens:
-                flush(carry_overlap=True)
+                flush()
 
             buf.append(elem)
             buf_tok += elem_tok
+            i += 1
 
-        flush(carry_overlap=False)
+        flush()
         return chunks

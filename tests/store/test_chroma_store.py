@@ -4,7 +4,7 @@ from pipeline.chunk.schema import Chunk
 from pipeline.store import ChromaStore
 
 
-def _chunk(chunk_id="b/f/p0001/0000", page_start=1, start_sec=None, end_sec=None):
+def _chunk(chunk_id="b/f/p0001/0000", page_start=1, page_end=1, start_sec=None, end_sec=None):
     return Chunk(
         chunk_id=chunk_id,
         book_id="b",
@@ -13,6 +13,7 @@ def _chunk(chunk_id="b/f/p0001/0000", page_start=1, start_sec=None, end_sec=None
         content="Some content.",
         token_count=3,
         page_start=page_start,
+        page_end=page_end,
         start_sec=start_sec,
         end_sec=end_sec,
     )
@@ -50,6 +51,17 @@ def test_add_chunks_metadata_none_to_empty_str(mock_chroma):
     assert meta["start_sec"] == ""
     assert meta["end_sec"] == ""
     assert meta["page_start"] == 1
+    assert meta["page_end"] == 1
+
+
+def test_add_chunks_metadata_page_end_differs_from_start(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    store = ChromaStore(persist_dir=str(tmp))
+    chunks = [_chunk(page_start=5, page_end=6)]
+    store.add_chunks("b", chunks, [[0.0] * 1024])
+    meta = mock_col.add.call_args.kwargs["metadatas"][0]
+    assert meta["page_start"] == 5
+    assert meta["page_end"] == 6
 
 
 def test_add_chunks_metadata_low_confidence_passed_through(mock_chroma):
@@ -90,7 +102,7 @@ def test_query_returns_formatted_results(mock_chroma):
         "ids": [["b/f/p0001/0000"]],
         "documents": [["Some content."]],
         "distances": [[0.12]],
-        "metadatas": [[{"page_start": 1, "start_sec": "", "end_sec": ""}]],
+        "metadatas": [[{"page_start": 1, "page_end": 2, "start_sec": "", "end_sec": ""}]],
     }
     store = ChromaStore(persist_dir=str(tmp))
     results = store.query("b", [0.0] * 1024, n_results=1)
@@ -99,6 +111,7 @@ def test_query_returns_formatted_results(mock_chroma):
     assert results[0]["content"] == "Some content."
     assert results[0]["score"] == pytest.approx(0.12)
     assert results[0]["page_start"] == 1
+    assert results[0]["page_end"] == 2
     assert results[0]["start_sec"] is None
 
 

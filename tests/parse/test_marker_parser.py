@@ -181,6 +181,52 @@ def test_markdown_code_block_surrounded_by_paragraphs():
     assert "f()" in elements[1].content or "def f" in elements[1].content
 
 
+# ── {N} pagination marker stripping ───────────────────────────────────────────
+
+def _paginated_real(*page_contents: str, page_sep: str = _PAGE_SEP) -> str:
+    """Build markdown exactly as marker produces with paginate_output=True.
+
+    Format: \n\n{page_id}[sep]\n\n[content] repeated for each page.
+    sections[1] will end with \n\n{1} (next page's marker artifact).
+    """
+    parts = [f"\n\n{{{i}}}{page_sep}\n\n{content}" for i, content in enumerate(page_contents)]
+    return "".join(parts)
+
+
+def test_pagination_markers_not_emitted_as_elements():
+    """{N} artifacts left at end of each section after split must not appear
+    as elements — they are marker's internal page IDs, not content."""
+    md = _paginated_real("Page one content.", "Page two content.", "Page three content.")
+    r = _make_rendered(md)
+    elements = _rendered_to_elements(r, page_sep=_PAGE_SEP)
+    for elem in elements:
+        assert not __import__("re").fullmatch(r"\{\d+\}", elem.content.strip()), (
+            f"Pagination artifact found as element: {elem.content!r}"
+        )
+
+
+def test_pagination_markers_stripped_page_count_correct():
+    """{N} stripping must not drop real content or create phantom elements."""
+    md = _paginated_real("Alpha.", "Beta.", "Gamma.")
+    r = _make_rendered(md)
+    elements = _rendered_to_elements(r, page_sep=_PAGE_SEP)
+    assert len(elements) == 3
+    contents = [e.content for e in elements]
+    assert "Alpha." in contents
+    assert "Beta." in contents
+    assert "Gamma." in contents
+
+
+def test_real_brace_digit_in_content_not_stripped():
+    """A paragraph whose last line is text containing {3} (not a bare marker)
+    must survive — only a standalone paragraph of exactly {N} is an artifact."""
+    md = _paginated_real("The value is {3} and more text.", "Next page.")
+    r = _make_rendered(md)
+    elements = _rendered_to_elements(r, page_sep=_PAGE_SEP)
+    page1_elem = next(e for e in elements if e.page_num == 1)
+    assert "{3}" in page1_elem.content
+
+
 # ── MarkerParser.parse (mocked converter) ─────────────────────────────────────
 
 def _fake_rendered(markdown: str):
