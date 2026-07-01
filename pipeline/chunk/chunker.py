@@ -202,8 +202,18 @@ class Chunker:
                     last_sent = _last_sentence(chunks[-1].content)
                     if last_sent.endswith((':', '：')):
                         prefix_sentence = last_sent
-                atomic_content = (prefix_sentence + " " + elem.content).strip() if prefix_sentence else elem.content
-                _emit([elem], etype=elem.type, content=atomic_content)
+
+                caption_elem = None
+                if (i + 1 < len(elements)
+                        and elements[i + 1].type == "text"
+                        and re.match(r"^(Figure|Table)\s+[\d.]+\s*:", elements[i + 1].content, re.IGNORECASE)):
+                    caption_elem = elements[i + 1]
+                    i += 1  # 消费 caption；末尾 i += 1 共推进 2 步
+
+                page_elems = [elem] if not caption_elem else [elem, caption_elem]
+                parts = [p for p in [prefix_sentence, elem.content,
+                                     caption_elem.content if caption_elem else ""] if p]
+                _emit(page_elems, etype=elem.type, content=" ".join(parts))
                 overlap_text = ""
                 i += 1
                 continue

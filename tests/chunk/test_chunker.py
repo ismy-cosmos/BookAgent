@@ -262,6 +262,72 @@ def test_atomic_no_prefix_when_preceding_chunk_is_atomic():
     assert "1" not in code_chunk.content
 
 
+def test_atomic_caption_consumed_not_emitted_separately():
+    """A Figure/Table N.M: element immediately following an atomic is appended
+    to the atomic chunk content and NOT emitted as a separate chunk."""
+    c = Chunker()
+    elems = [
+        _el("![fig](_page_1_Figure_1.jpeg)", "figure"),
+        _el("Figure 3.2: Process lifecycle diagram."),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert "Figure 3.2: Process lifecycle diagram." in chunks[0].content
+
+
+def test_atomic_caption_page_end_extended_to_caption_page():
+    """When caption is on the following page, page_end of atomic chunk reflects
+    the caption's page number."""
+    c = Chunker()
+    elems = [
+        _el("![fig](_page_1_Figure_1.jpeg)", "figure", page_num=3),
+        _el("Figure 1.1: Caption on next page.", page_num=4),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert chunks[0].page_end == 4
+
+
+def test_atomic_both_prefix_and_caption():
+    """Prefix (colon sentence) and caption can both be present simultaneously."""
+    c = Chunker()
+    elems = [
+        _el("The CPU schedule is as follows:"),
+        _el("| T | Job |\n|---|---|\n| 0 | A |", "table"),
+        _el("Table 3.1: A simple FIFO schedule."),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    table_chunk = next(ch for ch in chunks if ch.element_type == "table")
+    assert "The CPU schedule is as follows:" in table_chunk.content
+    assert "Table 3.1: A simple FIFO schedule." in table_chunk.content
+
+
+def test_atomic_next_element_not_caption_stays_separate():
+    """A following text element that does NOT match Figure/Table N.M: pattern
+    is emitted as a normal separate chunk, not consumed."""
+    c = Chunker()
+    elems = [
+        _el("| A |\n|---|\n| 1 |", "table"),
+        _el("This paragraph follows the table."),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 2
+    assert "This paragraph follows" in chunks[1].content
+
+
+def test_atomic_as_last_element_no_error():
+    """Atomic as the last element: no IndexError, correct single chunk output."""
+    c = Chunker()
+    elems = [
+        _el("Some context."),
+        _el("| A |\n|---|\n| 1 |", "table"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 2
+    table_chunk = next(ch for ch in chunks if ch.element_type == "table")
+    assert "A" in table_chunk.content
+
+
 def test_long_element_first_piece_excludes_buffer_content():
     """When a long element is split, its first piece must not carry overlap
     from a preceding buffer flush — inter-piece overlap is kept but
