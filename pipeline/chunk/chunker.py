@@ -52,29 +52,45 @@ def _split_at_sentence(text: str, max_tokens: int) -> list[str]:
     if _token_count(text) <= max_tokens:
         return [text]
 
-    # 第一级：句子边界（英文需要后跟空格，中文不需要）
-    sentences = re.split(r'(?<=[.!?])\s+|(?<=[。！？])', text)
+    # 第一级：句子边界。lookahead (?=[A-Z\d一-鿿]) 要求切分点后是大写/数字/中文，
+    # 避免 "e.g. " 这类缩写词被误判为句子结尾（其后跟小写字母）。
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z\d])|(?<=[。！？])', text)
     sentences = [s for s in sentences if s.strip()]
 
-    # 第二级：单句超限时按空格分词
-    result: list[str] = []
+    # 贪心打包：将短句累积到接近 max_tokens 再 flush，而非每句单独成片。
+    packed: list[str] = []
+    buf: list[str] = []
+    buf_tok = 0
     for sent in sentences:
-        if _token_count(sent) <= max_tokens:
-            result.append(sent)
+        st = _token_count(sent)
+        if buf and buf_tok + st > max_tokens:
+            packed.append(' '.join(buf))
+            buf, buf_tok = [sent], st
         else:
-            words = sent.split()
-            buf: list[str] = []
-            buf_tok = 0
+            buf.append(sent)
+            buf_tok += st
+    if buf:
+        packed.append(' '.join(buf))
+
+    # 第二级：packed 片段仍超限时按空格分词
+    result: list[str] = []
+    for piece in packed:
+        if _token_count(piece) <= max_tokens:
+            result.append(piece)
+        else:
+            words = piece.split()
+            buf2: list[str] = []
+            buf2_tok = 0
             for w in words:
                 wt = _token_count(w)
-                if buf and buf_tok + wt > max_tokens:
-                    result.append(' '.join(buf))
-                    buf, buf_tok = [w], wt
+                if buf2 and buf2_tok + wt > max_tokens:
+                    result.append(' '.join(buf2))
+                    buf2, buf2_tok = [w], wt
                 else:
-                    buf.append(w)
-                    buf_tok += wt
-            if buf:
-                result.append(' '.join(buf))
+                    buf2.append(w)
+                    buf2_tok += wt
+            if buf2:
+                result.append(' '.join(buf2))
 
     # 第三级：单词级仍超限（长URL无空格）→ 按 token 强制截断
     enc = _get_enc()
@@ -126,13 +142,13 @@ class Chunker:
             pn = elems[-1].page_num
             return pn if pn != 0 else None
 
-        def _emit(elems: list[Element], etype: str, extra_content: str = "", overlap: str = "") -> None:
+        def _emit(elems: list[Element], etype: str, content: str = "", overlap: str = "") -> None:
             nonlocal seq
-            raw = " ".join(e.content for e in elems) if elems else extra_content
-            content = (overlap + raw).strip() if overlap else raw.strip()
-            if not content:
+            raw = content if content else (" ".join(e.content for e in elems) if elems else "")
+            text = (overlap + raw).strip() if overlap else raw.strip()
+            if not text:
                 return
-            tc = _token_count(content)
+            tc = _token_count(text)
             ps = _page_start(elems)
             pe = _page_end(elems)
             chunks.append(Chunk(
@@ -140,7 +156,7 @@ class Chunker:
                 book_id=book_id,
                 source_file=source_file,
                 element_type=etype,
-                content=content,
+                content=text,
                 token_count=tc,
                 page_start=ps,
                 page_end=pe,
