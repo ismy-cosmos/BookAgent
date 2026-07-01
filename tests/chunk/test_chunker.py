@@ -1,6 +1,7 @@
 import pytest
 from pipeline.chunk import Chunk, Chunker
 from pipeline.parse.base import Element
+from pipeline.chunk.chunker import _split_at_sentence, _token_count
 
 
 def _el(content: str, etype: str = "text", page_num: int = 1) -> Element:
@@ -136,20 +137,21 @@ def test_seq_offset():
     assert chunks[0].chunk_id.endswith("/0005")
 
 
-def test_overlap_carries_into_next_chunk():
-    # Use a tiny overlap to verify it happens
+def test_buffer_overflow_does_not_carry_overlap():
+    """Buffer overflow flush must NOT carry any overlap into the next chunk.
+
+    Before this fix: the tail of chunk[0] was prepended to chunk[1].
+    After this fix: chunk[1] contains only its own element's content.
+    """
     c = Chunker(max_tokens=10, overlap_tokens=3)
-    # Each element fits individually (<= 10 tokens), but together they exceed 10
     elems = [
-        _el("alpha beta gamma delta epsilon zeta eta theta"),  # 9 tokens
-        _el("iota kappa lambda mu nu xi omicron"),             # 10 tokens
+        _el("alpha beta gamma delta epsilon zeta eta theta"),
+        _el("iota kappa lambda mu nu xi omicron"),
     ]
     chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
-    # second chunk should start with overlap from first
     assert len(chunks) == 2
-    # overlap tokens should appear at start of chunk[1] content
     first_words = chunks[0].content.split()[-3:]
-    assert any(w in chunks[1].content for w in first_words)
+    assert not any(w in chunks[1].content for w in first_words)
 
 
 def test_split_at_sentence_chinese():
@@ -158,6 +160,71 @@ def test_split_at_sentence_chinese():
     elems = [_el("你好世界。这是第二句。这是第三句。", page_num=1)]
     chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
     assert len(chunks) >= 2  # 应被分割
+
+
+def test_split_at_sentence_packs_short_sentences():
+    """Multiple short sentences must be packed greedily into fewer pieces.
+
+    Regression: commit 722980c dropped the buf/buf_tok accumulation, causing
+    each sentence to become its own piece — a 533-token block splintered into
+    32 tiny fragments in real data.
+    """
+    sentences = [
+        "Alpha beta gamma delta epsilon.",
+        "Zeta eta theta iota kappa.",
+        "Lambda mu nu xi omicron.",
+        "Pi rho sigma tau upsilon.",
+    ]
+    text = " ".join(sentences)
+    total_tok = _token_count(text)
+    max_tok = total_tok // 2  # forces at least one split; packing → ~2 pieces
+
+    pieces = _split_at_sentence(text, max_tok)
+
+    assert len(pieces) < len(sentences), (
+        f"Packing bug: {len(sentences)} sentences produced {len(pieces)} pieces — "
+        f"should be packed into fewer chunks than there are sentences"
+    )
+    for p in pieces:
+        assert _token_count(p) <= max_tok, f"Piece exceeds budget: {p!r}"
+
+
+def test_split_at_sentence_no_false_break_at_abbreviation():
+    """'e.g.' must not be treated as a sentence boundary.
+
+    The regex (?<=[.!?])\\s+ misfires at 'e.g. ' because the period in 'g.'
+    looks like a sentence end. Fix: add (?=[A-Z\\d]) lookahead so that
+    'e.g. the' (lowercase continuation) is never a split point.
+    """
+    text = (
+        "Common scheduling algorithms, e.g. the round-robin and FIFO policies, "
+        "are used in most modern operating systems. "
+        "Performance evaluation requires careful benchmarking methodology."
+    )
+    max_tok = _token_count(text) // 2  # forces a split somewhere
+
+    pieces = _split_at_sentence(text, max_tok)
+
+    for piece in pieces:
+        assert not piece.strip().startswith("the round-robin"), (
+            f"False split at 'e.g.': piece starts mid-abbreviation: {piece.strip()!r}"
+        )
+
+
+def test_long_element_first_piece_excludes_buffer_content():
+    """When a long element is split, its first piece must not carry overlap
+    from a preceding buffer flush — inter-piece overlap is kept but
+    buffer-to-first-piece overlap is removed."""
+    c = Chunker(max_tokens=8, overlap_tokens=3)
+    long_text = "Alpha Beta Gamma Delta Epsilon. Zeta Eta Theta Iota Kappa."
+    elems = [
+        _el("unique preceding text"),
+        _el(long_text),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert chunks[0].content == "unique preceding text"
+    assert "unique" not in chunks[1].content
+    assert "preceding" not in chunks[1].content
 
 
 def test_long_element_pieces_carry_overlap():

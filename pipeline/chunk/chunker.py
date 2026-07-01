@@ -163,16 +163,12 @@ class Chunker:
             ))
             seq += 1
 
-        def flush(carry_overlap: bool) -> None:
+        def flush() -> None:
             nonlocal buf, buf_tok, overlap_text
             if not buf:
                 return
             _emit(buf, "text", overlap=overlap_text)
-            if carry_overlap:
-                last = chunks[-1].content
-                overlap_text = _last_n_tokens(last, self._overlap_tokens) + " "
-            else:
-                overlap_text = ""
+            overlap_text = ""
             buf = []
             buf_tok = 0
 
@@ -185,35 +181,33 @@ class Chunker:
             is_atomic = elem.type in _ATOMIC_TYPES
 
             if is_boundary:
-                flush(carry_overlap=False)
+                flush()
                 continue
 
             if is_atomic:
-                flush(carry_overlap=True)
-                _emit([elem], etype=elem.type, overlap=overlap_text)
-                # atomic chunks don't carry overlap forward
+                flush()
+                _emit([elem], etype=elem.type)
                 overlap_text = ""
                 continue
 
             # Regular text element
             elem_tok = _token_count(elem.content)
             if elem_tok > self._max_tokens:
-                # Long element: flush buffer (carry overlap), then split element itself
-                flush(carry_overlap=True)
+                flush()
                 split_target = max(1, self._max_tokens - self._overlap_tokens)
-                piece_overlap = overlap_text
+                piece_overlap = ""
                 for part in _split_at_sentence(elem.content, split_target):
                     part_elem = Element(type=elem.type, content=part, page_num=elem.page_num)
                     _emit([part_elem], "text", overlap=piece_overlap)
                     piece_overlap = _last_complete_sentences(part, self._overlap_tokens) + " "
-                overlap_text = piece_overlap
+                overlap_text = ""
                 continue
 
             if buf and buf_tok + elem_tok > self._max_tokens:
-                flush(carry_overlap=True)
+                flush()
 
             buf.append(elem)
             buf_tok += elem_tok
 
-        flush(carry_overlap=False)
+        flush()
         return chunks
