@@ -106,6 +106,18 @@ def _split_at_sentence(text: str, max_tokens: int) -> list[str]:
     return final or [text]
 
 
+def _table_lacks_separator(content: str) -> bool:
+    """True if the markdown table has no separator row (|---|---|).
+    Used to detect the header-only first half of a cross-page table split."""
+    return not re.search(r'\|[\-\s]*-{2,}[\-\:\s]*\|', content)
+
+
+def _table_is_continuation(content: str) -> bool:
+    """True if the table content starts with a separator row (the body half of a split).
+    Marker emits the separator row first when a table body continues on the next page."""
+    return content.lstrip().startswith('-')
+
+
 def _last_sentence(text: str) -> str:
     """Return the last sentence from text using the same boundaries as _split_at_sentence."""
     sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z\d])|(?<=[。！？])', text)
@@ -203,15 +215,31 @@ class Chunker:
                     if last_sent.endswith((':', '：')):
                         prefix_sentence = last_sent
 
+                # Cross-page table split: merge header-only first half with body second half
+                cont_elem = None
+                if (elem.type == "table"
+                        and _table_lacks_separator(elem.content)
+                        and i + 1 < len(elements)
+                        and elements[i + 1].type == "table"
+                        and _table_is_continuation(elements[i + 1].content)):
+                    cont_elem = elements[i + 1]
+                    i += 1  # consume continuation; end i += 1 = total +2
+
+                atom_content = (
+                    elem.content.rstrip() + "\n" + cont_elem.content
+                    if cont_elem else elem.content
+                )
+                base_elems = [elem, cont_elem] if cont_elem else [elem]
+
                 caption_elem = None
                 if (i + 1 < len(elements)
                         and elements[i + 1].type == "text"
                         and re.match(r"^(Figure|Table)\s+[\d.]+\s*:", elements[i + 1].content, re.IGNORECASE)):
                     caption_elem = elements[i + 1]
-                    i += 1  # 消费 caption；末尾 i += 1 共推进 2 步
+                    i += 1  # 消费 caption
 
-                page_elems = [elem] if not caption_elem else [elem, caption_elem]
-                parts = [p for p in [prefix_sentence, elem.content,
+                page_elems = base_elems + ([caption_elem] if caption_elem else [])
+                parts = [p for p in [prefix_sentence, atom_content,
                                      caption_elem.content if caption_elem else ""] if p]
                 _emit(page_elems, etype=elem.type, content=" ".join(parts))
                 overlap_text = ""

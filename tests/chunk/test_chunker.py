@@ -344,6 +344,64 @@ def test_long_element_first_piece_excludes_buffer_content():
     assert "preceding" not in chunks[1].content
 
 
+def test_cross_page_table_continuation_merged():
+    """Two consecutive table elements where first lacks separator and second
+    starts with separator (cross-page split) are merged into one chunk.
+    page_start from the first element, page_end from the second."""
+    c = Chunker()
+    elems = [
+        _el("| A | B |\n|", "table", page_num=3),
+        _el("----|----|\n| 1 | 2 |", "table", page_num=4),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert chunks[0].element_type == "table"
+    assert "| A | B |" in chunks[0].content
+    assert "| 1 | 2 |" in chunks[0].content
+    assert chunks[0].page_start == 3
+    assert chunks[0].page_end == 4
+
+
+def test_two_complete_tables_not_merged():
+    """Two consecutive tables that each have a separator row remain separate chunks."""
+    c = Chunker()
+    elems = [
+        _el("| A | B |\n|---|---|\n| 1 | 2 |", "table", page_num=1),
+        _el("| X | Y |\n|---|---|\n| 3 | 4 |", "table", page_num=2),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 2
+    assert "| A | B |" in chunks[0].content
+    assert "| X | Y |" in chunks[1].content
+
+
+def test_cross_page_table_continuation_with_caption():
+    """Merged cross-page table also correctly consumes a trailing caption element."""
+    c = Chunker()
+    elems = [
+        _el("| A | B |\n|", "table", page_num=3),
+        _el("----|----|\n| 1 | 2 |", "table", page_num=4),
+        _el("Table 2.1: Example results.", page_num=4),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert "Table 2.1: Example results." in chunks[0].content
+    assert chunks[0].page_start == 3
+    assert chunks[0].page_end == 4
+
+
+def test_complete_first_table_not_merged_with_body():
+    """If first table already has a separator row, no merge occurs even if
+    second element looks like a continuation."""
+    c = Chunker()
+    elems = [
+        _el("| A | B |\n|---|---|\n| 1 | 2 |", "table", page_num=1),
+        _el("----|----|\n| 3 | 4 |", "table", page_num=2),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 2
+
+
 def test_long_element_pieces_carry_overlap():
     c = Chunker(max_tokens=15, overlap_tokens=5)
     # 单个元素超出 max_tokens，会被切成多片
