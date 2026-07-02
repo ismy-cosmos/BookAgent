@@ -173,3 +173,33 @@ def test_epub_parser_inserts_section_breaks(tmp_path):
     # section_break is between spine items, not at start or end
     sb_idx = types.index("section_break")
     assert 0 < sb_idx < len(types) - 1
+
+
+def test_html_to_elements_page_num_param():
+    html = "<html><body><p>Hello.</p></body></html>"
+    elems = _html_to_elements(html, page_num=3)
+    assert elems[0].page_num == 3
+
+
+def test_epub_parser_page_num_is_spine_position(tmp_path):
+    epub_path = str(tmp_path / "book.epub")
+    spine_item_1 = MagicMock()
+    spine_item_1.get_content.return_value = b"<html><body><p>Chapter one.</p></body></html>"
+    spine_item_1.get_name.return_value = "text/ch1.html"
+    spine_item_2 = MagicMock()
+    spine_item_2.get_content.return_value = b"<html><body><p>Chapter two.</p></body></html>"
+    spine_item_2.get_name.return_value = "text/ch2.html"
+
+    mock_book = MagicMock()
+    mock_book.spine = [("id1", "yes"), ("id2", "yes")]
+    mock_book.get_item_with_id.side_effect = lambda id_: {
+        "id1": spine_item_1, "id2": spine_item_2
+    }[id_]
+
+    with patch("ebooklib.epub.read_epub", return_value=mock_book):
+        elems = EPUBParser().parse(epub_path)
+
+    ch1 = next(e for e in elems if "Chapter one" in e.content)
+    ch2 = next(e for e in elems if "Chapter two" in e.content)
+    assert ch1.page_num == 1
+    assert ch2.page_num == 2
