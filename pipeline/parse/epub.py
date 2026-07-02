@@ -61,7 +61,8 @@ def _table_to_markdown(table_tag) -> str:
 
 
 _HEADING_LEVEL = {"h1": "#", "h2": "##", "h3": "###", "h4": "####"}
-_CONTAINER_TAGS = {"div", "section", "article", "main", "svg"}
+_CONTAINER_TAGS = {"div", "section", "article", "main", "svg", "figure", "aside"}
+_SKIP_TAGS = {"nav", "script", "style", "header", "footer", "form"}
 
 
 def _resolve_href(base_href: str, src: str) -> str:
@@ -96,6 +97,8 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
 
     def process_node(tag: Tag) -> None:
         tag_name = tag.name
+        if tag_name in _SKIP_TAGS:
+            return
         if tag_name in _HEADING_LEVEL:
             text = tag.get_text(strip=True)
             if text:
@@ -104,7 +107,7 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
                     content=f"{_HEADING_LEVEL[tag_name]} {text}",
                     page_num=page_num,
                 ))
-        elif tag_name == "p":
+        elif tag_name in ("p", "figcaption"):
             for img_tag in tag.find_all("img"):
                 emit_figure(img_tag)
                 img_tag.decompose()
@@ -147,6 +150,11 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
             for child in tag.children:
                 if isinstance(child, Tag):
                     process_node(child)
+        else:
+            # 兜底：白名单外的块级标签统一收成 text，杜绝静默丢失（issue #5 问题类）
+            text = re.sub(r"\s+", " ", tag.get_text(separator=" ", strip=True)).strip()
+            if text:
+                elements.append(Element(type="text", content=text, page_num=page_num))
 
     for child in body.children:
         if isinstance(child, Tag):

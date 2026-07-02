@@ -250,3 +250,29 @@ def test_html_to_elements_svg_image_xlink_href():
     elems = _html_to_elements(html)
     fig = next(e for e in elems if e.type == "figure")
     assert "images/cover.jpg" in fig.content
+
+
+def test_html_to_elements_dl_fallback_not_dropped():
+    html = "<html><body><dl><dt>Term</dt><dd>Definition text.</dd></dl></body></html>"
+    elems = _html_to_elements(html)
+    all_content = " ".join(e.content for e in elems)
+    assert "Term" in all_content
+    assert "Definition text" in all_content
+
+
+def test_html_to_elements_nav_excluded():
+    html = "<html><body><nav><p>TOC junk</p></nav><p>Real content.</p></body></html>"
+    elems = _html_to_elements(html)
+    all_content = " ".join(e.content for e in elems)
+    assert "TOC junk" not in all_content
+    assert "Real content" in all_content
+
+
+def test_html_to_elements_figcaption_kept():
+    html = (
+        '<html><body><figure><img src="f.png" alt="a"/>'
+        "<figcaption>Figure 1. A caption</figcaption></figure></body></html>"
+    )
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" for e in elems)
+    assert any(e.type == "text" and "Figure 1. A caption" in e.content for e in elems)
