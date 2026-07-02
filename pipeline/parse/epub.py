@@ -107,6 +107,21 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
             latex = _mml_to_latex(tag)
             if latex.strip():
                 elements.append(Element(type="formula", content=f"$${latex}$$", page_num=page_num))
+        elif tag_name in ("ul", "ol"):
+            lines: list[str] = []
+            for li in tag.find_all("li", recursive=False):
+                li_text = re.sub(r"\s+", " ", li.get_text(separator=" ", strip=True)).strip()
+                if not li_text:
+                    continue
+                marker = f"{len(lines) + 1}." if tag_name == "ol" else "-"
+                lines.append(f"{marker} {li_text}")
+            if lines:
+                elements.append(Element(type="text", content="\n".join(lines), page_num=page_num))
+        elif tag_name == "blockquote":
+            quoted = tag.get_text(separator="\n", strip=True)
+            q_lines = [f"> {ln.strip()}" for ln in quoted.splitlines() if ln.strip()]
+            if q_lines:
+                elements.append(Element(type="text", content="\n".join(q_lines), page_num=page_num))
         elif tag_name in _CONTAINER_TAGS:
             for child in tag.children:
                 if isinstance(child, Tag):

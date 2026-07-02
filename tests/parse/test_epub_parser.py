@@ -203,3 +203,29 @@ def test_epub_parser_page_num_is_spine_position(tmp_path):
     ch2 = next(e for e in elems if "Chapter two" in e.content)
     assert ch1.page_num == 1
     assert ch2.page_num == 2
+
+
+def test_html_to_elements_ol_numbered():
+    html = "<html><body><ol><li>Alpha</li><li>Beta</li></ol></body></html>"
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    assert elems[0].type == "text"
+    assert "1. Alpha" in elems[0].content
+    assert "2. Beta" in elems[0].content
+
+
+def test_html_to_elements_ul_markdown_dash():
+    html = "<html><body><ul><li>First item</li><li>Second item</li></ul></body></html>"
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    assert "- First item" in elems[0].content
+    assert "- Second item" in elems[0].content
+
+
+def test_html_to_elements_blockquote_prefixed():
+    html = "<html><body><blockquote><p>Line one.</p><p>Line two.</p></blockquote></body></html>"
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    lines = elems[0].content.splitlines()
+    assert all(ln.startswith("> ") for ln in lines)
+    assert "Line one." in elems[0].content
