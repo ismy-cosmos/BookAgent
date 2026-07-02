@@ -65,7 +65,7 @@ class AudioParser:
             text = seg["text"].strip()
             if not text:
                 continue
-            chunk_id = f"{book_id}/{Path(resolved_name).stem}/{seq:04d}"
+            chunk_id = f"{book_id}/{Path(resolved_name).name}/{seq:04d}"
             words = seg.get("words", [])
             scores = [w["score"] for w in words if "score" in w]
             avg_score = sum(scores) / len(scores) if scores else 1.0

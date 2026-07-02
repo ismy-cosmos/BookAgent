@@ -23,7 +23,7 @@ def test_single_short_element_becomes_one_chunk():
     assert chunks[0].page_start == 1
     assert chunks[0].page_end == 1
     assert "short paragraph" in chunks[0].content
-    assert chunks[0].chunk_id == "b/ch01/p0001/0000"
+    assert chunks[0].chunk_id == "b/ch01.pdf/p0001/0000"
 
 
 def test_page_end_reflects_last_element_when_chunk_spans_pages():
@@ -418,3 +418,13 @@ def test_long_element_pieces_carry_overlap():
         prev_words = set(chunks[i-1].content.split())
         curr_words = set(chunks[i].content.split())
         assert prev_words & curr_words, f"chunk {i} has no overlap with chunk {i-1}"
+
+
+def test_same_stem_different_ext_no_chunk_id_collision():
+    """book.pdf 与 book.epub 双格式 ingest 时 chunk_id 不得相同。"""
+    c = Chunker()
+    pdf_chunks = c.chunk([_el("Same content.", page_num=3)], book_id="b", source_file="book.pdf")
+    epub_chunks = c.chunk([_el("Same content.", page_num=3)], book_id="b", source_file="book.epub")
+    assert pdf_chunks[0].chunk_id != epub_chunks[0].chunk_id
+    assert "book.pdf" in pdf_chunks[0].chunk_id
+    assert "book.epub" in epub_chunks[0].chunk_id
