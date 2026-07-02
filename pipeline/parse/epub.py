@@ -65,6 +65,11 @@ _CONTAINER_TAGS = {"div", "section", "article", "main", "svg", "figure", "aside"
 _SKIP_TAGS = {"nav", "script", "style", "header", "footer", "form"}
 
 
+def _normalize_text(tag) -> str:
+    """Flatten a tag's text with all whitespace runs collapsed to single spaces."""
+    return re.sub(r"\s+", " ", tag.get_text(separator=" ", strip=True)).strip()
+
+
 def _resolve_href(base_href: str, src: str) -> str:
     """Resolve an image src relative to its chapter's package path.
 
@@ -92,8 +97,19 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
     def emit_figure(img_tag: Tag) -> None:
         src = img_tag.get("src") or img_tag.get("xlink:href") or img_tag.get("href") or ""
         alt = (img_tag.get("alt") or "").strip()
-        path = _resolve_href(base_href, src) if src else ""
+        if src.startswith("data:"):
+            # 内联 base64 图片：只留占位标记，字节留在 EPUB 里由 VLM 环节按需重取
+            path = "data-uri-image"
+        elif src:
+            path = _resolve_href(base_href, src)
+        else:
+            path = ""
         elements.append(Element(type="figure", content=f"![{alt}]({path})", page_num=page_num))
+
+    def extract_figures(tag: Tag) -> None:
+        for img_tag in tag.find_all("img"):
+            emit_figure(img_tag)
+            img_tag.decompose()
 
     def process_node(tag: Tag) -> None:
         tag_name = tag.name
@@ -108,13 +124,11 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
                     page_num=page_num,
                 ))
         elif tag_name in ("p", "figcaption"):
-            for img_tag in tag.find_all("img"):
-                emit_figure(img_tag)
-                img_tag.decompose()
+            extract_figures(tag)
             for math_tag in tag.find_all("math"):
                 latex = _mml_to_latex(math_tag)
                 math_tag.replace_with(f"$${latex}$$")
-            text = re.sub(r"\s+", " ", tag.get_text(separator=" ", strip=True)).strip()
+            text = _normalize_text(tag)
             if text:
                 elements.append(Element(type="text", content=text, page_num=page_num))
         elif tag_name == "pre":
@@ -130,9 +144,10 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
             if latex.strip():
                 elements.append(Element(type="formula", content=f"$${latex}$$", page_num=page_num))
         elif tag_name in ("ul", "ol"):
+            extract_figures(tag)
             lines: list[str] = []
             for li in tag.find_all("li", recursive=False):
-                li_text = re.sub(r"\s+", " ", li.get_text(separator=" ", strip=True)).strip()
+                li_text = _normalize_text(li)
                 if not li_text:
                     continue
                 marker = f"{len(lines) + 1}." if tag_name == "ol" else "-"
@@ -140,6 +155,7 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
             if lines:
                 elements.append(Element(type="text", content="\n".join(lines), page_num=page_num))
         elif tag_name == "blockquote":
+            extract_figures(tag)
             quoted = tag.get_text(separator="\n", strip=True)
             q_lines = [f"> {ln.strip()}" for ln in quoted.splitlines() if ln.strip()]
             if q_lines:
@@ -152,7 +168,7 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
                     process_node(child)
         else:
             # 兜底：白名单外的块级标签统一收成 text，杜绝静默丢失（issue #5 问题类）
-            text = re.sub(r"\s+", " ", tag.get_text(separator=" ", strip=True)).strip()
+            text = _normalize_text(tag)
             if text:
                 elements.append(Element(type="text", content=text, page_num=page_num))
 

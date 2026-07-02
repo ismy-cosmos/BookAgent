@@ -276,3 +276,25 @@ def test_html_to_elements_figcaption_kept():
     elems = _html_to_elements(html)
     assert any(e.type == "figure" for e in elems)
     assert any(e.type == "text" and "Figure 1. A caption" in e.content for e in elems)
+
+
+def test_html_to_elements_data_uri_img_placeholder():
+    html = '<html><body><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUg" alt="chart"/></body></html>'
+    elems = _html_to_elements(html)
+    fig = next(e for e in elems if e.type == "figure")
+    assert "base64" not in fig.content
+    assert fig.content == "![chart](data-uri-image)"
+
+
+def test_html_to_elements_img_in_li_becomes_figure():
+    html = '<html><body><ul><li>Step one <img src="s1.png" alt="step1"/></li></ul></body></html>'
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" and "s1.png" in e.content for e in elems)
+    assert any(e.type == "text" and "Step one" in e.content for e in elems)
+
+
+def test_html_to_elements_img_in_blockquote_becomes_figure():
+    html = '<html><body><blockquote><p>Quoted words <img src="q.png" alt="q"/></p></blockquote></body></html>'
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" and "q.png" in e.content for e in elems)
+    assert any(e.type == "text" and "Quoted words" in e.content for e in elems)
