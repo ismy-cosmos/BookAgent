@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+from urllib.parse import unquote, urljoin
 
 
 def _mml_to_latex(node) -> str:
@@ -60,7 +61,16 @@ def _table_to_markdown(table_tag) -> str:
 
 
 _HEADING_LEVEL = {"h1": "#", "h2": "##", "h3": "###", "h4": "####"}
-_CONTAINER_TAGS = {"div", "section", "article", "main"}
+_CONTAINER_TAGS = {"div", "section", "article", "main", "svg"}
+
+
+def _resolve_href(base_href: str, src: str) -> str:
+    """Resolve an image src relative to its chapter's package path.
+
+    e.g. base_href='text/ch1.html', src='../images/x.jpg' -> 'images/x.jpg'
+    Pure string math; no package I/O, no manifest validation.
+    """
+    return unquote(urljoin(base_href, src)).lstrip("/")
 
 
 def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list:
@@ -78,6 +88,12 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
     body = soup.find("body") or soup
     elements: list[Element] = []
 
+    def emit_figure(img_tag: Tag) -> None:
+        src = img_tag.get("src") or img_tag.get("xlink:href") or img_tag.get("href") or ""
+        alt = (img_tag.get("alt") or "").strip()
+        path = _resolve_href(base_href, src) if src else ""
+        elements.append(Element(type="figure", content=f"![{alt}]({path})", page_num=page_num))
+
     def process_node(tag: Tag) -> None:
         tag_name = tag.name
         if tag_name in _HEADING_LEVEL:
@@ -89,6 +105,9 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
                     page_num=page_num,
                 ))
         elif tag_name == "p":
+            for img_tag in tag.find_all("img"):
+                emit_figure(img_tag)
+                img_tag.decompose()
             for math_tag in tag.find_all("math"):
                 latex = _mml_to_latex(math_tag)
                 math_tag.replace_with(f"$${latex}$$")
@@ -122,6 +141,8 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
             q_lines = [f"> {ln.strip()}" for ln in quoted.splitlines() if ln.strip()]
             if q_lines:
                 elements.append(Element(type="text", content="\n".join(q_lines), page_num=page_num))
+        elif tag_name in ("img", "image"):
+            emit_figure(tag)
         elif tag_name in _CONTAINER_TAGS:
             for child in tag.children:
                 if isinstance(child, Tag):

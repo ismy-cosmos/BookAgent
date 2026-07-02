@@ -229,3 +229,24 @@ def test_html_to_elements_blockquote_prefixed():
     lines = elems[0].content.splitlines()
     assert all(ln.startswith("> ") for ln in lines)
     assert "Line one." in elems[0].content
+
+
+def test_html_to_elements_img_resolves_relative_path():
+    html = '<html><body><img src="../images/x.jpg" alt="diagram"/></body></html>'
+    elems = _html_to_elements(html, base_href="text/ch1.html")
+    fig = next(e for e in elems if e.type == "figure")
+    assert fig.content == "![diagram](images/x.jpg)"
+
+
+def test_html_to_elements_inline_img_in_paragraph():
+    html = '<html><body><p>See <img src="a.png" alt="pic"/> here.</p></body></html>'
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" and "a.png" in e.content for e in elems)
+    assert any(e.type == "text" and "See" in e.content for e in elems)
+
+
+def test_html_to_elements_svg_image_xlink_href():
+    html = '<html><body><svg><image xlink:href="images/cover.jpg"/></svg></body></html>'
+    elems = _html_to_elements(html)
+    fig = next(e for e in elems if e.type == "figure")
+    assert "images/cover.jpg" in fig.content
