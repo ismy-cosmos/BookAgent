@@ -122,6 +122,23 @@ def test_count_returns_int(mock_chroma):
     assert store.count("b") == 42
 
 
+def test_query_returns_source_file_and_element_type(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    mock_col.query.return_value = {
+        "ids": [["b/f/p0001/0000"]],
+        "documents": [["Some content."]],
+        "distances": [[0.12]],
+        "metadatas": [[{
+            "source_file": "f.pdf", "element_type": "table",
+            "page_start": 1, "page_end": 1, "start_sec": "", "end_sec": "",
+        }]],
+    }
+    store = ChromaStore(persist_dir=str(tmp))
+    results = store.query("b", [0.0] * 1024, n_results=1)
+    assert results[0]["source_file"] == "f.pdf"
+    assert results[0]["element_type"] == "table"
+
+
 def test_query_empty_collection_returns_empty_list(mock_chroma):
     _, mock_col, tmp = mock_chroma
     mock_col.query.return_value = {

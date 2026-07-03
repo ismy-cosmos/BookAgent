@@ -78,6 +78,8 @@ class ChromaStore:
                 "chunk_id": chunk_id,
                 "content": doc,
                 "score": dist,
+                "source_file": meta.get("source_file"),
+                "element_type": meta.get("element_type"),
                 "page_start": _from_meta_val(meta.get("page_start")),
                 "page_end": _from_meta_val(meta.get("page_end")),
                 "start_sec": _from_meta_val(meta.get("start_sec")),
