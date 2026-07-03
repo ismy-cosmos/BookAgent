@@ -9,6 +9,7 @@ import httpx
 from openai import OpenAI
 
 from pipeline.agent.executor import ToolExecutor
+from pipeline.agent.schema import ChatTurn
 from pipeline.agent.tools import get_tools_param
 
 _MAX_ROUNDS = 5  # 防止无限循环
@@ -26,6 +27,15 @@ class AgentTurn:
     prompt_tokens: int
     completion_tokens: int
     latency_s: float
+    retrieved_chunks: list = dataclasses.field(default_factory=list)  # 本轮 retrieve 命中的记录（RealExecutor honest 形状）
+
+
+def _format_turn_for_replay(turn: ChatTurn) -> str:
+    """把历史轮次压成回放给模型的文本：答案 + 紧凑句柄清单（不含原文）。"""
+    if not turn.citations:
+        return turn.answer
+    handles = "；".join(f"{c.citation}(chunk_id={c.chunk_id})" for c in turn.citations)
+    return f"{turn.answer}\n[本轮引用: {handles}]"
 
 
 class OllamaAgentClient:
@@ -39,6 +49,8 @@ class OllamaAgentClient:
         "你是一位严谨的学术助手，配有以下工具：\n"
         "- retrieve: 当需要查阅书中具体知识、公式、定义时调用\n"
         "- calculate: 当需要进行精确数值运算时调用（如乘除法、百分比、幂次）\n"
+        "- get_chunk: 当需要回看之前 retrieve 结果或对话历史中出现过的某个具体 chunk 原文时，"
+        "用其 chunk_id 直接取回；探索新话题仍应使用 retrieve\n"
         "对于普通对话或无需查阅/计算的问题，直接回答，不调用任何工具。\n"
         "回答必须有据可查，检索不到相关内容时输出 [未找到参考资料]。"
     )
@@ -64,12 +76,20 @@ class OllamaAgentClient:
             http_client=httpx.Client(trust_env=False),
         )
 
-    def run(self, question: str, system_prompt: str = "") -> AgentTurn:
+    def run(
+        self,
+        question: str,
+        history: Optional[list[ChatTurn]] = None,
+        system_prompt: str = "",
+    ) -> AgentTurn:
         t0 = time.perf_counter()
         messages: list[dict] = [
             {"role": "system", "content": system_prompt or self._SYSTEM_PROMPT},
-            {"role": "user", "content": question},
         ]
+        for turn in history or []:
+            messages.append({"role": "user", "content": turn.question})
+            messages.append({"role": "assistant", "content": _format_turn_for_replay(turn)})
+        messages.append({"role": "user", "content": question})
 
         triggered_tool: Optional[str] = None
         tool_args: Optional[dict] = None
@@ -77,6 +97,7 @@ class OllamaAgentClient:
         total_tokens: int = 0
         prompt_tokens: int = 0
         completion_tokens: int = 0
+        retrieved_chunks: list = []
 
         for _ in range(_MAX_ROUNDS):
             response = self._openai.chat.completions.create(
@@ -117,6 +138,7 @@ class OllamaAgentClient:
                         prompt_tokens=prompt_tokens,
                         completion_tokens=completion_tokens,
                         latency_s=time.perf_counter() - t0,
+                        retrieved_chunks=retrieved_chunks,
                     )
 
                 triggered_tool = tool_name
@@ -125,6 +147,13 @@ class OllamaAgentClient:
                 # Append assistant message with tool_calls, then tool result
                 messages.append(choice.message)
                 result = self._executor.execute(tool_name, args)
+                if tool_name == "retrieve":
+                    try:
+                        parsed = json.loads(result)
+                        if isinstance(parsed, list):
+                            retrieved_chunks.extend(parsed)
+                    except json.JSONDecodeError:
+                        pass
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
@@ -145,6 +174,7 @@ class OllamaAgentClient:
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                     latency_s=time.perf_counter() - t0,
+                    retrieved_chunks=retrieved_chunks,
                 )
 
         # Max rounds exceeded
@@ -159,4 +189,5 @@ class OllamaAgentClient:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             latency_s=time.perf_counter() - t0,
+            retrieved_chunks=retrieved_chunks,
         )
