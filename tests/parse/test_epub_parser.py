@@ -298,3 +298,38 @@ def test_html_to_elements_img_in_blockquote_becomes_figure():
     elems = _html_to_elements(html)
     assert any(e.type == "figure" and "q.png" in e.content for e in elems)
     assert any(e.type == "text" and "Quoted words" in e.content for e in elems)
+
+
+def test_html_to_elements_layout_table_becomes_text():
+    html = (
+        '<html><body><table epub:type="list" class="simplelist" style="border: 0;">'
+        "<tr><td>Enter People cross the Stage.</td></tr>"
+        "<tr><td>Followed by Sir Timothy.</td></tr></table></body></html>"
+    )
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    assert elems[0].type == "text"
+    assert "|" not in elems[0].content
+    assert "Enter People" in elems[0].content
+    assert "Followed by" in elems[0].content
+
+
+def test_html_to_elements_single_column_no_header_table_becomes_text():
+    html = (
+        "<html><body><table><tr><td>Line one</td></tr>"
+        "<tr><td>Line two</td></tr></table></body></html>"
+    )
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    assert elems[0].type == "text"
+    assert "|" not in elems[0].content
+
+
+def test_html_to_elements_real_table_stays_table():
+    html = (
+        "<html><body><table><tr><th>Name</th><th>Value</th></tr>"
+        "<tr><td>x</td><td>1</td></tr></table></body></html>"
+    )
+    elems = _html_to_elements(html)
+    assert elems[0].type == "table"
+    assert "| Name | Value |" in elems[0].content

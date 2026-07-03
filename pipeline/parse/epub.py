@@ -65,6 +65,24 @@ _CONTAINER_TAGS = {"div", "section", "article", "main", "svg", "figure", "aside"
 _SKIP_TAGS = {"nav", "script", "style", "header", "footer", "form"}
 
 
+def _is_layout_table(table_tag) -> bool:
+    """Detect tables used for page layout rather than tabular data.
+
+    Publishers wrap stage directions, lyrics and lists in borderless tables;
+    signals: epub:type/class declaring a list, or single-column with no header.
+    """
+    epub_type = table_tag.get("epub:type") or ""
+    classes = table_tag.get("class") or []
+    if isinstance(classes, str):
+        classes = [classes]
+    if "list" in epub_type or any("list" in c for c in classes):
+        return True
+    if table_tag.find("th") is not None:
+        return False
+    rows = table_tag.find_all("tr")
+    return bool(rows) and all(len(tr.find_all(["td", "th"])) <= 1 for tr in rows)
+
+
 def _normalize_text(tag) -> str:
     """Flatten a tag's text with all whitespace runs collapsed to single spaces."""
     return re.sub(r"\s+", " ", tag.get_text(separator=" ", strip=True)).strip()
@@ -136,9 +154,15 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
             if code.strip():
                 elements.append(Element(type="code", content=code.strip(), page_num=page_num))
         elif tag_name == "table":
-            md = _table_to_markdown(tag)
-            if md.strip():
-                elements.append(Element(type="table", content=md, page_num=page_num))
+            if _is_layout_table(tag):
+                rows = [_normalize_text(tr) for tr in tag.find_all("tr")]
+                text = "\n".join(r for r in rows if r)
+                if text:
+                    elements.append(Element(type="text", content=text, page_num=page_num))
+            else:
+                md = _table_to_markdown(tag)
+                if md.strip():
+                    elements.append(Element(type="table", content=md, page_num=page_num))
         elif tag_name == "math":
             latex = _mml_to_latex(tag)
             if latex.strip():
