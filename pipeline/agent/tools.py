@@ -53,4 +53,25 @@ def get_tools_param() -> list[dict]:
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_chunk",
+                "description": (
+                    "按 chunk_id 直接取回某个具体 chunk 的完整原文。"
+                    "当需要回看之前 retrieve 结果或对话历史中提到过的某个具体段落时调用，"
+                    "探索新话题请使用 retrieve。"
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "chunk_id": {
+                            "type": "string",
+                            "description": "要取回的 chunk 的唯一标识（来自此前 retrieve 结果或历史引用清单）",
+                        },
+                    },
+                    "required": ["chunk_id"],
+                },
+            },
+        },
     ]
