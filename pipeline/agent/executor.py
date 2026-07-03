@@ -233,6 +233,8 @@ class StubExecutor:
             return self._retrieve(args)
         if name == "calculate":
             return self._calculate(args)
+        if name == "get_chunk":
+            return self._get_chunk(args)
         raise ValueError(f"未知工具: {name}")
 
     def _retrieve(self, args: dict) -> str:
@@ -269,3 +271,22 @@ class StubExecutor:
             return safe_calculate(expression)
         except ValueError as e:
             return f"计算错误: {e}"
+
+    def _get_chunk(self, args: dict) -> str:
+        chunk_id: str = args.get("chunk_id", "")
+        for raw in _STUB_CHUNKS:
+            if raw["chunk_id"] == chunk_id:
+                content: str = raw["content"]
+                chunk = ChunkResult(
+                    chunk_id=raw["chunk_id"],
+                    book_title=raw["book_title"],
+                    page_num=raw["page_num"],
+                    chapter=raw["chapter"],
+                    content=content,
+                    preview=content[: self._preview_length],
+                    keyword_highlights=[],
+                    relevance_score=raw["relevance_score"],
+                    source_path=raw["source_path"],
+                )
+                return json.dumps(dataclasses.asdict(chunk), ensure_ascii=False)
+        return json.dumps({"error": f"未找到该 chunk: {chunk_id}"}, ensure_ascii=False)

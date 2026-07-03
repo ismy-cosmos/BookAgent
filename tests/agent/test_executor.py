@@ -158,6 +158,23 @@ def test_stub_executor_calculate_invalid_raises_graceful_error():
     assert "错误" in result or "Error" in result.lower()
 
 
+def test_stub_executor_get_chunk_hit():
+    from pipeline.agent.executor import StubExecutor
+    stub = StubExecutor()
+    result = stub.execute("get_chunk", {"chunk_id": "stub-001"})
+    data = json.loads(result)
+    assert data["chunk_id"] == "stub-001"
+    assert "content" in data
+
+
+def test_stub_executor_get_chunk_miss():
+    from pipeline.agent.executor import StubExecutor
+    stub = StubExecutor()
+    result = stub.execute("get_chunk", {"chunk_id": "does-not-exist"})
+    data = json.loads(result)
+    assert "error" in data
+
+
 def test_stub_executor_unknown_tool_raises():
     from pipeline.agent.executor import StubExecutor
     stub = StubExecutor()
