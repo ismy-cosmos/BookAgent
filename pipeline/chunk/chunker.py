@@ -125,9 +125,9 @@ def _last_sentence(text: str) -> str:
     return sentences[-1].strip() if sentences else text.strip()
 
 
-def _make_chunk_id(book_id: str, source_stem: str, page_start: Optional[int], seq: int) -> str:
+def _make_chunk_id(book_id: str, source_name: str, page_start: Optional[int], seq: int) -> str:
     page_str = f"p{page_start:04d}" if page_start is not None else "pNone"
-    return f"{book_id}/{source_stem}/{page_str}/{seq:04d}"
+    return f"{book_id}/{source_name}/{page_str}/{seq:04d}"
 
 
 class Chunker:
@@ -142,7 +142,7 @@ class Chunker:
         source_file: str,
         seq_offset: int = 0,
     ) -> list[Chunk]:
-        source_stem = Path(source_file).stem
+        source_name = Path(source_file).name
         chunks: list[Chunk] = []
         buf: list[Element] = []
         buf_tok = 0
@@ -171,7 +171,7 @@ class Chunker:
             ps = _page_start(elems)
             pe = _page_end(elems)
             chunks.append(Chunk(
-                chunk_id=_make_chunk_id(book_id, source_stem, ps, seq),
+                chunk_id=_make_chunk_id(book_id, source_name, ps, seq),
                 book_id=book_id,
                 source_file=source_file,
                 element_type=etype,
