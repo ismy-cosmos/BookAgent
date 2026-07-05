@@ -60,7 +60,7 @@ class OllamaAgentClient:
         model: str,
         executor: ToolExecutor,
         base_url: str = "http://localhost:11434/v1",
-        num_ctx: int = 8192,
+        num_ctx: Optional[int] = None,  # None = 走模型默认（Modelfile num_ctx）；仅诊断时显式覆盖
         temperature: float = 0.0,
         keep_alive: int = 1200,
     ) -> None:
@@ -106,7 +106,7 @@ class OllamaAgentClient:
                 tools=get_tools_param(),
                 temperature=self._temperature,
                 extra_body={
-                    "options": {"num_ctx": self._num_ctx},
+                    "options": {} if self._num_ctx is None else {"num_ctx": self._num_ctx},
                     "keep_alive": self._keep_alive,
                 },
             )
