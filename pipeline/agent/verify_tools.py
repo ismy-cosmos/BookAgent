@@ -111,7 +111,7 @@ def _run_model(
     base_url: str,
     repeats: int,
     executor: StubExecutor | None = None,
-    num_ctx: int = 8192,
+    num_ctx: int | None = None,  # None = 走模型默认（Modelfile num_ctx）
 ) -> tuple[list[dict], dict]:
     if executor is None:
         executor = StubExecutor()
@@ -192,7 +192,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--output-dir", default="eval/")
     parser.add_argument("--base-url", default="http://localhost:11434/v1")
-    parser.add_argument("--num-ctx", type=int, default=8192)
+    parser.add_argument("--num-ctx", type=int, default=None)
     args = parser.parse_args(argv)
 
     cases = load_cases(args.cases)

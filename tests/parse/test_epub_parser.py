@@ -173,3 +173,163 @@ def test_epub_parser_inserts_section_breaks(tmp_path):
     # section_break is between spine items, not at start or end
     sb_idx = types.index("section_break")
     assert 0 < sb_idx < len(types) - 1
+
+
+def test_html_to_elements_page_num_param():
+    html = "<html><body><p>Hello.</p></body></html>"
+    elems = _html_to_elements(html, page_num=3)
+    assert elems[0].page_num == 3
+
+
+def test_epub_parser_page_num_is_spine_position(tmp_path):
+    epub_path = str(tmp_path / "book.epub")
+    spine_item_1 = MagicMock()
+    spine_item_1.get_content.return_value = b"<html><body><p>Chapter one.</p></body></html>"
+    spine_item_1.get_name.return_value = "text/ch1.html"
+    spine_item_2 = MagicMock()
+    spine_item_2.get_content.return_value = b"<html><body><p>Chapter two.</p></body></html>"
+    spine_item_2.get_name.return_value = "text/ch2.html"
+
+    mock_book = MagicMock()
+    mock_book.spine = [("id1", "yes"), ("id2", "yes")]
+    mock_book.get_item_with_id.side_effect = lambda id_: {
+        "id1": spine_item_1, "id2": spine_item_2
+    }[id_]
+
+    with patch("ebooklib.epub.read_epub", return_value=mock_book):
+        elems = EPUBParser().parse(epub_path)
+
+    ch1 = next(e for e in elems if "Chapter one" in e.content)
+    ch2 = next(e for e in elems if "Chapter two" in e.content)
+    assert ch1.page_num == 1
+    assert ch2.page_num == 2
+
+
+def test_html_to_elements_ol_numbered():
+    html = "<html><body><ol><li>Alpha</li><li>Beta</li></ol></body></html>"
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    assert elems[0].type == "text"
+    assert "1. Alpha" in elems[0].content
+    assert "2. Beta" in elems[0].content
+
+
+def test_html_to_elements_ul_markdown_dash():
+    html = "<html><body><ul><li>First item</li><li>Second item</li></ul></body></html>"
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    assert "- First item" in elems[0].content
+    assert "- Second item" in elems[0].content
+
+
+def test_html_to_elements_blockquote_prefixed():
+    html = "<html><body><blockquote><p>Line one.</p><p>Line two.</p></blockquote></body></html>"
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    lines = elems[0].content.splitlines()
+    assert all(ln.startswith("> ") for ln in lines)
+    assert "Line one." in elems[0].content
+
+
+def test_html_to_elements_img_resolves_relative_path():
+    html = '<html><body><img src="../images/x.jpg" alt="diagram"/></body></html>'
+    elems = _html_to_elements(html, base_href="text/ch1.html")
+    fig = next(e for e in elems if e.type == "figure")
+    assert fig.content == "![diagram](images/x.jpg)"
+
+
+def test_html_to_elements_inline_img_in_paragraph():
+    html = '<html><body><p>See <img src="a.png" alt="pic"/> here.</p></body></html>'
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" and "a.png" in e.content for e in elems)
+    assert any(e.type == "text" and "See" in e.content for e in elems)
+
+
+def test_html_to_elements_svg_image_xlink_href():
+    html = '<html><body><svg><image xlink:href="images/cover.jpg"/></svg></body></html>'
+    elems = _html_to_elements(html)
+    fig = next(e for e in elems if e.type == "figure")
+    assert "images/cover.jpg" in fig.content
+
+
+def test_html_to_elements_dl_fallback_not_dropped():
+    html = "<html><body><dl><dt>Term</dt><dd>Definition text.</dd></dl></body></html>"
+    elems = _html_to_elements(html)
+    all_content = " ".join(e.content for e in elems)
+    assert "Term" in all_content
+    assert "Definition text" in all_content
+
+
+def test_html_to_elements_nav_excluded():
+    html = "<html><body><nav><p>TOC junk</p></nav><p>Real content.</p></body></html>"
+    elems = _html_to_elements(html)
+    all_content = " ".join(e.content for e in elems)
+    assert "TOC junk" not in all_content
+    assert "Real content" in all_content
+
+
+def test_html_to_elements_figcaption_kept():
+    html = (
+        '<html><body><figure><img src="f.png" alt="a"/>'
+        "<figcaption>Figure 1. A caption</figcaption></figure></body></html>"
+    )
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" for e in elems)
+    assert any(e.type == "text" and "Figure 1. A caption" in e.content for e in elems)
+
+
+def test_html_to_elements_data_uri_img_placeholder():
+    html = '<html><body><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUg" alt="chart"/></body></html>'
+    elems = _html_to_elements(html)
+    fig = next(e for e in elems if e.type == "figure")
+    assert "base64" not in fig.content
+    assert fig.content == "![chart](data-uri-image)"
+
+
+def test_html_to_elements_img_in_li_becomes_figure():
+    html = '<html><body><ul><li>Step one <img src="s1.png" alt="step1"/></li></ul></body></html>'
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" and "s1.png" in e.content for e in elems)
+    assert any(e.type == "text" and "Step one" in e.content for e in elems)
+
+
+def test_html_to_elements_img_in_blockquote_becomes_figure():
+    html = '<html><body><blockquote><p>Quoted words <img src="q.png" alt="q"/></p></blockquote></body></html>'
+    elems = _html_to_elements(html)
+    assert any(e.type == "figure" and "q.png" in e.content for e in elems)
+    assert any(e.type == "text" and "Quoted words" in e.content for e in elems)
+
+
+def test_html_to_elements_layout_table_becomes_text():
+    html = (
+        '<html><body><table epub:type="list" class="simplelist" style="border: 0;">'
+        "<tr><td>Enter People cross the Stage.</td></tr>"
+        "<tr><td>Followed by Sir Timothy.</td></tr></table></body></html>"
+    )
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    assert elems[0].type == "text"
+    assert "|" not in elems[0].content
+    assert "Enter People" in elems[0].content
+    assert "Followed by" in elems[0].content
+
+
+def test_html_to_elements_single_column_no_header_table_becomes_text():
+    html = (
+        "<html><body><table><tr><td>Line one</td></tr>"
+        "<tr><td>Line two</td></tr></table></body></html>"
+    )
+    elems = _html_to_elements(html)
+    assert len(elems) == 1
+    assert elems[0].type == "text"
+    assert "|" not in elems[0].content
+
+
+def test_html_to_elements_real_table_stays_table():
+    html = (
+        "<html><body><table><tr><th>Name</th><th>Value</th></tr>"
+        "<tr><td>x</td><td>1</td></tr></table></body></html>"
+    )
+    elems = _html_to_elements(html)
+    assert elems[0].type == "table"
+    assert "| Name | Value |" in elems[0].content

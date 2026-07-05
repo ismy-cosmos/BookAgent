@@ -181,6 +181,108 @@ def test_extra_body_passes_num_ctx_and_keep_alive(mock_openai_cls):
 
 
 @patch("pipeline.agent.client.OpenAI")
+def test_history_replayed_as_user_assistant_pairs(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+    from pipeline.agent.schema import ChatTurn
+
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("第二轮回答")
+
+    history = [ChatTurn(question="第一轮问题", answer="第一轮回答")]
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    client.run("第二轮问题", history=history)
+
+    messages = mock_create.call_args.kwargs["messages"]
+    assert messages[0]["role"] == "system"
+    assert messages[1] == {"role": "user", "content": "第一轮问题"}
+    assert messages[2] == {"role": "assistant", "content": "第一轮回答"}
+    assert messages[3] == {"role": "user", "content": "第二轮问题"}
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_history_replay_includes_compact_handle_list(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+    from pipeline.agent.schema import ChatTurn, Citation
+
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("好的")
+
+    citation = Citation(chunk_id="b/f/p0001/0000", source_file="f.pdf",
+                         element_type="text", citation="f.pdf p.1", score=0.1)
+    history = [ChatTurn(question="问题", answer="答案", citations=[citation])]
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    client.run("追问", history=history)
+
+    messages = mock_create.call_args.kwargs["messages"]
+    replayed_assistant = messages[2]["content"]
+    assert "答案" in replayed_assistant
+    assert "f.pdf p.1" in replayed_assistant
+    assert "chunk_id=b/f/p0001/0000" in replayed_assistant
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_no_history_behaves_like_before(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("答案")
+
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    client.run("问题")
+
+    messages = mock_create.call_args.kwargs["messages"]
+    assert len(messages) == 2  # system + user，无历史插入
+    assert messages[1] == {"role": "user", "content": "问题"}
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_retrieved_chunks_captured_on_retrieve_call(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import RealExecutor
+
+    class _FakeEmbedder:
+        def embed_query(self, text):
+            return [0.1] * 4
+
+    class _FakeStore:
+        def query(self, book_id, vector, n_results=5):
+            return [{
+                "chunk_id": "b/f/p0001/0000", "content": "内容", "score": 0.1,
+                "source_file": "f.pdf", "element_type": "text",
+                "page_start": 1, "page_end": 1, "start_sec": None, "end_sec": None,
+                "low_confidence": False,
+            }]
+
+    mock_openai_cls.return_value.chat.completions.create.side_effect = [
+        _make_tool_response("retrieve", '{"query": "测试", "k": 3}'),
+        _make_text_response("答案"),
+    ]
+
+    executor = RealExecutor(book_id="test-book", embedder=_FakeEmbedder(), store=_FakeStore())
+    client = OllamaAgentClient(model="test-model", executor=executor)
+    turn = client.run("问题")
+
+    assert len(turn.retrieved_chunks) == 1
+    assert turn.retrieved_chunks[0]["chunk_id"] == "b/f/p0001/0000"
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_retrieved_chunks_empty_when_no_retrieve_call(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_text_response("直接回答")
+    )
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    turn = client.run("你好")
+    assert turn.retrieved_chunks == []
+
+
+@patch("pipeline.agent.client.OpenAI")
 def test_agent_turn_has_token_split(mock_openai_cls):
     from pipeline.agent.client import OllamaAgentClient
     from pipeline.agent.executor import StubExecutor

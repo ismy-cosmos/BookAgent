@@ -6,9 +6,9 @@ import pipeline.embed.embedder as emb_mod
 
 @pytest.fixture(autouse=True)
 def reset_model_cache():
-    emb_mod._MODEL_CACHE = None
+    emb_mod._MODEL_CACHE = {}
     yield
-    emb_mod._MODEL_CACHE = None
+    emb_mod._MODEL_CACHE = {}
     # also release the lock in case a test failed while holding it
     try:
         emb_mod._MODEL_LOCK.release()
@@ -58,7 +58,7 @@ def test_embedder_class_level_cache():
         e2 = Embedder()
         e1.embed(["x"])
         e2.embed(["y"])
-        assert mock_cls.call_count == 1  # shared model
+        assert mock_cls.call_count == 1  # shared model (same default device)
 
 
 def test_embed_query_vector_dimension():
@@ -73,3 +73,35 @@ def test_embedder_model_load_failure():
         emb = Embedder()
         with pytest.raises(ImportError, match="no FlagEmbedding"):
             emb.embed(["x"])
+
+
+# ── device selection ─────────────────────────────────────────────────────────
+
+def test_embedder_default_device_does_not_pass_devices_kwarg():
+    with patch("FlagEmbedding.BGEM3FlagModel") as mock_cls:
+        mock_cls.return_value = _mock_model(["x"])
+        Embedder().embed(["x"])
+        assert "devices" not in mock_cls.call_args.kwargs
+
+
+def test_embedder_explicit_device_passes_devices_kwarg():
+    with patch("FlagEmbedding.BGEM3FlagModel") as mock_cls:
+        mock_cls.return_value = _mock_model(["x"])
+        Embedder(device="cpu").embed(["x"])
+        assert mock_cls.call_args.kwargs["devices"] == "cpu"
+
+
+def test_embedder_different_devices_get_separate_cache_entries():
+    with patch("FlagEmbedding.BGEM3FlagModel") as mock_cls:
+        mock_cls.return_value = _mock_model(["x"])
+        Embedder(device="cpu").embed(["x"])
+        Embedder(device="cuda:0").embed(["y"])
+        assert mock_cls.call_count == 2  # each device loads its own model instance
+
+
+def test_embedder_same_explicit_device_shares_cache():
+    with patch("FlagEmbedding.BGEM3FlagModel") as mock_cls:
+        mock_cls.return_value = _mock_model(["x"])
+        Embedder(device="cpu").embed(["x"])
+        Embedder(device="cpu").embed(["y"])
+        assert mock_cls.call_count == 1  # same device string, shared model

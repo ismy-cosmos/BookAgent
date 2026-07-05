@@ -44,8 +44,8 @@ def test_audio_parser_chunk_ids(tmp_path):
     with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="ostep")
 
-    assert chunks[0].chunk_id == "ostep/segment-01/0000"
-    assert chunks[1].chunk_id == "ostep/segment-01/0001"
+    assert chunks[0].chunk_id == "ostep/segment-01.mp3/0000"
+    assert chunks[1].chunk_id == "ostep/segment-01.mp3/0001"
 
 
 def test_audio_parser_chunk_fields(tmp_path):
@@ -215,7 +215,7 @@ def test_audio_parser_seq_skips_blank_segments(tmp_path):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
     assert len(chunks) == 2
-    assert chunks[0].chunk_id == "b/mixed/0000"
+    assert chunks[0].chunk_id == "b/mixed.mp3/0000"
     # seq 使用 WhisperX 原始 segment index，空 segment 被跳过时出现跳号
     # 此处 segment index 1 为空，故第二个有效 chunk 的 seq=2 而非 seq=1
     assert chunks[1].chunk_id.endswith("/0002")

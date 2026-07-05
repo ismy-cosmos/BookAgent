@@ -78,6 +78,26 @@ class ChromaStore:
                 "chunk_id": chunk_id,
                 "content": doc,
                 "score": dist,
+                "source_file": meta.get("source_file"),
+                "element_type": meta.get("element_type"),
+                "page_start": _from_meta_val(meta.get("page_start")),
+                "page_end": _from_meta_val(meta.get("page_end")),
+                "start_sec": _from_meta_val(meta.get("start_sec")),
+                "end_sec": _from_meta_val(meta.get("end_sec")),
+                "low_confidence": meta.get("low_confidence", False),
+            })
+        return results
+
+    def get(self, book_id: str, chunk_ids: list[str]) -> list[dict]:
+        col = self._collection(book_id)
+        raw = col.get(ids=chunk_ids, include=["documents", "metadatas"])
+        results = []
+        for chunk_id, doc, meta in zip(raw["ids"], raw["documents"], raw["metadatas"]):
+            results.append({
+                "chunk_id": chunk_id,
+                "content": doc,
+                "source_file": meta.get("source_file"),
+                "element_type": meta.get("element_type"),
                 "page_start": _from_meta_val(meta.get("page_start")),
                 "page_end": _from_meta_val(meta.get("page_end")),
                 "start_sec": _from_meta_val(meta.get("start_sec")),

@@ -6,6 +6,9 @@ import json
 from decimal import Decimal, InvalidOperation
 from typing import Protocol, runtime_checkable
 
+from pipeline.embed import Embedder
+from pipeline.store import ChromaStore
+
 # ── Stub data fixture ─────────────────────────────────────────────────────────
 
 _STUB_CHUNKS = [
@@ -233,6 +236,8 @@ class StubExecutor:
             return self._retrieve(args)
         if name == "calculate":
             return self._calculate(args)
+        if name == "get_chunk":
+            return self._get_chunk(args)
         raise ValueError(f"未知工具: {name}")
 
     def _retrieve(self, args: dict) -> str:
@@ -262,6 +267,118 @@ class StubExecutor:
                 )
             )
         return json.dumps(results, ensure_ascii=False)
+
+    def _calculate(self, args: dict) -> str:
+        expression: str = args.get("expression", "")
+        try:
+            return safe_calculate(expression)
+        except ValueError as e:
+            return f"计算错误: {e}"
+
+    def _get_chunk(self, args: dict) -> str:
+        chunk_id: str = args.get("chunk_id", "")
+        for raw in _STUB_CHUNKS:
+            if raw["chunk_id"] == chunk_id:
+                content: str = raw["content"]
+                chunk = ChunkResult(
+                    chunk_id=raw["chunk_id"],
+                    book_title=raw["book_title"],
+                    page_num=raw["page_num"],
+                    chapter=raw["chapter"],
+                    content=content,
+                    preview=content[: self._preview_length],
+                    keyword_highlights=[],
+                    relevance_score=raw["relevance_score"],
+                    source_path=raw["source_path"],
+                )
+                return json.dumps(dataclasses.asdict(chunk), ensure_ascii=False)
+        return json.dumps({"error": f"未找到该 chunk: {chunk_id}"}, ensure_ascii=False)
+
+
+# ── RealExecutor ──────────────────────────────────────────────────────────────
+
+def _format_mmss(seconds: float) -> str:
+    total = int(seconds)
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def _format_citation(
+    source_file,
+    page_start,
+    page_end,
+    start_sec,
+    end_sec,
+) -> str:
+    if page_start is not None:
+        if page_end is not None and page_end != page_start:
+            return f"{source_file} p.{page_start}-{page_end}"
+        return f"{source_file} p.{page_start}"
+    if start_sec is not None and end_sec is not None:
+        return f"{source_file} {_format_mmss(start_sec)}-{_format_mmss(end_sec)}"
+    return source_file
+
+
+def _to_record(raw: dict) -> dict:
+    return {
+        "chunk_id": raw["chunk_id"],
+        "content": raw["content"],
+        "element_type": raw.get("element_type"),
+        "source_file": raw.get("source_file"),
+        "citation": _format_citation(
+            raw.get("source_file"),
+            raw.get("page_start"),
+            raw.get("page_end"),
+            raw.get("start_sec"),
+            raw.get("end_sec"),
+        ),
+        "low_confidence": raw.get("low_confidence", False),
+        "score": raw.get("score"),
+    }
+
+
+class RealExecutor:
+    """Production executor backed by real ChromaDB retrieval.
+
+    retrieve → embeds the query with Embedder, queries ChromaStore for the fixed book_id.
+    get_chunk → re-hydrates a single chunk's full content by id (multi-turn recall).
+    calculate → delegates to safe_calculate() (same logic as StubExecutor).
+    """
+
+    def __init__(
+        self,
+        book_id: str,
+        embedder: Embedder,
+        store: ChromaStore,
+        max_results: int = 10,
+    ) -> None:
+        self._book_id = book_id
+        self._embedder = embedder
+        self._store = store
+        self._max_results = max_results
+
+    def execute(self, name: str, args: dict) -> str:
+        if name == "retrieve":
+            return self._retrieve(args)
+        if name == "calculate":
+            return self._calculate(args)
+        if name == "get_chunk":
+            return self._get_chunk(args)
+        raise ValueError(f"未知工具: {name}")
+
+    def _retrieve(self, args: dict) -> str:
+        query: str = args.get("query", "")
+        k: int = min(int(args.get("k", 5)), self._max_results)
+        vector = self._embedder.embed_query(query)
+        raw_results = self._store.query(self._book_id, vector, n_results=k)
+        records = [_to_record(r) for r in raw_results]
+        return json.dumps(records, ensure_ascii=False)
+
+    def _get_chunk(self, args: dict) -> str:
+        chunk_id: str = args.get("chunk_id", "")
+        raw_results = self._store.get(self._book_id, [chunk_id])
+        if not raw_results:
+            return json.dumps({"error": f"未找到该 chunk: {chunk_id}"}, ensure_ascii=False)
+        return json.dumps(_to_record(raw_results[0]), ensure_ascii=False)
 
     def _calculate(self, args: dict) -> str:
         expression: str = args.get("expression", "")
