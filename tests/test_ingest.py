@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import pytest
 
+from pipeline.chunk.schema import Chunk
 from scripts.ingest import (
     _sha256,
     _load_manifest,
@@ -10,6 +11,7 @@ from scripts.ingest import (
     _resolve_source_file,
     _collect_files,
     _route_parser,
+    _ingest_file,
 )
 
 
@@ -102,3 +104,118 @@ def test_route_parser_image():
 def test_route_parser_unknown_raises():
     with pytest.raises(ValueError, match="Unsupported"):
         _route_parser("data.csv")
+
+
+def test_ingest_file_audio_uses_parse_to_chunks(tmp_path):
+    f = tmp_path / "lecture.mp3"
+    f.write_bytes(b"fake audio")
+    chunk = Chunk(
+        chunk_id="b/lecture.mp3/0000", book_id="b", source_file="lecture.mp3",
+        element_type="audio", content="hello", token_count=1,
+    )
+    mock_parser = MagicMock()
+    mock_parser.parse_to_chunks.return_value = [chunk]
+    chunker = MagicMock()
+    embedder = MagicMock()
+    embedder.embed.return_value = [[0.1] * 1024]
+    store = MagicMock()
+
+    with patch("scripts.ingest.AudioParser", return_value=mock_parser):
+        n = _ingest_file(str(f), "b", "lecture.mp3", chunker, embedder, store, batch_size=64)
+
+    mock_parser.parse_to_chunks.assert_called_once_with(str(f), "b", source_file="lecture.mp3")
+    chunker.chunk.assert_not_called()
+    assert n == 1
+    store.add_chunks.assert_called_once()
+
+
+def test_ingest_file_non_audio_uses_route_parser_and_chunker(tmp_path):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"fake pdf")
+    chunk = Chunk(
+        chunk_id="b/ch01.pdf/p0001/0000", book_id="b", source_file="ch01.pdf",
+        element_type="text", content="hello", token_count=1,
+    )
+    mock_parser = MagicMock()
+    mock_parser.parse.return_value = ["element1"]
+    chunker = MagicMock()
+    chunker.chunk.return_value = [chunk]
+    embedder = MagicMock()
+    embedder.embed.return_value = [[0.1] * 1024]
+    store = MagicMock()
+
+    with patch("scripts.ingest._route_parser", return_value=mock_parser) as mock_route:
+        n = _ingest_file(str(f), "b", "ch01.pdf", chunker, embedder, store, batch_size=64)
+
+    mock_route.assert_called_once_with(str(f))
+    mock_parser.parse.assert_called_once_with(str(f))
+    chunker.chunk.assert_called_once_with(["element1"], book_id="b", source_file="ch01.pdf")
+    assert n == 1
+
+
+def test_ingest_file_empty_chunks_returns_zero(tmp_path, capsys):
+    f = tmp_path / "empty.pdf"
+    f.write_bytes(b"fake pdf")
+    mock_parser = MagicMock()
+    mock_parser.parse.return_value = []
+    chunker = MagicMock()
+    chunker.chunk.return_value = []
+    embedder = MagicMock()
+    store = MagicMock()
+
+    with patch("scripts.ingest._route_parser", return_value=mock_parser):
+        n = _ingest_file(str(f), "b", "empty.pdf", chunker, embedder, store, batch_size=64)
+
+    assert n == 0
+    embedder.embed.assert_not_called()
+    store.add_chunks.assert_not_called()
+    assert "No chunks produced" in capsys.readouterr().out
+
+
+def test_ingest_file_overrides_source_file_on_chunks(tmp_path):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"fake pdf")
+    chunk = Chunk(
+        chunk_id="b/ch01.pdf/p0001/0000", book_id="b", source_file="wrong-name.pdf",
+        element_type="text", content="hello", token_count=1,
+    )
+    mock_parser = MagicMock()
+    mock_parser.parse.return_value = ["element1"]
+    chunker = MagicMock()
+    chunker.chunk.return_value = [chunk]
+    embedder = MagicMock()
+    embedder.embed.return_value = [[0.1] * 1024]
+    store = MagicMock()
+
+    with patch("scripts.ingest._route_parser", return_value=mock_parser):
+        _ingest_file(str(f), "b", "ch01(1).pdf", chunker, embedder, store, batch_size=64)
+
+    assert chunk.source_file == "ch01(1).pdf"
+
+
+def test_ingest_file_batches_embed_and_store_calls(tmp_path):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"fake pdf")
+    chunks = [
+        Chunk(chunk_id=f"b/ch01.pdf/p0001/{i:04d}", book_id="b", source_file="ch01.pdf",
+              element_type="text", content=f"chunk {i}", token_count=1)
+        for i in range(5)
+    ]
+    mock_parser = MagicMock()
+    mock_parser.parse.return_value = ["element1"]
+    chunker = MagicMock()
+    chunker.chunk.return_value = chunks
+    embedder = MagicMock()
+    embedder.embed.side_effect = lambda texts: [[0.1] * 1024 for _ in texts]
+    store = MagicMock()
+
+    with patch("scripts.ingest._route_parser", return_value=mock_parser):
+        n = _ingest_file(str(f), "b", "ch01.pdf", chunker, embedder, store, batch_size=2)
+
+    assert n == 5
+    assert embedder.embed.call_count == 3  # batch 大小 2：2+2+1
+    assert store.add_chunks.call_count == 3
+    first_batch = store.add_chunks.call_args_list[0].args[1]
+    assert len(first_batch) == 2
+    last_batch = store.add_chunks.call_args_list[2].args[1]
+    assert len(last_batch) == 1
