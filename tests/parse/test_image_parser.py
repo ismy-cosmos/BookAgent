@@ -8,6 +8,15 @@ from openai import OpenAIError
 from pipeline.parse.image import VLMImageParser
 
 
+@pytest.fixture(autouse=True)
+def mock_release_call():
+    """Autouse: every parse() call hits _release_model() in a finally block,
+    which does a real httpx.post to /api/generate. Mock it globally so no
+    test makes a real network call regardless of which path it exercises."""
+    with patch("pipeline.parse.image.httpx.post") as mock_post:
+        yield mock_post
+
+
 def _make_fake_png(tmp_path) -> str:
     # Minimal 1x1 red pixel PNG
     png_bytes = (
@@ -118,3 +127,36 @@ def test_image_parser_svg_conversion_error(tmp_path):
     with patch("cairosvg.svg2png", side_effect=Exception("SVG parse error")):
         with pytest.raises(ValueError, match="SVG conversion failed"):
             VLMImageParser(ollama_base="http://fake", model="m").parse(str(svg))
+
+
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_releases_model_after_use(mock_openai_cls, mock_release_call, tmp_path):
+    img = _make_fake_png(tmp_path)
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_response("A pixel.")
+    )
+
+    VLMImageParser(ollama_base="http://fake", model="m").parse(img)
+
+    mock_release_call.assert_called_once_with(
+        "http://fake/api/generate",
+        json={"model": "m", "keep_alive": 0},
+        timeout=30.0,
+    )
+
+
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_releases_model_even_on_failure(mock_openai_cls, mock_release_call, tmp_path):
+    img = _make_fake_png(tmp_path)
+    mock_openai_cls.return_value.chat.completions.create.side_effect = (
+        OpenAIError("connection failed")
+    )
+
+    with pytest.raises(ValueError):
+        VLMImageParser(ollama_base="http://fake", model="m").parse(img)
+
+    mock_release_call.assert_called_once_with(
+        "http://fake/api/generate",
+        json={"model": "m", "keep_alive": 0},
+        timeout=30.0,
+    )

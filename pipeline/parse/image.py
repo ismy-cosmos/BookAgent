@@ -44,6 +44,16 @@ def describe_image(
     return content.strip()
 
 
+def _release_model(base_url: str, model: str) -> None:
+    """Best-effort: tell Ollama to unload `model` immediately. Native-only
+    operation (no OpenAI-compatible equivalent) — frees VRAM for the
+    embedding step that follows VLM parsing in the ingest pipeline."""
+    try:
+        httpx.post(f"{base_url}/api/generate", json={"model": model, "keep_alive": 0}, timeout=30.0)
+    except httpx.HTTPError:
+        pass
+
+
 class VLMImageParser:
     """Describe images using a local Ollama vision model via the openai SDK."""
 
@@ -71,6 +81,8 @@ class VLMImageParser:
             description = describe_image(self._openai, self._model, b64)
         except OpenAIError as e:
             raise ValueError(f"Ollama vision call failed: {e}") from e
+        finally:
+            _release_model(self._base, self._model)
         return [Element(type="figure", content=description, page_num=0)]
 
     def _load_as_png_bytes(self, image_path: str) -> bytes:
