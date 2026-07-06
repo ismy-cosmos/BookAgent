@@ -178,10 +178,15 @@ def main() -> None:
     embedder = Embedder()
     store = ChromaStore(persist_dir=args.chroma_dir)
 
+    max_consecutive_failures = int(os.environ.get("INGEST_MAX_CONSECUTIVE_FAILURES", "0"))
+
     total_chunks = 0
     failures: list[dict] = []
+    not_attempted: list[str] = []
+    consecutive_failures = 0
+    aborted_early = False
 
-    for file_path in all_files:
+    for idx, file_path in enumerate(all_files):
         source_file = None
         try:
             manifest = _load_manifest(manifest_dir, args.book_id)
@@ -189,6 +194,7 @@ def main() -> None:
 
             if sha in manifest["sha256_to_file"]:
                 print(f"Skip (already ingested): {file_path}")
+                consecutive_failures = 0
                 continue
 
             filename = Path(file_path).name
@@ -202,6 +208,7 @@ def main() -> None:
             manifest["sha256_to_file"][sha] = source_file
             _save_manifest(manifest_dir, args.book_id, manifest)
             total_chunks += n
+            consecutive_failures = 0
         except Exception as e:
             print(f"[error] Failed to ingest {file_path}: {type(e).__name__}: {e}")
             traceback.print_exc()
@@ -216,8 +223,15 @@ def main() -> None:
                 "error_message": str(e),
                 "timestamp": datetime.now().isoformat(),
             })
+            consecutive_failures += 1
 
-    _save_failures(manifest_dir, args.book_id, failures, not_attempted=[], aborted_early=False)
+            if max_consecutive_failures and consecutive_failures >= max_consecutive_failures:
+                print(f"\n[abort] {consecutive_failures} 个文件连续失败，疑似系统性问题，已中止批次。")
+                not_attempted = all_files[idx + 1:]
+                aborted_early = True
+                break
+
+    _save_failures(manifest_dir, args.book_id, failures, not_attempted, aborted_early)
 
     print(f"\nDone. Total chunks ingested: {total_chunks}")
     print(f"Chroma collection '{args.book_id}' now has {store.count(args.book_id)} chunks.")
@@ -226,6 +240,12 @@ def main() -> None:
         print(f"\n{len(failures)} file(s) failed:")
         for f in failures:
             print(f"  - {f['file']}: {f['error_type']}: {f['error_message']}")
+    if not_attempted:
+        print(f"\n{len(not_attempted)} file(s) not attempted (batch aborted early):")
+        for fp in not_attempted:
+            print(f"  - {fp}")
+
+    if failures or aborted_early:
         sys.exit(1)
 
 

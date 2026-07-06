@@ -391,3 +391,55 @@ def test_main_skip_path_does_not_call_rollback(tmp_path, monkeypatch):
 
     mock_ingest_file.assert_not_called()
     mock_store.delete_by_source.assert_not_called()
+
+
+def test_main_circuit_breaker_resets_on_success(tmp_path, monkeypatch):
+    names = ["ch0.pdf", "ch1.pdf", "ch2.pdf", "ch3.pdf", "ch4.pdf"]
+    for name in names:
+        (tmp_path / name).write_bytes(name.encode())
+    chroma_dir = tmp_path / "chroma"
+    monkeypatch.setenv("INGEST_MAX_CONSECUTIVE_FAILURES", "2")
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--dir", str(tmp_path), "--chroma-dir", str(chroma_dir),
+    ])
+
+    def fake_ingest_file(file_path, *args, **kwargs):
+        if Path(file_path).name == "ch1.pdf":
+            return 1
+        raise RuntimeError("boom")
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file", side_effect=fake_ingest_file):
+        mock_store_cls.return_value.count.return_value = 1
+        with pytest.raises(SystemExit):
+            main()
+
+    failures_data = json.loads((chroma_dir / ".manifests" / "b.failures.json").read_text())
+    failed_names = [Path(f["file"]).name for f in failures_data["failures"]]
+    # ch0 失败(计数1) -> ch1 成功(重置为0) -> ch2 失败(计数1) -> ch3 失败(计数2，达到阈值中止)
+    assert failed_names == ["ch0.pdf", "ch2.pdf", "ch3.pdf"]
+    assert failures_data["aborted_early"] is True
+    assert [Path(p).name for p in failures_data["not_attempted"]] == ["ch4.pdf"]
+
+
+def test_main_circuit_breaker_disabled_by_default_processes_all(tmp_path, monkeypatch):
+    for i in range(4):
+        (tmp_path / f"ch{i}.pdf").write_bytes(f"content{i}".encode())
+    chroma_dir = tmp_path / "chroma"
+    monkeypatch.delenv("INGEST_MAX_CONSECUTIVE_FAILURES", raising=False)
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--dir", str(tmp_path), "--chroma-dir", str(chroma_dir),
+    ])
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file", side_effect=RuntimeError("boom")):
+        mock_store_cls.return_value.count.return_value = 0
+        with pytest.raises(SystemExit):
+            main()
+
+    failures_data = json.loads((chroma_dir / ".manifests" / "b.failures.json").read_text())
+    assert failures_data["aborted_early"] is False
+    assert len(failures_data["failures"]) == 4
+    assert failures_data["not_attempted"] == []
