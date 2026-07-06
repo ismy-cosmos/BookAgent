@@ -20,11 +20,11 @@
 
 ## 删除
 
-删除能力当前 `ChromaStore` 尚未实现（现有接口为 add/query/count），以下为设计约定，落地时按 collection-per-book 模型执行：
+整本书删除（`client.delete_collection(book_id)`）当前 `ChromaStore` 尚未实现，以下为设计约定，落地时按 collection-per-book 模型执行：
 
 - **最小删除单位是整本书**：删除一本书 = 丢弃该 `book_id` 对应的整个 collection（`client.delete_collection(book_id)`）
 - 如果用户上传了错误的文件，只能删整本书后重新上传全部文件
-- **文件级别删除在技术上可行**（在该 `book_id` 的 collection 内按 `source_file` 过滤删除对应 chunk，不影响同一本书里的其他文件），预留为未来功能，当前不实现
+- **文件级别删除在技术上可行**（在该 `book_id` 的 collection 内按 `source_file` 过滤删除对应 chunk，不影响同一本书里的其他文件）——底层能力已经实现为 `ChromaStore.delete_by_source(book_id, source_file)`，目前只被 `scripts/ingest.py` 内部用于失败回滚（见 issue #6 设计）；接入到"用户主动删除某个文件"这个产品功能仍预留为未来工作，还需要同步清理 manifest 里对应的 sha 记录、大概率还需要用户确认
 
 ## 检索边界
 
