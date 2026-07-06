@@ -216,3 +216,36 @@ def test_add_chunks_duplicate_id_does_not_raise(mock_chroma):
     store.add_chunks("b", [chunk], embeddings)
     store.add_chunks("b", [chunk], embeddings)  # 同一 id 再次添加
     assert mock_col.add.call_count == 2  # 两次都调了 add，Chroma 自行覆盖
+
+
+def test_delete_by_source_removes_only_matching_file(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    keep = Chunk(
+        chunk_id="book1/keep.pdf/p0001/0000", book_id="book1", source_file="keep.pdf",
+        element_type="text", content="keep this", token_count=2,
+    )
+    remove = Chunk(
+        chunk_id="book1/remove.pdf/p0001/0000", book_id="book1", source_file="remove.pdf",
+        element_type="text", content="remove this", token_count=2,
+    )
+    store.add_chunks("book1", [keep, remove], [[0.1] * 1024, [0.2] * 1024])
+    assert store.count("book1") == 2
+
+    store.delete_by_source("book1", "remove.pdf")
+
+    assert store.count("book1") == 1
+    remaining = store.get("book1", ["book1/keep.pdf/p0001/0000", "book1/remove.pdf/p0001/0000"])
+    assert [r["chunk_id"] for r in remaining] == ["book1/keep.pdf/p0001/0000"]
+
+
+def test_delete_by_source_no_matching_file_is_noop(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    chunk = Chunk(
+        chunk_id="book1/keep.pdf/p0001/0000", book_id="book1", source_file="keep.pdf",
+        element_type="text", content="keep this", token_count=2,
+    )
+    store.add_chunks("book1", [chunk], [[0.1] * 1024])
+
+    store.delete_by_source("book1", "does-not-exist.pdf")
+
+    assert store.count("book1") == 1

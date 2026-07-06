@@ -10,6 +10,8 @@ import hashlib
 import json
 import os
 import sys
+import traceback
+from datetime import datetime
 from pathlib import Path
 
 # Ensure repo root is on path when run as a script
@@ -53,6 +55,27 @@ def _save_manifest(manifest_dir: str, book_id: str, data: dict) -> None:
     p = _manifest_path(manifest_dir, book_id)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data, indent=2))
+
+
+def _failures_path(manifest_dir: str, book_id: str) -> Path:
+    return Path(manifest_dir) / f"{book_id}.failures.json"
+
+
+def _save_failures(
+    manifest_dir: str,
+    book_id: str,
+    failures: list[dict],
+    not_attempted: list[str],
+    aborted_early: bool,
+) -> None:
+    p = _failures_path(manifest_dir, book_id)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({
+        "run_at": datetime.now().isoformat(),
+        "aborted_early": aborted_early,
+        "failures": failures,
+        "not_attempted": not_attempted,
+    }, indent=2))
 
 
 def _resolve_source_file(filename: str, manifest: dict) -> str:
@@ -155,29 +178,75 @@ def main() -> None:
     embedder = Embedder()
     store = ChromaStore(persist_dir=args.chroma_dir)
 
+    max_consecutive_failures = int(os.environ.get("INGEST_MAX_CONSECUTIVE_FAILURES", "0"))
+
     total_chunks = 0
-    for file_path in all_files:
-        manifest = _load_manifest(manifest_dir, args.book_id)
-        sha = _sha256(file_path)
+    failures: list[dict] = []
+    not_attempted: list[str] = []
+    consecutive_failures = 0
+    aborted_early = False
 
-        if sha in manifest["sha256_to_file"]:
-            print(f"Skip (already ingested): {file_path}")
-            continue
+    for idx, file_path in enumerate(all_files):
+        source_file = None
+        try:
+            manifest = _load_manifest(manifest_dir, args.book_id)
+            sha = _sha256(file_path)
 
-        filename = Path(file_path).name
-        source_file = _resolve_source_file(filename, manifest)
-        print(f"Ingesting: {file_path} → {source_file}")
+            if sha in manifest["sha256_to_file"]:
+                print(f"Skip (already ingested): {file_path}")
+                consecutive_failures = 0
+                continue
 
-        n = _ingest_file(
-            file_path, args.book_id, source_file,
-            chunker, embedder, store, args.batch_size,
-        )
-        manifest["sha256_to_file"][sha] = source_file
-        _save_manifest(manifest_dir, args.book_id, manifest)
-        total_chunks += n
+            filename = Path(file_path).name
+            source_file = _resolve_source_file(filename, manifest)
+            print(f"Ingesting: {file_path} → {source_file}")
+
+            n = _ingest_file(
+                file_path, args.book_id, source_file,
+                chunker, embedder, store, args.batch_size,
+            )
+            manifest["sha256_to_file"][sha] = source_file
+            _save_manifest(manifest_dir, args.book_id, manifest)
+            total_chunks += n
+            consecutive_failures = 0
+        except Exception as e:
+            print(f"[error] Failed to ingest {file_path}: {type(e).__name__}: {e}")
+            traceback.print_exc()
+            if source_file is not None:
+                try:
+                    store.delete_by_source(args.book_id, source_file)
+                except Exception as cleanup_exc:
+                    print(f"[warn] Rollback for {file_path} also failed: {cleanup_exc}")
+            failures.append({
+                "file": file_path,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "timestamp": datetime.now().isoformat(),
+            })
+            consecutive_failures += 1
+
+            if max_consecutive_failures and consecutive_failures >= max_consecutive_failures:
+                print(f"\n[abort] {consecutive_failures} 个文件连续失败，疑似系统性问题，已中止批次。")
+                not_attempted = all_files[idx + 1:]
+                aborted_early = True
+                break
+
+    _save_failures(manifest_dir, args.book_id, failures, not_attempted, aborted_early)
 
     print(f"\nDone. Total chunks ingested: {total_chunks}")
     print(f"Chroma collection '{args.book_id}' now has {store.count(args.book_id)} chunks.")
+
+    if failures:
+        print(f"\n{len(failures)} file(s) failed:")
+        for f in failures:
+            print(f"  - {f['file']}: {f['error_type']}: {f['error_message']}")
+    if not_attempted:
+        print(f"\n{len(not_attempted)} file(s) not attempted (batch aborted early):")
+        for fp in not_attempted:
+            print(f"  - {fp}")
+
+    if failures or aborted_early:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

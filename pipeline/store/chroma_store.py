@@ -55,6 +55,9 @@ class ChromaStore:
             ],
         )
 
+    def delete_by_source(self, book_id: str, source_file: str) -> None:
+        self._collection(book_id).delete(where={"source_file": source_file})
+
     def query(
         self,
         book_id: str,
