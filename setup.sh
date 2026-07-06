@@ -35,6 +35,20 @@ fi
 pip install -q -r requirements-dev.txt
 echo "Installed requirements"
 
+# ── 4.5 WhisperX (isolated venv) ─────────────────────────────────────────────
+WHISPERX_VENV=whisperx.venv
+if [ ! -d "$WHISPERX_VENV" ]; then
+    $PYTHON -m venv "$WHISPERX_VENV"
+    echo "Created $WHISPERX_VENV"
+fi
+if $CPU_ONLY; then
+    "$WHISPERX_VENV/bin/pip" install -q torch --index-url https://download.pytorch.org/whl/cpu
+else
+    "$WHISPERX_VENV/bin/pip" install -q torch --index-url https://download.pytorch.org/whl/cu128
+fi
+"$WHISPERX_VENV/bin/pip" install -q -r requirements-whisperx.txt
+echo "Installed whisperx (isolated venv)"
+
 # ── 5. Smoke test ────────────────────────────────────────────────────────────
 python -m pytest tests/ --collect-only -q 2>&1 | tail -3
 echo ""

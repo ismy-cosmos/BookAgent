@@ -2,7 +2,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -10,10 +9,12 @@ import tiktoken
 
 from pipeline.chunk.schema import Chunk
 
-_WHISPERX_PATH = os.environ.get(
-    "WHISPERX_PATH",
-    "/home/ismy/github/BookAgent-Baseline/audio/whisperx_env/bin/whisperx",
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_WHISPERX_VENV_PYTHON = os.environ.get(
+    "WHISPERX_VENV_PYTHON",
+    str(_REPO_ROOT / "whisperx.venv" / "bin" / "python"),
 )
+_WHISPERX_WRAPPER = str(Path(__file__).resolve().parent / "whisperx_transcribe.py")
 _ENC = None
 
 
@@ -25,40 +26,38 @@ def _enc():
 
 
 class AudioParser:
-    """Transcribe audio with WhisperX and map segments directly to Chunks."""
+    """Transcribe audio with WhisperX (isolated venv) and map segments directly to Chunks."""
 
     def __init__(
         self,
-        whisperx_path: str = _WHISPERX_PATH,
+        whisperx_python: str = _WHISPERX_VENV_PYTHON,
         model: str = "small",
         language: Optional[str] = None,
     ):
-        self._wx = whisperx_path
+        self._wx_python = whisperx_python
         self._model = model
         self._lang = language
 
     def parse_to_chunks(self, audio_path: str, book_id: str, source_file: str = "") -> list[Chunk]:
-        if not Path(self._wx).exists():
+        if not Path(self._wx_python).exists():
             raise RuntimeError(
-                f"WhisperX 未找到：{self._wx}\n"
-                f"请检查 WHISPERX_PATH 环境变量，或确认 whisperx 已正确安装到该路径。"
+                f"WhisperX venv 未找到：{self._wx_python}\n"
+                f"请运行 setup.sh 安装 whisperx 环境，或检查 WHISPERX_VENV_PYTHON 环境变量。"
             )
 
         resolved_name = source_file or Path(audio_path).name
-        stem = Path(audio_path).stem
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cmd = [
-                self._wx, audio_path,
-                "--model", self._model,
-                "--output_dir", tmpdir,
-                "--output_format", "json",
-            ]
-            if self._lang is not None:
-                cmd.extend(["--language", self._lang])
-            subprocess.run(cmd, check=True, capture_output=True, text=True)
-            out_file = Path(tmpdir) / f"{stem}.json"
-            data = json.loads(out_file.read_text())
+        cmd = [self._wx_python, _WHISPERX_WRAPPER, audio_path, "--model", self._model]
+        if self._lang is not None:
+            cmd.extend(["--language", self._lang])
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"WhisperX wrapper 输出不是合法 JSON: {result.stdout[:500]!r}"
+            ) from e
 
         chunks: list[Chunk] = []
         for seq, seg in enumerate(data.get("segments", [])):
