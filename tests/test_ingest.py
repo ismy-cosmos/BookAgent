@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
@@ -12,6 +13,7 @@ from scripts.ingest import (
     _collect_files,
     _route_parser,
     _ingest_file,
+    main,
 )
 
 
@@ -219,3 +221,90 @@ def test_ingest_file_batches_embed_and_store_calls(tmp_path):
     assert len(first_batch) == 2
     last_batch = store.add_chunks.call_args_list[2].args[1]
     assert len(last_batch) == 1
+
+
+def test_main_no_files_in_dir_returns_early(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["ingest.py", "--book-id", "b", "--dir", str(tmp_path)])
+    with patch("scripts.ingest.ChromaStore") as mock_store_cls:
+        main()
+    mock_store_cls.assert_not_called()
+    assert "No files found." in capsys.readouterr().out
+
+
+def test_main_skips_already_ingested_file(tmp_path, monkeypatch):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    manifest_dir = chroma_dir / ".manifests"
+    sha = _sha256(str(f))
+    _save_manifest(str(manifest_dir), "b", {"sha256_to_file": {sha: "ch01.pdf"}})
+
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--file", str(f), "--chroma-dir", str(chroma_dir),
+    ])
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file") as mock_ingest_file:
+        mock_store_cls.return_value.count.return_value = 0
+        main()
+
+    mock_ingest_file.assert_not_called()
+
+
+def test_main_success_writes_manifest_and_empty_failures_json(tmp_path, monkeypatch):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--file", str(f), "--chroma-dir", str(chroma_dir),
+    ])
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file", return_value=3):
+        mock_store_cls.return_value.count.return_value = 3
+        main()
+
+    manifest = _load_manifest(str(chroma_dir / ".manifests"), "b")
+    assert manifest["sha256_to_file"][_sha256(str(f))] == "ch01.pdf"
+
+    failures_data = json.loads((chroma_dir / ".manifests" / "b.failures.json").read_text())
+    assert failures_data["failures"] == []
+    assert failures_data["aborted_early"] is False
+    assert failures_data["not_attempted"] == []
+
+
+def test_main_one_file_fails_others_continue_and_exits_nonzero(tmp_path, monkeypatch, capsys):
+    f1 = tmp_path / "ch01.pdf"; f1.write_bytes(b"one")
+    f2 = tmp_path / "ch02.pdf"; f2.write_bytes(b"two")
+    chroma_dir = tmp_path / "chroma"
+
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--dir", str(tmp_path), "--chroma-dir", str(chroma_dir),
+    ])
+
+    def fake_ingest_file(file_path, *args, **kwargs):
+        if file_path == str(f1):
+            raise RuntimeError("boom")
+        return 5
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file", side_effect=fake_ingest_file):
+        mock_store_cls.return_value.count.return_value = 5
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+    assert exc_info.value.code == 1
+
+    manifest = _load_manifest(str(chroma_dir / ".manifests"), "b")
+    assert _sha256(str(f1)) not in manifest["sha256_to_file"]
+    assert manifest["sha256_to_file"][_sha256(str(f2))] == "ch02.pdf"
+
+    failures_data = json.loads((chroma_dir / ".manifests" / "b.failures.json").read_text())
+    assert len(failures_data["failures"]) == 1
+    assert failures_data["failures"][0]["file"] == str(f1)
+    assert failures_data["failures"][0]["error_type"] == "RuntimeError"
+    assert failures_data["aborted_early"] is False
+
+    assert "Failed to ingest" in capsys.readouterr().out
