@@ -5,15 +5,19 @@
 ## 各阶段状态
 
 - **解析 → 分块 → 元数据**：已完成。
-- **入向量库**：写库代码真实存在（`ChromaStore.add_chunks` / `scripts/ingest.py`），非 stub，但从未用真实数据端到端跑通过——磁盘上此前不存在任何 `.chroma` 持久化数据，PR #4 的测试全部基于 mock。
-- **检索召回**：此前 agent 的 `retrieve` 工具接的是 `StubExecutor`，返回硬编码假 chunk，完全不碰 `ChromaStore`/`Embedder`。正在 `feat/realexecutor-retrieval` 分支上接入真实检索（`RealExecutor`），设计与计划见 `docs/superpowers/specs/2026-07-03-realexecutor-retrieval-landing-design.md` 与对应 plan（该目录已 gitignore，仅存于本地）。
+- **入向量库**：写库代码（`ChromaStore.add_chunks` / `scripts/ingest.py`）已用真实数据端到端验证过（单张真实图片、单个真实音频文件分别端到端 ingest 成功，内容与元数据正确）；批量多文件场景下的单文件失败容错还没有（issue #6），整本书级别的正式 ingest 待 #6 落地后再做。
+- **检索召回**：`RealExecutor` 已落地（PR #15，`feat/realexecutor-retrieval` 分支），`retrieve`/`get_chunk` 走真实 `ChromaStore`/`Embedder`，不再是 `StubExecutor` 硬编码假数据。
+- **VLM/Ollama 调用方式**：`VLMImageParser`/`check_vision.py` 已统一改用 `openai` SDK（PR #21），修掉了顺带发现的 VRAM 判断阈值过时问题，`VLMImageParser` 用完模型会主动释放显存，避免跟 embedder 抢 GPU。
+- **AudioParser**：已改用项目自己独立的 `whisperx.venv` + Python API wrapper（PR #22），不再依赖 `BookAgent-Baseline` 仓库路径。
 
 ## 待办 issue 优先级顺序
 
-1. **进行中：RealExecutor 检索落地**（`feat/realexecutor-retrieval` 分支）。让"检索召回"这一端第一次接上真实数据，是主干链路能否端到端闭环的关键缺口。
-2. **下一步：issue #6**（`scripts/ingest.py` 核心编排逻辑零测试覆盖，批量处理无单文件失败容错）。这是关键路径——要可靠地把真实书批量灌进向量库，必须先有这层容错，否则一批文件里一个坏 PDF/WhisperX 崩/Ollama 连不上就会中断整批。
-3. **之后：issue #13 + #11 + #10 攒成一批一起做**：
+1. **下一步：issue #6**（`scripts/ingest.py` 核心编排逻辑零测试覆盖，批量处理无单文件失败容错）。这是关键路径——要可靠地把真实书批量灌进向量库，必须先有这层容错，否则一批文件里一个坏 PDF/WhisperX 崩/Ollama 连不上就会中断整批。
+2. **之后：issue #13 + #14 一起做**：
    - #13：内嵌复杂 atomic（图/表/公式）未路由给 VLM 理解。
+   - #14：VLM 图片预处理缺失，大尺寸图可能导致视觉 token 溢出上下文窗口。
+   - 两者都会改变 VLM 这条链路最终产出的内容，一起做完再验证。#18（prompt/num_predict 调速）延后，不挤占这一批。
+3. **再之后：issue #11 + #10**：
    - #11：EPUB 容器直接子级裸文本节点丢失，内联标签经兜底分支产生碎片元素。
    - #10：`audio.py` WhisperX 短 VAD segment 直接成 chunk，未走 chunker 打包逻辑。
-   - 这三者都会改变最终入库的 chunk 内容，攒齐一起做完、再统一跑一次评测级正式 ingest，避免中途多次重灌向量库。
+   - 这两项加上 #13 都会改变最终入库的 chunk 内容，建议攒到一起做完、再统一跑一次评测级正式 ingest，避免中途多次重灌向量库。
