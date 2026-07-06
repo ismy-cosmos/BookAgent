@@ -308,3 +308,86 @@ def test_main_one_file_fails_others_continue_and_exits_nonzero(tmp_path, monkeyp
     assert failures_data["aborted_early"] is False
 
     assert "Failed to ingest" in capsys.readouterr().out
+
+
+def test_main_failure_rolls_back_chroma_data(tmp_path, monkeypatch):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--file", str(f), "--chroma-dir", str(chroma_dir),
+    ])
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file", side_effect=RuntimeError("boom")):
+        mock_store = mock_store_cls.return_value
+        mock_store.count.return_value = 0
+        with pytest.raises(SystemExit):
+            main()
+
+    mock_store.delete_by_source.assert_called_once_with("b", "ch01.pdf")
+
+
+def test_main_rollback_failure_does_not_crash_batch(tmp_path, monkeypatch):
+    f1 = tmp_path / "ch01.pdf"; f1.write_bytes(b"one")
+    f2 = tmp_path / "ch02.pdf"; f2.write_bytes(b"two")
+    chroma_dir = tmp_path / "chroma"
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--dir", str(tmp_path), "--chroma-dir", str(chroma_dir),
+    ])
+
+    def fake_ingest_file(file_path, *args, **kwargs):
+        if file_path == str(f1):
+            raise RuntimeError("boom")
+        return 5
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file", side_effect=fake_ingest_file):
+        mock_store = mock_store_cls.return_value
+        mock_store.count.return_value = 5
+        mock_store.delete_by_source.side_effect = RuntimeError("cleanup also broken")
+        with pytest.raises(SystemExit):
+            main()
+
+    manifest = _load_manifest(str(chroma_dir / ".manifests"), "b")
+    assert manifest["sha256_to_file"][_sha256(str(f2))] == "ch02.pdf"
+
+
+def test_main_success_does_not_call_rollback(tmp_path, monkeypatch):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--file", str(f), "--chroma-dir", str(chroma_dir),
+    ])
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file", return_value=3):
+        mock_store = mock_store_cls.return_value
+        mock_store.count.return_value = 3
+        main()
+
+    mock_store.delete_by_source.assert_not_called()
+
+
+def test_main_skip_path_does_not_call_rollback(tmp_path, monkeypatch):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    manifest_dir = chroma_dir / ".manifests"
+    sha = _sha256(str(f))
+    _save_manifest(str(manifest_dir), "b", {"sha256_to_file": {sha: "ch01.pdf"}})
+
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--file", str(f), "--chroma-dir", str(chroma_dir),
+    ])
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._ingest_file") as mock_ingest_file:
+        mock_store = mock_store_cls.return_value
+        mock_store.count.return_value = 0
+        main()
+
+    mock_ingest_file.assert_not_called()
+    mock_store.delete_by_source.assert_not_called()

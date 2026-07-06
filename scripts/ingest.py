@@ -182,6 +182,7 @@ def main() -> None:
     failures: list[dict] = []
 
     for file_path in all_files:
+        source_file = None
         try:
             manifest = _load_manifest(manifest_dir, args.book_id)
             sha = _sha256(file_path)
@@ -204,6 +205,11 @@ def main() -> None:
         except Exception as e:
             print(f"[error] Failed to ingest {file_path}: {type(e).__name__}: {e}")
             traceback.print_exc()
+            if source_file is not None:
+                try:
+                    store.delete_by_source(args.book_id, source_file)
+                except Exception as cleanup_exc:
+                    print(f"[warn] Rollback for {file_path} also failed: {cleanup_exc}")
             failures.append({
                 "file": file_path,
                 "error_type": type(e).__name__,
