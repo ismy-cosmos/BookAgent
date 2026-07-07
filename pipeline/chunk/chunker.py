@@ -5,7 +5,7 @@ from typing import Optional
 
 import tiktoken
 
-from pipeline.parse.base import Element
+from pipeline.parse.base import CAPTION_RE, Element
 from .schema import Chunk
 
 _MAX_TOKENS = 512  # 不含 overlap 前缀的目标 token 上限
@@ -234,7 +234,7 @@ class Chunker:
                 caption_elem = None
                 if (i + 1 < len(elements)
                         and elements[i + 1].type == "text"
-                        and re.match(r"^(Figure|Table)\s+[\d.]+\s*:", elements[i + 1].content, re.IGNORECASE)):
+                        and CAPTION_RE.match(elements[i + 1].content)):
                     caption_elem = elements[i + 1]
                     i += 1  # 消费 caption
 

@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -17,11 +18,14 @@ from pathlib import Path
 # Ensure repo root is on path when run as a script
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from dataclasses import dataclass
+
 from pipeline.chunk import Chunker
 from pipeline.embed import Embedder
 from pipeline.parse.audio import AudioParser
 from pipeline.parse.epub import EPUBParser
-from pipeline.parse.image import VLMImageParser
+from pipeline.parse.figure_batch import resolve_figures
+from pipeline.parse.image import VLMImageParser, load_image_element
 from pipeline.parse.marker import MarkerParser
 from pipeline.store import ChromaStore
 
@@ -114,34 +118,52 @@ def _route_parser(file_path: str):
     raise ValueError(f"Unsupported file type: {ext}")
 
 
-def _ingest_file(
-    file_path: str,
+@dataclass
+class _PendingFile:
+    """阶段1解析完、等待阶段2/3处理的文件。elements 与 chunks 二选一：
+    音频在解析时直接产出 chunks；其余格式产出 elements 待分块。"""
+    file_path: str
+    source_file: str
+    sha: str
+    elements: list | None = None
+    chunks: list | None = None
+
+
+def _parse_file(file_path: str, book_id: str, source_file: str):
+    """阶段1：解析单个文件。返回 (elements, chunks)。"""
+    ext = Path(file_path).suffix.lower()
+    if ext in _AUDIO_EXTS:
+        chunks = AudioParser().parse_to_chunks(file_path, book_id, source_file=source_file)
+        return None, chunks
+    if ext in _IMAGE_EXTS:
+        # 独立图片：只读字节不调 VLM，描述在阶段2批量生成
+        return [load_image_element(file_path)], None
+    parser = _route_parser(file_path)
+    return parser.parse(file_path), None
+
+
+def _store_file(
+    pending: _PendingFile,
     book_id: str,
-    source_file: str,
     chunker: Chunker,
     embedder: Embedder,
     store: ChromaStore,
     batch_size: int,
 ) -> int:
-    ext = Path(file_path).suffix.lower()
-
-    if ext in _AUDIO_EXTS:
-        parser = AudioParser()
-        chunks = parser.parse_to_chunks(file_path, book_id, source_file=source_file)
+    """阶段3：分块（音频跳过）→ 嵌入 → 入库。"""
+    if pending.chunks is not None:
+        chunks = pending.chunks
     else:
-        parser = _route_parser(file_path)
-        elements = parser.parse(file_path)
-        chunks = chunker.chunk(elements, book_id=book_id, source_file=source_file)
+        chunks = chunker.chunk(pending.elements, book_id=book_id,
+                               source_file=pending.source_file)
 
     if not chunks:
-        print(f"  [warn] No chunks produced from {file_path}")
+        print(f"  [warn] No chunks produced from {pending.file_path}")
         return 0
 
-    # Override source_file in chunks to the resolved name
     for c in chunks:
-        c.source_file = source_file
+        c.source_file = pending.source_file
 
-    # Embed and store in batches
     total = 0
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i : i + batch_size]
@@ -151,7 +173,7 @@ def _ingest_file(
         total += len(batch)
         print(f"  Stored {total}/{len(chunks)} chunks...", end="\r")
 
-    print(f"  Stored {total} chunks from {source_file}          ")
+    print(f"  Stored {total} chunks from {pending.source_file}          ")
     return total
 
 
@@ -186,53 +208,94 @@ def main() -> None:
     consecutive_failures = 0
     aborted_early = False
 
-    for idx, file_path in enumerate(all_files):
-        source_file = None
-        try:
-            manifest = _load_manifest(manifest_dir, args.book_id)
-            sha = _sha256(file_path)
+    def _record_failure(file_path: str, e: Exception) -> None:
+        print(f"[error] Failed to ingest {file_path}: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        failures.append({
+            "file": file_path,
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "timestamp": datetime.now().isoformat(),
+        })
 
+    # ── 阶段1：全部解析（sha 跳过检查在解析前——解析是最贵的一步）──
+    t_stage1 = time.perf_counter()
+    pending: list[_PendingFile] = []
+    manifest = _load_manifest(manifest_dir, args.book_id)
+    manifest_view = {"sha256_to_file": dict(manifest["sha256_to_file"])}
+    for idx, file_path in enumerate(all_files):
+        try:
+            sha = _sha256(file_path)
             if sha in manifest["sha256_to_file"]:
                 print(f"Skip (already ingested): {file_path}")
                 consecutive_failures = 0
                 continue
-
             filename = Path(file_path).name
-            source_file = _resolve_source_file(filename, manifest)
-            print(f"Ingesting: {file_path} → {source_file}")
+            source_file = _resolve_source_file(filename, manifest_view)
+            manifest_view["sha256_to_file"][f"pending:{sha}"] = source_file
+            print(f"Parsing: {file_path} → {source_file}")
+            elements, chunks = _parse_file(file_path, args.book_id, source_file)
+            pending.append(_PendingFile(
+                file_path=file_path, source_file=source_file, sha=sha,
+                elements=elements, chunks=chunks,
+            ))
+            consecutive_failures = 0
+        except Exception as e:
+            _record_failure(file_path, e)
+            consecutive_failures += 1
+            if max_consecutive_failures and consecutive_failures >= max_consecutive_failures:
+                print(f"\n[abort] {consecutive_failures} 个文件连续解析失败，疑似系统性问题，已中止批次。")
+                not_attempted = all_files[idx + 1:]
+                aborted_early = True
+                break
 
-            n = _ingest_file(
-                file_path, args.book_id, source_file,
-                chunker, embedder, store, args.batch_size,
-            )
-            manifest["sha256_to_file"][sha] = source_file
+    print(f"\n阶段1 解析完成，{len(pending)} 个文件，耗时 {time.perf_counter() - t_stage1:.1f}s")
+
+    # ── 阶段2：VLM 批量描述（先释放 marker 模型腾显存）──
+    t_stage2 = time.perf_counter()
+    files_with_elements = [p.elements for p in pending if p.elements is not None]
+    if files_with_elements:
+        MarkerParser.release_models()
+        stats = resolve_figures(files_with_elements)
+        if stats.described or stats.degraded or stats.no_bytes:
+            print(f"\nVLM 批量描述：成功 {stats.described} / 降级 {stats.degraded}"
+                  f" / 无字节跳过 {stats.no_bytes}"
+                  + ("（熔断已触发）" if stats.breaker_tripped else ""))
+    print(f"阶段2 VLM 批量描述完成，耗时 {time.perf_counter() - t_stage2:.1f}s")
+
+    # ── 阶段3：逐文件分块 → 嵌入 → 入库 ──
+    t_stage3 = time.perf_counter()
+    for p in pending:
+        try:
+            ext = Path(p.file_path).suffix.lower()
+            if ext in _IMAGE_EXTS:
+                elem = p.elements[0]
+                if elem.metadata.get("vlm_status") != "described":
+                    raise RuntimeError(
+                        "VLM 描述失败——独立图片文件没有占位符可回退，整个文件视为失败")
+            n = _store_file(p, args.book_id, chunker, embedder, store, args.batch_size)
+            manifest = _load_manifest(manifest_dir, args.book_id)
+            manifest["sha256_to_file"][p.sha] = p.source_file
             _save_manifest(manifest_dir, args.book_id, manifest)
             total_chunks += n
             consecutive_failures = 0
         except Exception as e:
-            print(f"[error] Failed to ingest {file_path}: {type(e).__name__}: {e}")
-            traceback.print_exc()
-            if source_file is not None:
-                try:
-                    store.delete_by_source(args.book_id, source_file)
-                except Exception as cleanup_exc:
-                    print(f"[warn] Rollback for {file_path} also failed: {cleanup_exc}")
-            failures.append({
-                "file": file_path,
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "timestamp": datetime.now().isoformat(),
-            })
+            _record_failure(p.file_path, e)
+            try:
+                store.delete_by_source(args.book_id, p.source_file)
+            except Exception as cleanup_exc:
+                print(f"[warn] Rollback for {p.file_path} also failed: {cleanup_exc}")
             consecutive_failures += 1
-
             if max_consecutive_failures and consecutive_failures >= max_consecutive_failures:
                 print(f"\n[abort] {consecutive_failures} 个文件连续失败，疑似系统性问题，已中止批次。")
-                not_attempted = all_files[idx + 1:]
+                idx3 = pending.index(p)
+                not_attempted = [q.file_path for q in pending[idx3 + 1:]]
                 aborted_early = True
                 break
 
     _save_failures(manifest_dir, args.book_id, failures, not_attempted, aborted_early)
 
+    print(f"阶段3 入库完成，耗时 {time.perf_counter() - t_stage3:.1f}s")
     print(f"\nDone. Total chunks ingested: {total_chunks}")
     print(f"Chroma collection '{args.book_id}' now has {store.count(args.book_id)} chunks.")
 

@@ -49,7 +49,7 @@ Chunk 数下降 29 = 20 个原子 table 碎片消失 + 相邻文本合并效应�
 
 | # | Finding | 判定 | 处置 |
 |---|---|---|---|
-| 1 | data: URI 内联图的 base64 整段进 figure content（token 炸弹） | PLAUSIBLE | **已修**：占位标记 `data-uri-image`，字节留在包内由 VLM 环节按需重取（与"图片统一占位、走完 VLM 再入库"的设计对齐） |
+| 1 | data: URI 内联图的 base64 整段进 figure content（token 炸弹） | PLAUSIBLE | **已修**：占位标记 `data-uri-image`。~~字节留在包内由 VLM 环节按需重取~~（**此表述有误，2026-07-06 勘误**：data-URI 图不是包内 item，`get_item_with_href()` 取不到，占位后字节即丢失；VLM 环节要用必须在解析 `emit_figure` 当场解码，见内嵌图片 VLM 描述回填设计 spec 第 2 节） |
 | 2 | 容器裸文本节点丢失（旧）+ 内联标签经兜底产碎片元素（新副作用） | CONFIRMED | **立项 [issue #11](https://github.com/ismy-cosmos/BookAgent/issues/11)**：需改遍历模型（合并 NavigableString 与相邻 inline 标签），不搭车 |
 | 3 | blockquote/li 内 `<img>` 不产 figure | CONFIRMED | **已修**：`extract_figures` 统一抽图，p/figcaption/ul/ol/blockquote 五处生效 |
 | 4 | 空白归一化正则三处重复 | CONFIRMED | **已修**：提取 `_normalize_text` |

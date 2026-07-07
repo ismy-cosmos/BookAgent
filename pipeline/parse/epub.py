@@ -1,4 +1,6 @@
 from __future__ import annotations
+import base64
+import binascii
 import re
 from urllib.parse import unquote, urljoin
 
@@ -97,13 +99,16 @@ def _resolve_href(base_href: str, src: str) -> str:
     return unquote(urljoin(base_href, src)).lstrip("/")
 
 
-def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list:
+def _html_to_elements(html: str, page_num: int = 0, base_href: str = "", book=None) -> list:
     """Parse an HTML string into a list of Element objects.
 
     page_num: spine position (1-indexed) of the chapter this HTML came from;
               0 means unknown (chunker treats 0 as None).
     base_href: the chapter's own path inside the EPUB package, used to
                resolve relative image hrefs.
+    book: ebooklib book object; provided so package images can be fetched
+          into metadata["image_bytes"] at parse time. None → figures carry
+          placeholder content only (previous behaviour).
     """
     from bs4 import BeautifulSoup, Tag
     from pipeline.parse.base import Element
@@ -115,14 +120,29 @@ def _html_to_elements(html: str, page_num: int = 0, base_href: str = "") -> list
     def emit_figure(img_tag: Tag) -> None:
         src = img_tag.get("src") or img_tag.get("xlink:href") or img_tag.get("href") or ""
         alt = (img_tag.get("alt") or "").strip()
+        image_bytes = None
         if src.startswith("data:"):
-            # 内联 base64 图片：只留占位标记，字节留在 EPUB 里由 VLM 环节按需重取
+            # data-URI 不是包内 item，此刻不解码字节即永久丢失
             path = "data-uri-image"
+            m = re.match(r"data:image/[^;]+;base64,(.*)", src, re.DOTALL)
+            if m:
+                try:
+                    image_bytes = base64.b64decode(m.group(1), validate=True)
+                except (binascii.Error, ValueError):
+                    image_bytes = None
         elif src:
             path = _resolve_href(base_href, src)
+            if book is not None:
+                item = book.get_item_with_href(path)
+                if item is not None:
+                    image_bytes = item.get_content()
         else:
             path = ""
-        elements.append(Element(type="figure", content=f"![{alt}]({path})", page_num=page_num))
+        metadata = {"image_bytes": image_bytes} if image_bytes else {}
+        elements.append(Element(
+            type="figure", content=f"![{alt}]({path})",
+            page_num=page_num, metadata=metadata,
+        ))
 
     def extract_figures(tag: Tag) -> None:
         for img_tag in tag.find_all("img"):
@@ -219,7 +239,7 @@ class EPUBParser:
                 continue
             html = item.get_content().decode("utf-8", errors="replace")
             spine_elements = _html_to_elements(
-                html, page_num=i + 1, base_href=item.get_name(),
+                html, page_num=i + 1, base_href=item.get_name(), book=book,
             )
             if spine_elements and all_elements:
                 all_elements.append(Element(type="section_break", content="", page_num=i + 1))
