@@ -71,3 +71,9 @@ Modelfile：`deploy/Modelfile.q5_k_s`
 **默认量化：** Q4_K_M
 
 **理由：** 两档均过线；Q4 precision=100% 优于 Q5 的 90%（Q5 ret-006、ret-008 未触发工具），Q4 p50 延迟更低（2.7s vs 3.6s），且 Q4 保留视觉能力备用。选 Q4_K_M 作为 W1 默认量化。
+
+---
+
+## num_ctx 后续实测补充（PR #15，2026-07-05）
+
+`RealExecutor` 落地（PR #15）时对 num_ctx 做过更进一步的真实验证：**8192 确认可行，16384 确认不可行**（原始测试数据未留存，仅记录结论，避免后人误以为只有本文档最初记录的选型推算、没有后续真实验证）。`deploy/Modelfile.q4_k_m`/`Modelfile.q5_k_s` 维持 `num_ctx 8192` 不变；`pipeline/agent/client.py` 同批改为不再每次请求传参覆盖 `num_ctx`，交由 Modelfile 默认值控制（commit `aab8492`）。
