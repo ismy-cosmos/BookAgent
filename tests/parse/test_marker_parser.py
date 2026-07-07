@@ -1,7 +1,9 @@
 """Tests for MarkerParser — marker API is mocked; no model weights loaded."""
+import io
 from unittest.mock import MagicMock, patch
 
 import pytest
+from PIL import Image as PILImage
 
 from pipeline.parse import Element
 from pipeline.parse.marker import (
@@ -281,3 +283,48 @@ def test_parse_returns_element_instances(tmp_path):
     types = {e.type for e in elements}
     assert "text" in types
     assert "formula" in types
+
+
+# ── figure 元素附带图片字节 + release_models ─────────────────────────────────
+
+def _rendered_with_images(markdown: str, images: dict):
+    r = MagicMock()
+    r.markdown = markdown
+    r.images = images
+    return r
+
+
+def test_figure_element_gets_image_bytes_from_rendered_images():
+    md = _paginated("![fig](_page_1_Picture_1.jpeg)")
+    pil = PILImage.new("RGB", (10, 10), color="blue")
+    r = _rendered_with_images(md, {"_page_1_Picture_1.jpeg": pil})
+
+    elements = _rendered_to_elements(r, page_sep=_PAGE_SEP)
+
+    fig = next(e for e in elements if e.type == "figure")
+    img = PILImage.open(io.BytesIO(fig.metadata["image_bytes"]))
+    assert img.size == (10, 10)
+
+
+def test_figure_element_without_matching_image_has_no_bytes():
+    md = _paginated("![fig](missing.jpeg)")
+    r = _rendered_with_images(md, {})
+
+    elements = _rendered_to_elements(r, page_sep=_PAGE_SEP)
+
+    fig = next(e for e in elements if e.type == "figure")
+    assert "image_bytes" not in fig.metadata
+
+
+def test_release_models_clears_cached_converter():
+    MarkerParser._converter = MagicMock()
+    MarkerParser._page_sep = "x"
+    MarkerParser.release_models()
+    assert MarkerParser._converter is None
+    assert MarkerParser._page_sep is None
+
+
+def test_release_models_noop_when_not_loaded():
+    MarkerParser._converter = None
+    MarkerParser.release_models()   # 不抛异常即可
+    assert MarkerParser._converter is None

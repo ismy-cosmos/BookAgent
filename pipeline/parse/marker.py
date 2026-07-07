@@ -1,4 +1,5 @@
 from __future__ import annotations
+import io
 import re
 
 from .base import Element, Parser
@@ -34,6 +35,25 @@ class MarkerParser(Parser):
             cls._page_sep = resolved_renderer.page_separator
         return cls._converter
 
+    @classmethod
+    def release_models(cls) -> None:
+        """卸载缓存的 PdfConverter（layout/OCR 权重）并清空 CUDA 缓存。
+        ingest 在 VLM 批量阶段前调用——8GB 卡装不下 marker 模型残留
+        与 Ollama VLM 同时驻留。下次 parse() 会重新懒加载。"""
+        if cls._converter is None:
+            cls._page_sep = None
+            return
+        cls._converter = None
+        cls._page_sep = None
+        import gc
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
+
     def parse(self, pdf_path: str) -> list[Element]:
         converter = self._get_converter()
         rendered = converter(pdf_path)
@@ -65,6 +85,28 @@ def _rendered_to_elements(rendered, page_sep: str) -> list[Element]:
         # section. It's a pagination artifact, not document content.
         section = re.sub(r"\n\n\{\d+\}\s*$", "", section)
         elements.extend(_markdown_to_elements(section, page_num=i))
+
+    images = getattr(rendered, "images", None)
+    if isinstance(images, dict) and images:
+        for elem in elements:
+            if elem.type != "figure":
+                continue
+            m = re.match(r"^!\[[^\]]*\]\(([^)]+)\)", elem.content)
+            if not m:
+                continue
+            pil_img = images.get(m.group(1))
+            if pil_img is None:
+                continue
+            buf = io.BytesIO()
+            try:
+                pil_img.save(buf, format="PNG")
+            except Exception:
+                try:
+                    pil_img.convert("RGB").save(buf, format="PNG")
+                except Exception:
+                    continue  # 尽力而为：转码失败则维持占位符现状
+            elem.metadata["image_bytes"] = buf.getvalue()
+
     return elements
 
 
