@@ -1,18 +1,18 @@
 # 内嵌图片VLM描述回填 真实数据端到端审读报告
 
 **日期：** 2026-07-06
-**分支：** `feat/vlm-figure-routing`（8 commit，315 单元测试全绿）
+**分支：** `feat/vlm-figure-routing`（14 commit，315 单元测试全绿，[PR #26](https://github.com/ismy-cosmos/BookAgent/pull/26)）
 **范围：** 三阶段ingest架构（解析→VLM批量描述→分块入库）+ resize（2048px上限）真实数据验证
 
 ---
 
 ## 测试方式
 
-真实调用`scripts/ingest.py`（非手动拼接parse→chunk），干净chroma目录（`/tmp/chroma-e2e`），本机真实GPU+真实Ollama（`qwen3:q4km`）：
+真实调用`scripts/ingest.py`（非手动拼接parse→chunk），干净chroma目录，本机真实GPU+真实Ollama（`qwen3:q4km`）。跑了两次：首次（`/tmp/chroma-e2e`）用于统计耗时和人式审读；token instrumentation（commit `85f5750`）补上后，二次（`/tmp/chroma-e2e-tok`）用同样语料重新跑了一遍，专门补采token数据：
 
 ```bash
-rm -rf /tmp/chroma-e2e
-bookagent.venv/bin/python3 scripts/ingest.py --book-id e2e-books --chroma-dir /tmp/chroma-e2e --dir eval/testset/cs/raw/book/
+rm -rf /tmp/chroma-e2e-tok
+bookagent.venv/bin/python3 scripts/ingest.py --book-id e2e-books --chroma-dir /tmp/chroma-e2e-tok --dir eval/testset/cs/raw/book/
 ```
 
 语料：`eval/testset/cs/raw/book/`全部9个文件（8个OSTEP CS章节PDF + 1个`java-ch1-e2e.epub`）。
@@ -21,21 +21,23 @@ bookagent.venv/bin/python3 scripts/ingest.py --book-id e2e-books --chroma-dir /t
 
 ## 端到端统计（真实运行结果）
 
-| 阶段 | 耗时 | 说明 |
-|---|---|---|
-| 阶段1 解析 | 140.8s | 9个文件（109页PDF + 1个EPUB），marker layout/OCR |
-| 阶段2 VLM批量描述 | 345.9s | 40张图，成功40/降级0/无字节跳过0（100%成功率） |
-| 阶段3 分块+嵌入+入库 | 16.4s | 414 chunks |
-| **总计** | **503.1s** | |
+首次运行（`/tmp/chroma-e2e`）未采集token（instrumentation当时还没写）；补上instrumentation后（commit `85f5750`）用干净目录（`/tmp/chroma-e2e-tok`）重新跑了一次同样语料，两次运行耗时高度一致，token数据来自第二次：
 
-**页/分钟对照项目目标（≥15页/分钟）**：
+| 阶段 | 首次运行耗时 | 二次运行耗时 | 说明 |
+|---|---|---|---|
+| 阶段1 解析 | 140.8s | 141.8s | 9个文件（109页PDF + 1个EPUB），marker layout/OCR |
+| 阶段2 VLM批量描述 | 345.9s | 343.7s | 40张图，成功40/降级0/无字节跳过0（100%成功率，两次一致） |
+| 阶段3 分块+嵌入+入库 | 16.4s | 15.9s | 414 chunks（两次一致） |
+| **总计** | **503.1s** | **501.4s** | |
 
-- 纯解析（阶段1）：109页/140.8s = **46.4页/分钟**（超标3倍+）
-- 含图文全流程（阶段1+2+3）：109页/503.1s = **13.0页/分钟**（未达标，差13%）
+**页/分钟对照项目目标（≥15页/分钟）**（以二次运行为准）：
 
-VLM阶段占全流程耗时68.8%，单图均耗8.65秒，是纯文本单页解析耗时（1.29秒/页）的6.7倍。这是"含VLM的端到端速度"与"纯文本解析速度"两个不同指标是否要分开考核的产品决策点，不是bug。
+- 纯解析（阶段1）：109页/141.8s = **46.1页/分钟**（超标3倍+）
+- 含图文全流程（阶段1+2+3）：109页/501.4s = **13.0页/分钟**（未达标，差13%，与首次运行结论一致）
 
-**Token消耗**：本次运行未采集（`describe_image`的`on_usage`回调是运行后才补的instrumentation，见后续commit）。已确认代码里`FigureBatchStats.per_image_tokens`能正确记录真实`usage.prompt_tokens`（见`tests/parse/test_figure_batch.py`新增用例），但要拿到这批语料的真实token数字需要重新跑一次ingest（sha去重，同一批文件不会重新触发VLM）。
+VLM阶段占全流程耗时68.5%，单图均耗8.6秒，是纯文本单页解析耗时（1.30秒/页）的6.6倍。这是"含VLM的端到端速度"与"纯文本解析速度"两个不同指标是否要分开考核的产品决策点，不是bug。
+
+**Token消耗（真实数据，`usage.prompt_tokens`）**：40张图**总计45286 token，平均1132 token/图**，单张范围符合此前resize校准阶段的实测区间（2048px图片约2772 token，实际书内嵌图多数小于2048px，故均值低于该上限）。40张图全部成功，没有失败样本可比对token与失败率的关系。
 
 ## 人式审读结果（40个figure chunk全量审读，不套预设规则）
 
@@ -71,13 +73,15 @@ VLM阶段占全流程耗时68.8%，单图均耗8.65秒，是纯文本单页解�
 
 | # | 问题 | 严重程度 | 处置 |
 |---|---|---|---|
-| 1 | 含VLM全流程13.0页/分钟，未达≥15页/分钟目标（纯解析46.4页/分钟达标） | 待决策 | 记录，待决定是否分开考核纯解析/含VLM两条速度指标 |
+| 1 | 含VLM全流程13.0页/分钟，未达≥15页/分钟目标（纯解析46.1页/分钟达标） | 待决策 | 记录，待决定是否分开考核纯解析/含VLM两条速度指标 |
 | 2 | caption-aware prompt context导致5/40 (12.5%) chunk出现caption重复内容 | 低（不影响正确性，浪费token+冗余） | 记录，未修复 |
 | 3 | 极小的行内排版图片（单字符/短表达式）被VLM过度解读，产生真实幻觉（自信但错误的描述） | 中（chunk内容与真实图片完全不符，会污染检索） | 记录，未修复；已提[issue #25](https://github.com/ismy-cosmos/BookAgent/issues/25)，可能需要按图片尺寸做特殊处理 |
-| 4 | 本次token消耗未采集（instrumentation运行后才补） | 待补测 | 需重新跑ingest（换新book_id或清库）拿真实token数字 |
+| 4 | ~~本次token消耗未采集~~ | 已解决 | 已补测：40张图总计45286 token，平均1132/图，见上"端到端统计" |
 | 5 | 静默降级/熔断路径本次真实数据未触发，仅有mock测试覆盖 | 低 | 记录，非本次阻塞项 |
 | 6 | 法律/临床原书未测（issue #24 OOM + 无QA测试集） | 中 | 待issue #24有方案后补测 |
 
 ## 结论
 
-图片字节获取机制（marker `rendered.images` + EPUB `ebooklib`）在真实语料上100%成功。VLM描述对正常尺寸的技术图表（Gantt图、内存布局、页表结构等）质量好、技术细节准确；但对极小的行内排版图片（发现2，issue #25）会产生自信但错误的幻觉描述，这类内容一旦进入检索库有污染答案的风险，不是可以忽略的边角案例。caption重复（发现1）是需要产品决策的次要质量问题；速度目标是否达标取决于"是否把VLM耗时计入核心指标"这一口径选择。建议在此基础上进行QA测试集端到端问答验证，同时后续需要专门评估发现2这类小图问题的影响面有多大。
+图片字节获取机制（marker `rendered.images` + EPUB `ebooklib`）在真实语料上100%成功，真实token消耗已补测（40张图45286 token，均1132/图）。VLM描述对正常尺寸的技术图表（Gantt图、内存布局、页表结构等）质量好、技术细节准确；但对极小的行内排版图片（发现2，issue #25）会产生自信但错误的幻觉描述，这类内容一旦进入检索库有污染答案的风险，不是可以忽略的边角案例。caption重复（发现1）是需要产品决策的次要质量问题；速度目标是否达标取决于"是否把VLM耗时计入核心指标"这一口径选择。
+
+**QA测试集端到端问答验证已执行**（用户用`ask_cli.py`跑了8轮真实多轮对话，含专门验证VLM图片理解的题目）：发现的问题全部指向agent多轮工具调用可靠性（该retrieve却不retrieve+伪造引用，包括编造不存在的文件名），是已有[issue #17](https://github.com/ismy-cosmos/BookAgent/issues/17)（已用本次数据追加复现证据），与本次VLM图片路由实现质量无关。但这也意味着"VLM图片理解对最终问答质量的实际贡献"目前还没有被端到端验证过——每次尝试验证都被#17这个bug拦住（该调用retrieve时模型跳过了，图片内容根本没被读到），需要#17解决后才能补验证。
