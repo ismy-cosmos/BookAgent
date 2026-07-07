@@ -13,7 +13,8 @@ from __future__ import annotations
 import base64
 import os
 import re
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 
 import httpx
 from openai import OpenAI, OpenAIError
@@ -38,6 +39,8 @@ class FigureBatchStats:
     degraded: int = 0
     no_bytes: int = 0            # figure 元素但没有 image_bytes（获取失败，静默维持现状）
     breaker_tripped: bool = False
+    elapsed_s: float = 0.0       # VLM 批量阶段总耗时（不含模型释放，wall-clock 秒）
+    per_image_s: list[float] = field(default_factory=list)  # 每张图 VLM 调用耗时
 
 
 def _caption_for(elements: list[Element], idx: int) -> str:
@@ -91,6 +94,7 @@ def resolve_figures(
         http_client=httpx.Client(trust_env=False), timeout=timeout,
     )
     consecutive = 0
+    t_start = time.perf_counter()
     try:
         for n, (elem, caption) in enumerate(targets, start=1):
             if stats.breaker_tripped:
@@ -98,10 +102,13 @@ def resolve_figures(
                 continue
             b64 = base64.b64encode(
                 _resize_to_limit(elem.metadata["image_bytes"])).decode()
+            t_img = time.perf_counter()
             try:
                 desc = describe_image(client, model, b64, prompt=_build_prompt(caption))
             except (OpenAIError, ValueError) as e:
-                print(f"  [warn] 第 {n}/{len(targets)} 张图 VLM 描述失败，已降级为占位符: {e}")
+                dt = time.perf_counter() - t_img
+                stats.per_image_s.append(dt)
+                print(f"  [warn] 第 {n}/{len(targets)} 张图 VLM 描述失败（{dt:.1f}s），已降级为占位符: {e}")
                 _mark_degraded(elem, stats)
                 consecutive += 1
                 if max_fail and consecutive >= max_fail:
@@ -109,6 +116,8 @@ def resolve_figures(
                     print(f"  [warn] 连续 {consecutive} 张图 VLM 调用失败，"
                           f"疑似 Ollama 不可用，剩余 {len(targets) - n} 张图全部降级。")
                 continue
+            dt = time.perf_counter() - t_img
+            stats.per_image_s.append(dt)
             alt_m = _ALT_RE.match(elem.content)
             alt = alt_m.group(1).strip() if alt_m else ""
             elem.content = f"[alt: {alt}] {desc}" if alt else desc
@@ -116,7 +125,12 @@ def resolve_figures(
             elem.metadata.pop("image_bytes", None)
             stats.described += 1
             consecutive = 0
-            print(f"  VLM 描述 {n}/{len(targets)} 完成", end="\r")
+            print(f"  VLM 描述 {n}/{len(targets)} 完成 ({dt:.1f}s)", end="\r")
     finally:
+        stats.elapsed_s = time.perf_counter() - t_start
+        print(f"\n  VLM 批量阶段总耗时 {stats.elapsed_s:.1f}s，"
+              f"共 {len(targets)} 张图"
+              + (f"，avg {stats.elapsed_s/len(targets):.1f}s/图"
+                 if targets else ""))
         _release_model(base, model)
     return stats

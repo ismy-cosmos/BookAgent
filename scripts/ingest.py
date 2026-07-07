@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -218,6 +219,7 @@ def main() -> None:
         })
 
     # ── 阶段1：全部解析（sha 跳过检查在解析前——解析是最贵的一步）──
+    t_stage1 = time.perf_counter()
     pending: list[_PendingFile] = []
     manifest = _load_manifest(manifest_dir, args.book_id)
     manifest_view = {"sha256_to_file": dict(manifest["sha256_to_file"])}
@@ -247,7 +249,10 @@ def main() -> None:
                 aborted_early = True
                 break
 
+    print(f"\n阶段1 解析完成，{len(pending)} 个文件，耗时 {time.perf_counter() - t_stage1:.1f}s")
+
     # ── 阶段2：VLM 批量描述（先释放 marker 模型腾显存）──
+    t_stage2 = time.perf_counter()
     files_with_elements = [p.elements for p in pending if p.elements is not None]
     if files_with_elements:
         MarkerParser.release_models()
@@ -256,8 +261,10 @@ def main() -> None:
             print(f"\nVLM 批量描述：成功 {stats.described} / 降级 {stats.degraded}"
                   f" / 无字节跳过 {stats.no_bytes}"
                   + ("（熔断已触发）" if stats.breaker_tripped else ""))
+    print(f"阶段2 VLM 批量描述完成，耗时 {time.perf_counter() - t_stage2:.1f}s")
 
     # ── 阶段3：逐文件分块 → 嵌入 → 入库 ──
+    t_stage3 = time.perf_counter()
     for p in pending:
         try:
             ext = Path(p.file_path).suffix.lower()
@@ -288,6 +295,7 @@ def main() -> None:
 
     _save_failures(manifest_dir, args.book_id, failures, not_attempted, aborted_early)
 
+    print(f"阶段3 入库完成，耗时 {time.perf_counter() - t_stage3:.1f}s")
     print(f"\nDone. Total chunks ingested: {total_chunks}")
     print(f"Chroma collection '{args.book_id}' now has {store.count(args.book_id)} chunks.")
 
