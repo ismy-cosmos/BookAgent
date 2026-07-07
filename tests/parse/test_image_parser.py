@@ -1,11 +1,13 @@
 import base64
+import io
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
 
+from PIL import Image as PILImage
 from openai import OpenAIError
 
-from pipeline.parse.image import VLMImageParser
+from pipeline.parse.image import VLMImageParser, _resize_to_limit, load_image_element
 
 
 @pytest.fixture(autouse=True)
@@ -160,3 +162,57 @@ def test_image_parser_releases_model_even_on_failure(mock_openai_cls, mock_relea
         json={"model": "m", "keep_alive": 0},
         timeout=30.0,
     )
+
+
+# ── _resize_to_limit / load_image_element ───────────────────────────────────────
+
+def _png_bytes(w, h):
+    buf = io.BytesIO()
+    PILImage.new("RGB", (w, h), color="red").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_resize_large_image_capped_to_2048_long_edge():
+    out = _resize_to_limit(_png_bytes(3000, 1500))
+    img = PILImage.open(io.BytesIO(out))
+    assert max(img.size) == 2048
+    # 长宽比保持（3000:1500 = 2:1）
+    assert img.size == (2048, 1024)
+
+
+def test_resize_small_image_untouched():
+    original = _png_bytes(800, 600)
+    assert _resize_to_limit(original) is original
+
+
+def test_resize_unparseable_bytes_pass_through():
+    garbage = b"\xff\xd8\xff" + b"\x00" * 10
+    assert _resize_to_limit(garbage) is garbage
+
+
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_parse_sends_resized_image(mock_openai_cls, tmp_path):
+    big = tmp_path / "big.png"
+    big.write_bytes(_png_bytes(3000, 1500))
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_response("A big image.")
+
+    VLMImageParser(ollama_base="http://fake", model="m").parse(str(big))
+
+    messages = mock_create.call_args.kwargs["messages"]
+    url = messages[0]["content"][1]["image_url"]["url"]
+    sent = base64.b64decode(url.split("base64,")[1])
+    assert max(PILImage.open(io.BytesIO(sent)).size) == 2048
+
+
+def test_load_image_element_carries_bytes_no_vlm_call(tmp_path):
+    img = _make_fake_png(tmp_path)
+    elem = load_image_element(img)
+    assert elem.type == "figure"
+    assert elem.content == "![](test.png)"
+    assert elem.metadata["image_bytes"] == Path(img).read_bytes()
+
+
+def test_load_image_element_missing_file():
+    with pytest.raises(ValueError, match="File not found"):
+        load_image_element("/nonexistent/x.png")
