@@ -333,3 +333,59 @@ def test_html_to_elements_real_table_stays_table():
     elems = _html_to_elements(html)
     assert elems[0].type == "table"
     assert "| Name | Value |" in elems[0].content
+
+
+# ── figure 元素附带图片字节（book 参数 / data-URI 当场解码）───────────────
+
+import base64 as b64lib
+
+
+def test_html_to_elements_package_img_gets_bytes_via_book():
+    html = '<html><body><img src="images/x.jpg" alt="d"/></body></html>'
+    item = MagicMock()
+    item.get_content.return_value = b"\xff\xd8fake-jpeg-bytes"
+    book = MagicMock()
+    book.get_item_with_href.return_value = item
+
+    elems = _html_to_elements(html, base_href="text/ch1.html", book=book)
+
+    fig = next(e for e in elems if e.type == "figure")
+    assert fig.metadata["image_bytes"] == b"\xff\xd8fake-jpeg-bytes"
+    book.get_item_with_href.assert_called_once_with("text/images/x.jpg")
+
+
+def test_html_to_elements_package_img_missing_item_no_bytes():
+    html = '<html><body><img src="gone.jpg" alt="d"/></body></html>'
+    book = MagicMock()
+    book.get_item_with_href.return_value = None
+
+    elems = _html_to_elements(html, book=book)
+
+    fig = next(e for e in elems if e.type == "figure")
+    assert "image_bytes" not in fig.metadata
+
+
+def test_html_to_elements_data_uri_decoded_at_parse_time():
+    payload = b64lib.b64encode(b"tiny-png-bytes").decode()
+    html = f'<html><body><img src="data:image/png;base64,{payload}" alt="c"/></body></html>'
+
+    elems = _html_to_elements(html)   # data-URI 解码不需要 book
+
+    fig = next(e for e in elems if e.type == "figure")
+    assert fig.metadata["image_bytes"] == b"tiny-png-bytes"
+    assert fig.content == "![c](data-uri-image)"
+
+
+def test_html_to_elements_malformed_data_uri_no_bytes():
+    html = '<html><body><img src="data:image/png;base64,!!!not-base64!!!" alt="c"/></body></html>'
+    elems = _html_to_elements(html)
+    fig = next(e for e in elems if e.type == "figure")
+    assert "image_bytes" not in fig.metadata
+
+
+def test_html_to_elements_no_book_package_img_no_bytes():
+    # 向后兼容：不传 book 时包内图不带字节、不报错
+    html = '<html><body><img src="a.png" alt="p"/></body></html>'
+    elems = _html_to_elements(html)
+    fig = next(e for e in elems if e.type == "figure")
+    assert "image_bytes" not in fig.metadata
