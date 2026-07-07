@@ -101,8 +101,10 @@ def _release_model(base_url: str, model: str) -> None:
     operation (no OpenAI-compatible equivalent) — frees VRAM for the
     embedding step that follows VLM parsing in the ingest pipeline."""
     try:
-        httpx.post(f"{base_url}/api/generate", json={"model": model, "keep_alive": 0}, timeout=30.0)
-    except httpx.HTTPError:
+        # trust_env=False 防止系统代理（如 SOCKS）干扰本地 Ollama 连接
+        with httpx.Client(trust_env=False) as c:
+            c.post(f"{base_url}/api/generate", json={"model": model, "keep_alive": 0}, timeout=30.0)
+    except Exception:
         pass
 
 

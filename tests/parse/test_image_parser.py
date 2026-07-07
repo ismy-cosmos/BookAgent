@@ -12,11 +12,11 @@ from pipeline.parse.image import VLMImageParser, _resize_to_limit, load_image_el
 
 @pytest.fixture(autouse=True)
 def mock_release_call():
-    """Autouse: every parse() call hits _release_model() in a finally block,
-    which does a real httpx.post to /api/generate. Mock it globally so no
-    test makes a real network call regardless of which path it exercises."""
-    with patch("pipeline.parse.image.httpx.post") as mock_post:
-        yield mock_post
+    """Autouse: every parse() call hits _release_model() in a finally block.
+    Mock it globally so no test makes a real network call regardless of
+    which path it exercises."""
+    with patch("pipeline.parse.image._release_model") as mock_release:
+        yield mock_release
 
 
 def _make_fake_png(tmp_path) -> str:
@@ -140,11 +140,7 @@ def test_image_parser_releases_model_after_use(mock_openai_cls, mock_release_cal
 
     VLMImageParser(ollama_base="http://fake", model="m").parse(img)
 
-    mock_release_call.assert_called_once_with(
-        "http://fake/api/generate",
-        json={"model": "m", "keep_alive": 0},
-        timeout=30.0,
-    )
+    mock_release_call.assert_called_once_with("http://fake", "m")
 
 
 @patch("pipeline.parse.image.OpenAI")
@@ -157,11 +153,7 @@ def test_image_parser_releases_model_even_on_failure(mock_openai_cls, mock_relea
     with pytest.raises(ValueError):
         VLMImageParser(ollama_base="http://fake", model="m").parse(img)
 
-    mock_release_call.assert_called_once_with(
-        "http://fake/api/generate",
-        json={"model": "m", "keep_alive": 0},
-        timeout=30.0,
-    )
+    mock_release_call.assert_called_once_with("http://fake", "m")
 
 
 # ── _resize_to_limit / load_image_element ───────────────────────────────────────
