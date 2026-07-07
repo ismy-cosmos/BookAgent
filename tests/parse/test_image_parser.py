@@ -7,7 +7,7 @@ import pytest
 from PIL import Image as PILImage
 from openai import OpenAIError
 
-from pipeline.parse.image import VLMImageParser, _resize_to_limit, load_image_element
+from pipeline.parse.image import VLMImageParser, _resize_to_limit, describe_image, load_image_element
 
 
 @pytest.fixture(autouse=True)
@@ -208,3 +208,38 @@ def test_load_image_element_carries_bytes_no_vlm_call(tmp_path):
 def test_load_image_element_missing_file():
     with pytest.raises(ValueError, match="File not found"):
         load_image_element("/nonexistent/x.png")
+
+
+# ── describe_image() on_usage callback（真实 token 用量记录）─────────────────
+
+def test_describe_image_invokes_on_usage_with_real_usage_object():
+    client = MagicMock()
+    resp = _make_response("desc")
+    resp.usage.prompt_tokens = 2772
+    client.chat.completions.create.return_value = resp
+
+    captured = []
+    describe_image(client, "m", "b64data", on_usage=lambda u: captured.append(u.prompt_tokens))
+
+    assert captured == [2772]
+
+
+def test_describe_image_on_usage_not_called_when_usage_is_none():
+    client = MagicMock()
+    resp = _make_response("desc")
+    resp.usage = None
+    client.chat.completions.create.return_value = resp
+
+    captured = []
+    describe_image(client, "m", "b64data", on_usage=lambda u: captured.append(u))
+
+    assert captured == []
+
+
+def test_describe_image_works_without_on_usage_callback():
+    client = MagicMock()
+    client.chat.completions.create.return_value = _make_response("desc")
+
+    result = describe_image(client, "m", "b64data")
+
+    assert result == "desc"

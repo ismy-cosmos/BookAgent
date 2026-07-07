@@ -41,6 +41,7 @@ class FigureBatchStats:
     breaker_tripped: bool = False
     elapsed_s: float = 0.0       # VLM 批量阶段总耗时（不含模型释放，wall-clock 秒）
     per_image_s: list[float] = field(default_factory=list)  # 每张图 VLM 调用耗时
+    per_image_tokens: list[int] = field(default_factory=list)  # 每张图 prompt_tokens（视觉+文本），失败/无usage的图不计入
 
 
 def _caption_for(elements: list[Element], idx: int) -> str:
@@ -103,8 +104,12 @@ def resolve_figures(
             b64 = base64.b64encode(
                 _resize_to_limit(elem.metadata["image_bytes"])).decode()
             t_img = time.perf_counter()
+            usage_holder: list = []
             try:
-                desc = describe_image(client, model, b64, prompt=_build_prompt(caption))
+                desc = describe_image(
+                    client, model, b64, prompt=_build_prompt(caption),
+                    on_usage=lambda u: usage_holder.append(u.prompt_tokens),
+                )
             except (OpenAIError, ValueError) as e:
                 dt = time.perf_counter() - t_img
                 stats.per_image_s.append(dt)
@@ -118,6 +123,8 @@ def resolve_figures(
                 continue
             dt = time.perf_counter() - t_img
             stats.per_image_s.append(dt)
+            if usage_holder:
+                stats.per_image_tokens.append(usage_holder[0])
             alt_m = _ALT_RE.match(elem.content)
             alt = alt_m.group(1).strip() if alt_m else ""
             elem.content = f"[alt: {alt}] {desc}" if alt else desc
@@ -125,12 +132,19 @@ def resolve_figures(
             elem.metadata.pop("image_bytes", None)
             stats.described += 1
             consecutive = 0
-            print(f"  VLM 描述 {n}/{len(targets)} 完成 ({dt:.1f}s)", end="\r")
+            tok_str = f", {usage_holder[0]} tok" if usage_holder else ""
+            print(f"  VLM 描述 {n}/{len(targets)} 完成 ({dt:.1f}s{tok_str})", end="\r")
     finally:
         stats.elapsed_s = time.perf_counter() - t_start
+        tok_summary = ""
+        if stats.per_image_tokens:
+            total_tok = sum(stats.per_image_tokens)
+            avg_tok = total_tok / len(stats.per_image_tokens)
+            tok_summary = f"，token 总计 {total_tok}（avg {avg_tok:.0f}/图）"
         print(f"\n  VLM 批量阶段总耗时 {stats.elapsed_s:.1f}s，"
               f"共 {len(targets)} 张图"
               + (f"，avg {stats.elapsed_s/len(targets):.1f}s/图"
-                 if targets else ""))
+                 if targets else "")
+              + tok_summary)
         _release_model(base, model)
     return stats

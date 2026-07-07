@@ -108,3 +108,38 @@ def test_no_targets_no_client_no_release():
     mock_cls.assert_not_called()
     mock_release.assert_not_called()
     assert stats == FigureBatchStats()
+
+
+# ── per_image_tokens 记录（真实 usage.prompt_tokens 回传）───────────────────
+
+def _fake_describe_with_usage(tokens):
+    def _inner(client, model, b64, prompt=None, on_usage=None):
+        if on_usage is not None:
+            usage = MagicMock()
+            usage.prompt_tokens = tokens
+            on_usage(usage)
+        return "desc"
+    return _inner
+
+
+def test_resolve_figures_records_per_image_tokens_on_success():
+    fig = _fig()
+    with patch("pipeline.parse.figure_batch.OpenAI"), \
+         patch("pipeline.parse.figure_batch.describe_image",
+               side_effect=_fake_describe_with_usage(2772)), \
+         patch("pipeline.parse.figure_batch._release_model"):
+        stats = resolve_figures([[fig]], model="m", ollama_base="http://fake")
+
+    assert stats.per_image_tokens == [2772]
+
+
+def test_resolve_figures_no_token_entry_when_usage_absent():
+    fig = _fig()
+    stats, _, _ = _run([[fig]], describe_side_effect=["desc without usage"])
+    assert stats.per_image_tokens == []
+
+
+def test_resolve_figures_no_token_entry_for_failed_image():
+    fig = _fig()
+    stats, _, _ = _run([[fig]], describe_side_effect=[ValueError("boom")])
+    assert stats.per_image_tokens == []

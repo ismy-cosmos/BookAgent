@@ -2,7 +2,7 @@ from __future__ import annotations
 import base64
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import httpx
 from openai import OpenAI, OpenAIError
@@ -77,8 +77,14 @@ def describe_image(
     prompt: str = _DESCRIBE_PROMPT,
     options: Optional[dict] = None,
     keep_alive: int = 1200,
+    on_usage: Optional[Callable[[object], None]] = None,
 ) -> str:
-    """Send a base64 PNG to an Ollama vision model via the OpenAI-compatible endpoint."""
+    """Send a base64 PNG to an Ollama vision model via the OpenAI-compatible endpoint.
+
+    on_usage: optional callback invoked with the response's `usage` object
+    (has .prompt_tokens/.completion_tokens/.total_tokens) when present —
+    lets callers record real token consumption without changing the return type.
+    """
     response = client.chat.completions.create(
         model=model,
         messages=[{
@@ -90,6 +96,8 @@ def describe_image(
         }],
         extra_body={"options": options or {}, "keep_alive": keep_alive},
     )
+    if on_usage is not None and response.usage is not None:
+        on_usage(response.usage)
     content = response.choices[0].message.content
     if not content:
         raise ValueError(f"Unexpected Ollama response format: empty content (model={model})")
