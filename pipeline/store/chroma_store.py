@@ -111,3 +111,9 @@ class ChromaStore:
 
     def count(self, book_id: str) -> int:
         return self._collection(book_id).count()
+
+    def list_books(self) -> list[str]:
+        return [c.name for c in self._client.list_collections()]
+
+    def delete_collection(self, book_id: str) -> None:
+        self._client.delete_collection(name=book_id)

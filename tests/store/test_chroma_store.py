@@ -249,3 +249,23 @@ def test_delete_by_source_no_matching_file_is_noop(tmp_path):
     store.delete_by_source("book1", "does-not-exist.pdf")
 
     assert store.count("book1") == 1
+
+
+def test_list_books_empty(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    assert store.list_books() == []
+
+
+def test_list_books_after_create(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store._collection("ostep")
+    store._collection("civil-law")
+    assert sorted(store.list_books()) == ["civil-law", "ostep"]
+
+
+def test_delete_collection_removes_book(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store._collection("ostep")
+    assert "ostep" in store.list_books()
+    store.delete_collection("ostep")
+    assert "ostep" not in store.list_books()
