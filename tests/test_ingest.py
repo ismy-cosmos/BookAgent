@@ -163,6 +163,8 @@ def _pending(file_path="ch01.pdf", source_file="ch01.pdf", elements=None, chunks
 
 
 def test_parse_file_audio_returns_chunks(tmp_path):
+    from scripts.ingest import _always_false
+
     f = tmp_path / "lecture.mp3"
     f.write_bytes(b"fake audio")
     chunk = Chunk(chunk_id="b/lecture.mp3/0000", book_id="b", source_file="lecture.mp3",
@@ -175,7 +177,22 @@ def test_parse_file_audio_returns_chunks(tmp_path):
 
     assert elements is None
     assert chunks == [chunk]
-    mock_parser.parse_to_chunks.assert_called_once_with(str(f), "b", source_file="lecture.mp3")
+    mock_parser.parse_to_chunks.assert_called_once_with(
+        str(f), "b", source_file="lecture.mp3", should_pause=_always_false)
+
+
+def test_parse_file_audio_passes_through_custom_should_pause(tmp_path):
+    f = tmp_path / "lecture.mp3"
+    f.write_bytes(b"fake audio")
+    mock_parser = MagicMock()
+    mock_parser.parse_to_chunks.return_value = []
+    custom_pause = lambda: True
+
+    with patch("scripts.ingest.AudioParser", return_value=mock_parser):
+        _parse_file(str(f), "b", "lecture.mp3", should_pause=custom_pause)
+
+    mock_parser.parse_to_chunks.assert_called_once_with(
+        str(f), "b", source_file="lecture.mp3", should_pause=custom_pause)
 
 
 def test_parse_file_image_uses_load_image_element_no_vlm(tmp_path):

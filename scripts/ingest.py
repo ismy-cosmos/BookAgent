@@ -19,11 +19,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dataclasses import dataclass, field
+from typing import Callable
 
 from pipeline.chunk import Chunker
 from pipeline.embed import Embedder
 from pipeline.parse import parse_cache, vlm_cache
-from pipeline.parse.audio import AudioParser
+from pipeline.parse.audio import AudioParser, AudioParsePaused
 from pipeline.parse.epub import EPUBParser
 from pipeline.parse.figure_batch import resolve_figures
 from pipeline.parse.image import VLMImageParser, _resize_to_limit, load_image_element
@@ -35,6 +36,10 @@ _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".svg"}
 _ALL_EXTS = {".pdf", ".epub"} | _AUDIO_EXTS | _IMAGE_EXTS
 _CHROMA_DIR = os.environ.get("CHROMA_DIR", ".chroma")
 _DEFAULT_BATCH = 64
+
+
+def _always_false() -> bool:
+    return False
 
 
 def _sha256(file_path: str) -> str:
@@ -147,11 +152,17 @@ class _PendingFile:
     image_shas: list = field(default_factory=list)
 
 
-def _parse_file(file_path: str, book_id: str, source_file: str):
+def _parse_file(
+    file_path: str,
+    book_id: str,
+    source_file: str,
+    should_pause: Callable[[], bool] = _always_false,
+):
     """阶段1：解析单个文件。返回 (elements, chunks)。"""
     ext = Path(file_path).suffix.lower()
     if ext in _AUDIO_EXTS:
-        chunks = AudioParser().parse_to_chunks(file_path, book_id, source_file=source_file)
+        chunks = AudioParser().parse_to_chunks(
+            file_path, book_id, source_file=source_file, should_pause=should_pause)
         return None, chunks
     if ext in _IMAGE_EXTS:
         # 独立图片：只读字节不调 VLM，描述在阶段2批量生成
