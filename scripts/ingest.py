@@ -55,6 +55,10 @@ def _no_op_progress(update: ProgressUpdate) -> None:
     pass
 
 
+def _no_op_file_committed(file_path: str) -> None:
+    pass
+
+
 def _sha256(file_path: str) -> str:
     h = hashlib.sha256()
     with open(file_path, "rb") as f:
@@ -257,6 +261,7 @@ def run_ingest(
     batch_size: int = _DEFAULT_BATCH,
     should_pause: Callable[[], bool] = _always_false,
     on_progress: Callable[[ProgressUpdate], None] = _no_op_progress,
+    on_file_committed: Callable[[str], None] = _no_op_file_committed,
 ) -> IngestResult:
     manifest_dir = str(Path(chroma_dir) / ".manifests")
     chunker = Chunker()
@@ -297,6 +302,7 @@ def run_ingest(
             sha = _sha256(file_path)
             if sha in manifest["sha256_to_file"]:
                 print(f"Skip (already ingested): {file_path}")
+                on_file_committed(file_path)
                 consecutive_failures = 0
                 continue
             filename = Path(file_path).name
@@ -374,6 +380,7 @@ def run_ingest(
             parse_cache.delete(chroma_dir, book_id, p.sha)
             for image_sha in p.image_shas:
                 vlm_cache.delete(chroma_dir, book_id, image_sha)
+            on_file_committed(p.file_path)
             total_chunks += n
             consecutive_failures = 0
         except Exception as e:

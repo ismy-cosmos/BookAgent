@@ -667,6 +667,64 @@ def test_run_ingest_default_on_progress_is_noop(tmp_path):
         run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))  # 不传 on_progress，不应抛异常
 
 
+# ── on_file_committed 回调 ──────────────────────────────────────────────
+
+def test_run_ingest_on_file_committed_fires_after_successful_store(tmp_path):
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+    committed = []
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 1
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir),
+                   on_file_committed=committed.append)
+
+    assert committed == [str(f)]
+
+
+def test_run_ingest_on_file_committed_fires_for_already_ingested_skip(tmp_path):
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    sha = _sha256(str(f))
+    _save_manifest(str(chroma_dir / ".manifests"), "b", {"sha256_to_file": {sha: "ch01.pdf"}})
+    committed = []
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest._parse_file") as mock_parse_file:
+        mock_store_cls.return_value.count.return_value = 0
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir),
+                   on_file_committed=committed.append)
+
+    mock_parse_file.assert_not_called()
+    assert committed == [str(f)]  # 跳过 == 早已完成，同样要通知
+
+
+def test_run_ingest_on_file_committed_not_fired_on_failure(tmp_path):
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+    committed = []
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", side_effect=RuntimeError("boom")):
+        mock_store_cls.return_value.count.return_value = 0
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir),
+                   on_file_committed=committed.append)
+
+    assert committed == []
+
+
 def test_main_no_files_in_dir_returns_early(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["ingest.py", "--book-id", "b", "--dir", str(tmp_path)])
     with patch("scripts.ingest.ChromaStore") as mock_store_cls:
