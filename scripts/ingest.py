@@ -96,6 +96,20 @@ def _resolve_source_file(filename: str, manifest: dict) -> str:
         i += 1
 
 
+def _remove_by_source_file(manifest: dict, source_file: str) -> tuple[dict, bool]:
+    """从 manifest 里摘掉指向 source_file 的那条 sha256 记录，不就地修改传入的 manifest。"""
+    sha_to_remove = None
+    for sha, fname in manifest["sha256_to_file"].items():
+        if fname == source_file:
+            sha_to_remove = sha
+            break
+    if sha_to_remove is None:
+        return manifest, False
+    updated = {"sha256_to_file": dict(manifest["sha256_to_file"])}
+    del updated["sha256_to_file"][sha_to_remove]
+    return updated, True
+
+
 def _collect_files(files: list[str], directory: str | None) -> list[str]:
     result = list(files)
     if directory:

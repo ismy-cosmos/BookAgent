@@ -30,3 +30,7 @@ lxml>=5.0
 
 # W2: VLM image parsing
 cairosvg>=2.7
+
+# W4: 本地 HTTP API（前端 Tauri sidecar 用）
+fastapi>=0.115
+uvicorn>=0.30
