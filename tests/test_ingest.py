@@ -735,6 +735,28 @@ def test_run_ingest_on_file_committed_not_fired_on_failure(tmp_path):
 
 # ── 阶段2被暂停打断的文件，阶段3拒绝入库 ────────────────────────────────
 
+def test_run_ingest_all_files_paused_reports_no_storing_stage(tmp_path):
+    """一批里所有文件都因暂停未描述完图片时，不该播报 stage=\"storing\"——
+    过滤发生在阶段3循环之前，进入循环的 pending 已经是空的。"""
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    chroma_dir = tmp_path / "chroma"
+    fig = Element(type="figure", content="![](x.png)", page_num=1,
+                  metadata={"image_bytes": b"img"})
+    updates = []
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([fig], None)), \
+         patch("scripts.ingest._store_file") as mock_store_file:
+        mock_store_cls.return_value.count.return_value = 0
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir), on_progress=updates.append)
+
+    mock_store_file.assert_not_called()
+    assert [u for u in updates if u.stage == "storing"] == []
+
+
 def test_run_ingest_stage2_paused_file_not_committed(tmp_path):
     """暂停打在阶段2：图片没描述完的文件不入库、不记 manifest、缓存保留、
     归 not_attempted，on_file_committed 不触发。"""

@@ -374,17 +374,25 @@ def run_ingest(
                   + ("（熔断已触发）" if stats.breaker_tripped else ""))
     print(f"阶段2 VLM 批量描述完成，耗时 {time.perf_counter() - t_stage2:.1f}s")
 
-    # ── 阶段3：逐文件分块 → 嵌入 → 入库 ──
-    t_stage3 = time.perf_counter()
-    if pending:
-        on_progress(ProgressUpdate(stage="storing"))
+    # 阶段2/3 之间过滤：图片未描述完的文件（阶段2被暂停打断）不进入阶段3——
+    # 缓存保留，恢复后重新提交即可续跑；这里做完之后阶段3的循环体只处理
+    # 确定可入库的文件，不用再关心"这文件是不是半成品"。
+    resolved_pending: list[_PendingFile] = []
     for p in pending:
         if _has_unresolved_figures(p.elements):
             print(f"[pause] {p.file_path} 的图片未描述完（阶段2被暂停打断），"
                   f"本次不入库，缓存保留，恢复后重新提交即可续跑。")
             not_attempted.append(p.file_path)
             aborted_early = True
-            continue
+        else:
+            resolved_pending.append(p)
+    pending = resolved_pending
+
+    # ── 阶段3：逐文件分块 → 嵌入 → 入库 ──
+    t_stage3 = time.perf_counter()
+    if pending:
+        on_progress(ProgressUpdate(stage="storing"))
+    for p in pending:
         try:
             ext = Path(p.file_path).suffix.lower()
             if ext in _IMAGE_EXTS:
