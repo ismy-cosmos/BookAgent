@@ -24,6 +24,8 @@ class ImportQueue:
         self._current_task: Optional[ImportTask] = None
         self._queued_tasks: dict[str, ImportTask] = {}
         self._cancelled_ids: set[str] = set()
+        self._paused_tasks: dict[str, ImportTask] = {}
+        self._pause_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
     def start(self) -> None:
@@ -46,6 +48,22 @@ class ImportQueue:
                 self._cancelled_ids.add(task_id)
                 return True
             return False
+
+    def request_pause(self, task_id: str) -> bool:
+        with self._lock:
+            if self._current_task is not None and self._current_task.task_id == task_id:
+                self._pause_event.set()
+                return True
+            return False
+
+    def resume(self, task_id: str) -> bool:
+        with self._lock:
+            task = self._paused_tasks.pop(task_id, None)
+            if task is None:
+                return False
+            self._queued_tasks[task.task_id] = task
+        self._queue.put(task)
+        return True
 
     def get_status(self) -> dict:
         with self._lock:
@@ -78,7 +96,10 @@ class ImportQueue:
                     continue
                 self._queued_tasks.pop(task.task_id, None)
                 self._current_task = task
-            self._processor(task.book_id, task.file_paths, lambda: False)
+                self._pause_event.clear()
+            self._processor(task.book_id, task.file_paths, self._pause_event.is_set)
             with self._lock:
+                if self._pause_event.is_set():
+                    self._paused_tasks[task.task_id] = task
                 self._current_task = None
             self._queue.task_done()

@@ -133,3 +133,120 @@ def test_cancel_unknown_task_id_fails():
     q = ImportQueue(processor=_RecordingProcessor())
     q.start()
     assert q.cancel("does-not-exist") is False
+
+
+def test_pause_takes_effect_at_file_boundary_not_mid_file():
+    """处理器模拟处理两个文件；请求暂停后，当前文件必须先跑完，才会真正停下来。"""
+    completed_files: list[str] = []
+    release_file_1 = threading.Event()
+    file_1_started = threading.Event()
+
+    def two_file_processor(book_id, file_paths, should_pause):
+        for f in file_paths:
+            if f == "f1.pdf":
+                file_1_started.set()
+                release_file_1.wait(timeout=2.0)
+            completed_files.append(f)
+            if should_pause():
+                return
+
+    q = ImportQueue(processor=two_file_processor)
+    q.start()
+    task_id = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
+
+    assert file_1_started.wait(timeout=2.0)
+    assert q.request_pause(task_id) is True
+
+    # 暂停请求发出后，f1 还没处理完，忙碌状态必须依然是 True
+    assert q.get_status()["busy"] is True
+
+    release_file_1.set()  # 放行，让 f1 跑完
+    q.wait_until_idle(timeout=2.0)
+
+    assert completed_files == ["f1.pdf"]  # f2 没有被处理——暂停在文件边界生效
+    assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
+
+
+def test_paused_task_does_not_auto_resume():
+    """入队后不能立刻调用 request_pause——工作线程有没有真的开始处理这个任务
+    完全没保证，必须先等它明确进入处理中，暂停请求才有意义可以断言成功。"""
+    file_1_started = threading.Event()
+    release_file_1 = threading.Event()
+
+    def two_file_processor(book_id, file_paths, should_pause):
+        for f in file_paths:
+            if f == "f1.pdf":
+                file_1_started.set()
+                release_file_1.wait(timeout=2.0)
+            if should_pause():
+                return
+
+    q = ImportQueue(processor=two_file_processor)
+    q.start()
+    task_id = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
+
+    assert file_1_started.wait(timeout=2.0)
+    assert q.request_pause(task_id) is True  # 确认暂停请求真的被工作线程接受了
+
+    release_file_1.set()
+    q.wait_until_idle(timeout=2.0)
+    assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
+
+    time.sleep(0.05)  # 给"如果它会自动恢复"留出反应时间
+    assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
+
+
+def test_resume_fails_for_a_task_that_was_never_paused():
+    processor = _RecordingProcessor()
+
+    q = ImportQueue(processor=processor)
+    q.start()
+    task_id = q.enqueue("ostep", ["f1.pdf"])
+    q.wait_until_idle(timeout=2.0)  # 直接跑完，从没暂停过
+
+    assert q.resume(task_id) is False  # 没暂停过的任务不能恢复
+
+
+def test_resume_after_pause_reenqueues_same_task():
+    """同样不能入队后立刻暂停——用跟 test_pause_takes_effect_at_file_boundary_not_mid_file
+    一样的阻塞同步方式，确保暂停请求是在工作线程真正处理到 f1 的时候打进去的。"""
+    call_log: list[str] = []
+    file_1_started = threading.Event()
+    release_file_1 = threading.Event()
+
+    def one_shot_pause_processor(book_id, file_paths, should_pause):
+        for f in file_paths:
+            if f == "f1.pdf":
+                file_1_started.set()
+                release_file_1.wait(timeout=2.0)
+            call_log.append(f)
+            if should_pause():
+                return
+
+    q = ImportQueue(processor=one_shot_pause_processor)
+    q.start()
+    task_id = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
+
+    assert file_1_started.wait(timeout=2.0)
+    assert q.request_pause(task_id) is True
+    release_file_1.set()
+
+    q.wait_until_idle(timeout=2.0)
+    assert call_log == ["f1.pdf"]
+
+    assert q.resume(task_id) is True
+    q.wait_until_idle(timeout=2.0)
+
+    # 恢复后重新丢回队列，重新从头跑（跳过已完成文件是 issue #27 里
+    # ingest.py 的 sha 去重逻辑负责的，不是 ImportQueue 自己的职责）
+    assert call_log == ["f1.pdf", "f1.pdf", "f2.pdf"]
+
+
+def test_request_pause_unknown_or_not_processing_task_fails():
+    q = ImportQueue(processor=_RecordingProcessor())
+    q.start()
+    assert q.request_pause("does-not-exist") is False
+
+    task_id = q.enqueue("ostep", ["f1.pdf"])
+    q.wait_until_idle(timeout=2.0)
+    assert q.request_pause(task_id) is False  # 已经处理完了，不是"处理中"
