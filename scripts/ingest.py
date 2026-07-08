@@ -298,7 +298,7 @@ def run_ingest(
     files_with_elements = [p.elements for p in pending if p.elements is not None]
     if files_with_elements:
         MarkerParser.release_models()
-        stats = resolve_figures(files_with_elements)
+        stats = resolve_figures(files_with_elements, chroma_dir=chroma_dir, book_id=book_id)
         if stats.described or stats.degraded or stats.no_bytes:
             print(f"\nVLM 批量描述：成功 {stats.described} / 降级 {stats.degraded}"
                   f" / 无字节跳过 {stats.no_bytes}"

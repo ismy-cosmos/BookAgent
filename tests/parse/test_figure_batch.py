@@ -143,3 +143,80 @@ def test_resolve_figures_no_token_entry_for_failed_image():
     fig = _fig()
     stats, _, _ = _run([[fig]], describe_side_effect=[ValueError("boom")])
     assert stats.per_image_tokens == []
+
+
+# ── VLM 描述缓存接入 ─────────────────────────────────────────────────────
+
+def _run_with_cache(files_elements, describe_side_effect, chroma_dir, book_id):
+    with patch("pipeline.parse.figure_batch.OpenAI"), \
+         patch("pipeline.parse.figure_batch.describe_image",
+               side_effect=describe_side_effect) as mock_desc, \
+         patch("pipeline.parse.figure_batch._release_model") as mock_release:
+        stats = resolve_figures(files_elements, chroma_dir=chroma_dir, book_id=book_id)
+    return stats, mock_desc, mock_release
+
+
+def test_cache_hit_skips_describe_call(tmp_path):
+    from pipeline.parse import vlm_cache
+    import hashlib
+
+    fig = _fig()  # metadata["image_bytes"] = b"png-bytes"
+    sha = hashlib.sha256(b"png-bytes").hexdigest()
+    vlm_cache.set(str(tmp_path), "b", sha, "cached description")
+
+    with patch("pipeline.parse.figure_batch.OpenAI"), \
+         patch("pipeline.parse.figure_batch.describe_image") as mock_desc, \
+         patch("pipeline.parse.figure_batch._release_model"):
+        stats = resolve_figures([[fig]], chroma_dir=str(tmp_path), book_id="b")
+
+    mock_desc.assert_not_called()
+    assert fig.content == "[alt: alt-text] cached description"
+    assert fig.metadata["vlm_status"] == "described"
+    assert stats.described == 1
+
+
+def test_cache_miss_calls_describe_and_writes_cache(tmp_path):
+    from pipeline.parse import vlm_cache
+    import hashlib
+
+    fig = _fig()
+    sha = hashlib.sha256(b"png-bytes").hexdigest()
+
+    stats, mock_desc, _ = _run_with_cache([[fig]], ["fresh description"],
+                                          chroma_dir=str(tmp_path), book_id="b")
+
+    mock_desc.assert_called_once()
+    assert vlm_cache.get(str(tmp_path), "b", sha) == "fresh description"
+
+
+def test_no_chroma_dir_skips_caching_entirely(tmp_path):
+    """chroma_dir 不传时（现有调用方式）完全不碰缓存，行为跟改造前一致。"""
+    fig = _fig()
+    _run([[fig]], describe_side_effect=["desc"])  # 不传 chroma_dir/book_id
+    assert fig.metadata["vlm_status"] == "described"
+
+
+def test_internal_resize_call_removed():
+    """阶段2 不再自己调 _resize_to_limit —— 缩放已经在阶段1 做过，
+    连 import 都应该删掉（模块里不再有这个名字）。"""
+    import pipeline.parse.figure_batch as fb
+    assert not hasattr(fb, "_resize_to_limit")
+
+
+def test_should_pause_stops_loop_without_marking_remaining_degraded():
+    figs = [_fig(), _fig(), _fig()]
+    calls = []
+
+    def fake_should_pause():
+        calls.append(1)
+        return len(calls) > 1  # 第一张图处理完之后暂停
+
+    with patch("pipeline.parse.figure_batch.OpenAI"), \
+         patch("pipeline.parse.figure_batch.describe_image", return_value="d"), \
+         patch("pipeline.parse.figure_batch._release_model"):
+        stats = resolve_figures([figs], should_pause=fake_should_pause)
+
+    assert stats.described == 1
+    assert stats.degraded == 0  # 剩下两张没做完，但不算"降级"，也没被动过
+    assert figs[1].metadata.get("vlm_status") is None
+    assert figs[2].metadata.get("vlm_status") is None
