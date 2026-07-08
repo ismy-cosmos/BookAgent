@@ -48,6 +48,30 @@ def test_save_and_load_manifest(tmp_path):
     assert loaded == data
 
 
+def test_save_manifest_uses_atomic_replace(tmp_path, monkeypatch):
+    from pathlib import Path as _Path
+    manifest_dir = str(tmp_path / ".manifests")
+    calls = []
+    original_replace = _Path.replace
+
+    def spy_replace(self, target):
+        calls.append((str(self), str(target)))
+        return original_replace(self, target)
+
+    monkeypatch.setattr(_Path, "replace", spy_replace)
+    _save_manifest(manifest_dir, "b", {"sha256_to_file": {"abc": "x.pdf"}})
+
+    assert len(calls) == 1
+    assert calls[0][0].endswith(".tmp")
+    assert calls[0][1].endswith("b.json")
+
+
+def test_save_manifest_no_tmp_file_left_after_success(tmp_path):
+    manifest_dir = str(tmp_path / ".manifests")
+    _save_manifest(manifest_dir, "b", {"sha256_to_file": {}})
+    assert not (Path(manifest_dir) / "b.json.tmp").exists()
+
+
 def test_resolve_source_file_no_conflict():
     manifest = {"sha256_to_file": {}}
     result = _resolve_source_file("chapter01.pdf", manifest)

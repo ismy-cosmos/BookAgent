@@ -58,7 +58,9 @@ def _load_manifest(manifest_dir: str, book_id: str) -> dict:
 def _save_manifest(manifest_dir: str, book_id: str, data: dict) -> None:
     p = _manifest_path(manifest_dir, book_id)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, indent=2))
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2))
+    tmp.replace(p)
 
 
 def _failures_path(manifest_dir: str, book_id: str) -> Path:
