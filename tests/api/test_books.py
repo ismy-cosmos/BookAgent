@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
@@ -95,3 +96,41 @@ def test_delete_file_removes_manifest_entry(tmp_path, monkeypatch):
     assert resp.json() == {"deleted_file": "ch01.pdf", "book_id": "ostep"}
     manifest = json.loads((tmp_path / ".manifests" / "ostep.json").read_text())
     assert manifest == {"sha256_to_file": {"def": "ch02.pdf"}}
+
+
+def test_delete_book_rejected_while_book_has_pending_task(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+
+    fake_queue = MagicMock()
+    fake_queue.book_has_pending_or_active_task.return_value = True
+    monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
+
+    resp = client.delete("/books/ostep")
+    assert resp.status_code == 409
+    fake_queue.book_has_pending_or_active_task.assert_called_once_with("ostep")
+
+
+def test_delete_book_allowed_for_unrelated_book(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+
+    fake_queue = MagicMock()
+    fake_queue.book_has_pending_or_active_task.return_value = False
+    monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
+
+    resp = client.delete("/books/ostep")
+    assert resp.status_code == 200
+
+
+def test_delete_file_rejected_while_book_has_pending_task(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+    _write_manifest(tmp_path, "ostep", {"abc": "ch01.pdf"})
+
+    fake_queue = MagicMock()
+    fake_queue.book_has_pending_or_active_task.return_value = True
+    monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
+
+    resp = client.delete("/books/ostep/files/ch01.pdf")
+    assert resp.status_code == 409

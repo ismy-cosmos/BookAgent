@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from pipeline.api.config import get_chroma_dir
+from pipeline.api.import_queue import get_import_queue
 from pipeline.store.chroma_store import ChromaStore
 from scripts.ingest import _load_manifest, _save_manifest, _remove_by_source_file
 
@@ -23,6 +24,8 @@ def delete_book(book_id: str) -> dict:
     store = _store()
     if book_id not in store.list_books():
         raise HTTPException(status_code=404, detail=f"book_id '{book_id}' 不存在")
+    if get_import_queue().book_has_pending_or_active_task(book_id):
+        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
     store.delete_collection(book_id)
     return {"deleted": book_id}
 
@@ -43,6 +46,8 @@ def delete_file(book_id: str, source_file: str) -> dict:
     store = _store()
     if book_id not in store.list_books():
         raise HTTPException(status_code=404, detail=f"book_id '{book_id}' 不存在")
+    if get_import_queue().book_has_pending_or_active_task(book_id):
+        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
 
     manifest_dir = str(Path(get_chroma_dir()) / ".manifests")
     manifest = _load_manifest(manifest_dir, book_id)
