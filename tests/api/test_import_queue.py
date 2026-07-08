@@ -250,3 +250,107 @@ def test_request_pause_unknown_or_not_processing_task_fails():
     task_id = q.enqueue("ostep", ["f1.pdf"])
     q.wait_until_idle(timeout=2.0)
     assert q.request_pause(task_id) is False  # 已经处理完了，不是"处理中"
+
+
+def test_book_has_pending_or_active_task_true_while_queued():
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_processor(book_id, file_paths, should_pause):
+        started.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_processor)
+    q.start()
+    q.enqueue("book-a", ["a1.pdf"])  # 占住工作线程
+    assert started.wait(timeout=2.0)
+
+    q.enqueue("book-b", ["b1.pdf"])  # 排队中
+    assert q.book_has_pending_or_active_task("book-b") is True
+
+    release.set()
+    q.wait_until_idle(timeout=2.0)
+
+
+def test_book_has_pending_or_active_task_true_while_processing():
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_processor(book_id, file_paths, should_pause):
+        started.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_processor)
+    q.start()
+    q.enqueue("ostep", ["ch1.pdf"])
+    assert started.wait(timeout=2.0)
+
+    assert q.book_has_pending_or_active_task("ostep") is True
+
+    release.set()
+    q.wait_until_idle(timeout=2.0)
+
+
+def test_book_has_pending_or_active_task_false_when_paused():
+    def pausing_processor(book_id, file_paths, should_pause):
+        for f in file_paths:
+            if should_pause():
+                return
+
+    q = ImportQueue(processor=pausing_processor)
+    q.start()
+    task_id = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
+    q.request_pause(task_id)
+    q.wait_until_idle(timeout=2.0)
+
+    assert q.book_has_pending_or_active_task("ostep") is False  # 已暂停不拦删除
+
+
+def test_book_has_pending_or_active_task_false_after_cancel():
+    processor = _RecordingProcessor()
+    blocker_started = threading.Event()
+    blocker_release = threading.Event()
+
+    def blocking_first_call(book_id, file_paths, should_pause):
+        if not blocker_started.is_set():
+            blocker_started.set()
+            blocker_release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=blocking_first_call)
+    q.start()
+    q.enqueue("book-a", ["a1.pdf"])
+    assert blocker_started.wait(timeout=2.0)
+
+    task_id_b = q.enqueue("book-b", ["b1.pdf"])
+    assert q.cancel(task_id_b) is True
+    assert q.book_has_pending_or_active_task("book-b") is False
+
+    blocker_release.set()
+    q.wait_until_idle(timeout=2.0)
+
+
+def test_book_has_pending_or_active_task_false_after_completed():
+    q = ImportQueue(processor=_RecordingProcessor())
+    q.start()
+    q.enqueue("ostep", ["ch1.pdf"])
+    q.wait_until_idle(timeout=2.0)
+    assert q.book_has_pending_or_active_task("ostep") is False
+
+
+def test_book_has_pending_or_active_task_false_for_unrelated_book():
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_processor(book_id, file_paths, should_pause):
+        started.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_processor)
+    q.start()
+    q.enqueue("book-a", ["a1.pdf"])
+    assert started.wait(timeout=2.0)
+
+    assert q.book_has_pending_or_active_task("book-unrelated") is False
+
+    release.set()
+    q.wait_until_idle(timeout=2.0)

@@ -65,6 +65,12 @@ class ImportQueue:
         self._queue.put(task)
         return True
 
+    def book_has_pending_or_active_task(self, book_id: str) -> bool:
+        with self._lock:
+            if self._current_task is not None and self._current_task.book_id == book_id:
+                return True
+            return any(t.book_id == book_id for t in self._queued_tasks.values())
+
     def get_status(self) -> dict:
         with self._lock:
             if self._current_task is not None:
