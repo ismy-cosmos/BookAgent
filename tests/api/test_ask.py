@@ -105,3 +105,20 @@ def test_ask_returns_answer_and_citations(tmp_path, monkeypatch):
     record = client.get(f"/books/ostep/conversations/{conv_id}").json()
     assert len(record["turns"]) == 1
     assert record["turns"][0]["question"] == "fork() 是什么？"
+
+
+def test_ask_rejected_while_any_book_is_importing(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    conv_id = client.post("/books/ostep/conversations").json()["id"]
+
+    monkeypatch.setattr(
+        "pipeline.api.routes_conversations.get_status",
+        lambda: {"busy": True, "reason": "ingesting", "book_id": "other-book"},
+    )
+
+    resp = client.post(
+        f"/books/ostep/conversations/{conv_id}/ask",
+        json={"question": "Q"},
+    )
+    assert resp.status_code == 409
+    assert "正在导入书籍" in resp.json()["detail"]

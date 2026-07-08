@@ -5,6 +5,7 @@ from pipeline.agent.answer import answer
 from pipeline.api import conversations as conv_store
 from pipeline.api.agent_registry import get_client
 from pipeline.api.config import get_chroma_dir
+from pipeline.api.status import get_status
 from pipeline.store.chroma_store import ChromaStore
 
 router = APIRouter()
@@ -43,6 +44,9 @@ class AskRequest(BaseModel):
 
 @router.post("/books/{book_id}/conversations/{conversation_id}/ask")
 def ask(book_id: str, conversation_id: str, body: AskRequest) -> dict:
+    if get_status()["busy"]:
+        raise HTTPException(status_code=409, detail="正在导入书籍，请稍后再问")
+
     try:
         record = conv_store.load_conversation(get_chroma_dir(), book_id, conversation_id)
     except FileNotFoundError:
