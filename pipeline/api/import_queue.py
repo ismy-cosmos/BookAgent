@@ -109,3 +109,19 @@ class ImportQueue:
                     self._paused_tasks[task.task_id] = task
                 self._current_task = None
             self._queue.task_done()
+
+
+def _placeholder_processor(book_id: str, file_paths: list[str], should_pause) -> None:
+    """占位实现：真正的解析/VLM/向量化/写库逻辑属于 issue #27，这里先什么都不做，
+    只是让 ImportQueue 在生产环境里能被实例化、跑通队列本身的逻辑。"""
+
+
+_queue_singleton: Optional[ImportQueue] = None
+
+
+def get_import_queue() -> ImportQueue:
+    global _queue_singleton
+    if _queue_singleton is None:
+        _queue_singleton = ImportQueue(processor=_placeholder_processor)
+        _queue_singleton.start()
+    return _queue_singleton
