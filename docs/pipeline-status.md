@@ -13,11 +13,11 @@
 
 ## 待办 issue 优先级顺序
 
-**已完成**：issue #6（`scripts/ingest.py` 批量单文件失败容错+回滚+连续失败熔断，PR #23）、issue #16（8GB 显卡 mmproj 上不了 GPU 是 Ollama 自身回归 bug，已升级版本修复）、**issue #13 + #14**（内嵌图片 VLM 描述回填 + resize，PR #26，2026-07-07 合并）。
+**已完成**：issue #6（`scripts/ingest.py` 批量单文件失败容错+回滚+连续失败熔断，PR #23）、issue #16（8GB 显卡 mmproj 上不了 GPU 是 Ollama 自身回归 bug，已升级版本修复）、**issue #13 + #14**（内嵌图片 VLM 描述回填 + resize，PR #26，2026-07-07 合并）、**issue #20**（GPU 显存互斥锁：`ImportQueue` 单工作线程 FIFO 队列+忙碌状态接入问答/删除接口，PR #28，2026-07-08 合并，issue 已关闭）。
 
 1. **下一步：issue #17**（agent 溯源可靠性：问题简单时不 retrieve + 伪造历史引用）。真实数据 QA 端到端验收时重新复现并追加了证据（`_format_turn_for_replay` 格式被模仿，可凭空编造不存在的文件名），优先级提前——"VLM 图片理解对最终问答质量的实际贡献"这件事目前无法验证，每次尝试都被这个 bug 拦住（该调用 retrieve 时模型跳过了）。
 2. **之后：issue #11 + #10**：
    - #11：EPUB 容器直接子级裸文本节点丢失，内联标签经兜底分支产生碎片元素。
    - #10：`audio.py` WhisperX 短 VAD segment 直接成 chunk，未走 chunker 打包逻辑。
    - 这两项都会改变最终入库的 chunk 内容，建议攒到一起做完、再统一跑一次评测级正式 ingest。
-3. **尚未排期/未三角分类**：issue #18（prompt/num_predict 调速）、#19（Chunker 句子边界判断评估替换为成熟分句库）、#20（8GB 显卡上 ingest 进程与聊天进程抢占同一块 GPU 显存——产品侧 2026-07-07 已拍板：**不支持边聊天边导入**，显存不够是硬件限制躲不开，需要做软件层互斥锁，前端（导入中禁用问答入口）和后端都要配合，具体实现待排期）、#24（超大 PDF 导致 marker 解析 OOM）、#25（极小行内排版图片被 VLM 过度解读产生幻觉）。
+3. **尚未排期/未三角分类**：issue #18（prompt/num_predict 调速）、#19（Chunker 句子边界判断评估替换为成熟分句库）、#24（超大 PDF 导致 marker 解析 OOM）、#25（极小行内排版图片被 VLM 过度解读产生幻觉）。
