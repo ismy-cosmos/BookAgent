@@ -207,6 +207,19 @@ def _figure_image_shas(elements: list | None) -> list[str]:
     ]
 
 
+def _has_unresolved_figures(elements: list | None) -> bool:
+    """阶段2被暂停打断的图片的唯一签名：image_bytes 还在且没有 vlm_status。
+    （described/degraded 都已弹出字节；本来就没字节的没有 image_bytes。）"""
+    if not elements:
+        return False
+    return any(
+        elem.type == "figure"
+        and elem.metadata.get("image_bytes")
+        and not elem.metadata.get("vlm_status")
+        for elem in elements
+    )
+
+
 def _store_file(
     pending: _PendingFile,
     book_id: str,
@@ -366,6 +379,12 @@ def run_ingest(
     if pending:
         on_progress(ProgressUpdate(stage="storing"))
     for p in pending:
+        if _has_unresolved_figures(p.elements):
+            print(f"[pause] {p.file_path} 的图片未描述完（阶段2被暂停打断），"
+                  f"本次不入库，缓存保留，恢复后重新提交即可续跑。")
+            not_attempted.append(p.file_path)
+            aborted_early = True
+            continue
         try:
             ext = Path(p.file_path).suffix.lower()
             if ext in _IMAGE_EXTS:
@@ -393,7 +412,9 @@ def run_ingest(
             if max_consecutive_failures and consecutive_failures >= max_consecutive_failures:
                 print(f"\n[abort] {consecutive_failures} 个文件连续失败，疑似系统性问题，已中止批次。")
                 idx3 = pending.index(p)
-                not_attempted = [q.file_path for q in pending[idx3 + 1:]]
+                # 追加而不是整体赋值——不能覆盖掉阶段1中止时已填入的、
+                # 以及本循环里因图片未描述完而跳过的条目
+                not_attempted.extend(q.file_path for q in pending[idx3 + 1:])
                 aborted_early = True
                 break
 
