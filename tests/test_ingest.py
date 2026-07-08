@@ -10,6 +10,7 @@ from scripts.ingest import (
     _load_manifest,
     _save_manifest,
     _resolve_source_file,
+    _remove_by_source_file,
     _collect_files,
     _route_parser,
     _parse_file,
@@ -68,6 +69,22 @@ def test_resolve_source_file_multiple_conflicts():
     }
     result = _resolve_source_file("chapter01.pdf", manifest)
     assert result == "chapter01(2).pdf"
+
+
+def test_remove_by_source_file_found():
+    manifest = {"sha256_to_file": {"abc": "ch01.pdf", "def": "ch02.pdf"}}
+    updated, removed = _remove_by_source_file(manifest, "ch01.pdf")
+    assert removed is True
+    assert updated == {"sha256_to_file": {"def": "ch02.pdf"}}
+    # 原 dict 不能被就地改掉，调用方可能还持有旧引用
+    assert manifest["sha256_to_file"] == {"abc": "ch01.pdf", "def": "ch02.pdf"}
+
+
+def test_remove_by_source_file_not_found():
+    manifest = {"sha256_to_file": {"abc": "ch01.pdf"}}
+    updated, removed = _remove_by_source_file(manifest, "missing.pdf")
+    assert removed is False
+    assert updated == manifest
 
 
 def test_collect_files_from_dir(tmp_path):
