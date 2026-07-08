@@ -1,14 +1,16 @@
 import json
+import subprocess
 from unittest.mock import patch, MagicMock
 import pytest
 
-from pipeline.parse.audio import AudioParser
+from pipeline.parse.audio import AudioParser, AudioParsePaused
 
 
-def _fake_result(segments):
-    result = MagicMock()
-    result.stdout = json.dumps({"segments": segments})
-    return result
+def _fake_popen(segments, returncode=0, stderr=""):
+    mock_proc = MagicMock()
+    mock_proc.communicate.return_value = (json.dumps({"segments": segments}), stderr)
+    mock_proc.returncode = returncode
+    return mock_proc
 
 
 def test_audio_parser_returns_chunks(tmp_path):
@@ -20,7 +22,7 @@ def test_audio_parser_returns_chunks(tmp_path):
         {"start": 196.0, "end": 218.0, "text": "The spin function calls getTime."},
     ]
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=_fake_result(segments)):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
         parser = AudioParser()
         chunks = parser.parse_to_chunks(str(audio), book_id="ostep")
 
@@ -39,7 +41,7 @@ def test_audio_parser_chunk_ids(tmp_path):
         {"start": 196.0, "end": 218.0, "text": "The spin function calls getTime."},
     ]
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=_fake_result(segments)):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="ostep")
 
     assert chunks[0].chunk_id == "ostep/segment-01.mp3/0000"
@@ -52,7 +54,7 @@ def test_audio_parser_chunk_fields(tmp_path):
 
     segments = [{"start": 0.0, "end": 5.0, "text": "Hello."}]
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=_fake_result(segments)):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
     c = chunks[0]
@@ -67,7 +69,7 @@ def test_audio_parser_empty_segments(tmp_path):
     audio = tmp_path / "empty.mp3"
     audio.write_bytes(b"fake")
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=_fake_result([])):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen([])):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
     assert chunks == []
@@ -81,11 +83,11 @@ def test_audio_parser_default_language_is_auto_detect(tmp_path):
     segments = [{"start": 74.0, "end": 101.0, "text": "There are 340 processes."}]
     captured_cmd = []
 
-    def fake_run(cmd, check, **kwargs):
+    def fake_popen(cmd, **kwargs):
         captured_cmd.extend(cmd)
-        return _fake_result(segments)
+        return _fake_popen(segments)
 
-    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+    with patch("pipeline.parse.audio.subprocess.Popen", side_effect=fake_popen):
         AudioParser().parse_to_chunks(str(audio), book_id="ostep")
 
     assert "--language" not in captured_cmd
@@ -99,11 +101,11 @@ def test_audio_parser_explicit_language_still_works(tmp_path):
     segments = [{"start": 74.0, "end": 101.0, "text": "There are 340 processes."}]
     captured_cmd = []
 
-    def fake_run(cmd, check, **kwargs):
+    def fake_popen(cmd, **kwargs):
         captured_cmd.extend(cmd)
-        return _fake_result(segments)
+        return _fake_popen(segments)
 
-    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+    with patch("pipeline.parse.audio.subprocess.Popen", side_effect=fake_popen):
         AudioParser(language="en").parse_to_chunks(str(audio), book_id="ostep")
 
     assert "--language" in captured_cmd
@@ -117,11 +119,11 @@ def test_audio_parser_default_model_is_small(tmp_path):
     segments = [{"start": 74.0, "end": 101.0, "text": "There are 340 processes."}]
     captured_cmd = []
 
-    def fake_run(cmd, check, **kwargs):
+    def fake_popen(cmd, **kwargs):
         captured_cmd.extend(cmd)
-        return _fake_result(segments)
+        return _fake_popen(segments)
 
-    with patch("pipeline.parse.audio.subprocess.run", side_effect=fake_run):
+    with patch("pipeline.parse.audio.subprocess.Popen", side_effect=fake_popen):
         AudioParser().parse_to_chunks(str(audio), book_id="ostep")
 
     assert captured_cmd[captured_cmd.index("--model") + 1] == "small"
@@ -147,7 +149,7 @@ def test_audio_parser_low_confidence_segment_flagged(tmp_path):
         },
     ]
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=_fake_result(segments)):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
     assert chunks[0].low_confidence is True
@@ -164,7 +166,7 @@ def test_audio_parser_high_confidence_segment_not_flagged(tmp_path):
         },
     ]
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=_fake_result(segments)):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
     assert chunks[0].low_confidence is False
@@ -177,7 +179,7 @@ def test_audio_parser_no_word_scores_defaults_not_low_confidence(tmp_path):
 
     segments = [{"start": 74.0, "end": 101.0, "text": "There are 340 processes."}]
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=_fake_result(segments)):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
     assert chunks[0].low_confidence is False
@@ -193,7 +195,7 @@ def test_audio_parser_seq_skips_blank_segments(tmp_path):
         {"start": 8.0, "end": 12.0, "text": "World."},
     ]
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=_fake_result(segments)):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
     assert len(chunks) == 2
@@ -210,9 +212,77 @@ def test_audio_parser_wrapper_bad_json_raises_clear_error(tmp_path):
     audio = tmp_path / "segment-01.mp3"
     audio.write_bytes(b"fake")
 
-    bad_result = MagicMock()
-    bad_result.stdout = "INFO: some log line leaked\n{\"segments\": []}"
+    bad_proc = MagicMock()
+    bad_proc.communicate.return_value = ("INFO: some log line leaked\n{\"segments\": []}", "")
+    bad_proc.returncode = 0
 
-    with patch("pipeline.parse.audio.subprocess.run", return_value=bad_result):
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=bad_proc):
         with pytest.raises(RuntimeError, match="不是合法 JSON"):
             AudioParser().parse_to_chunks(str(audio), book_id="b")
+
+
+def test_audio_parser_nonzero_exit_raises(tmp_path):
+    audio = tmp_path / "bad.mp3"
+    audio.write_bytes(b"fake")
+    mock_proc = _fake_popen([], returncode=1, stderr="whisperx crashed")
+
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=mock_proc):
+        with pytest.raises(subprocess.CalledProcessError):
+            AudioParser().parse_to_chunks(str(audio), book_id="b")
+
+
+# ── 暂停：Popen + 轮询 + kill ────────────────────────────────────────────
+
+def test_audio_parser_pause_kills_process_and_raises(tmp_path):
+    audio = tmp_path / "long.mp3"
+    audio.write_bytes(b"fake")
+
+    mock_proc = MagicMock()
+    mock_proc.communicate.side_effect = [
+        subprocess.TimeoutExpired(cmd="x", timeout=0.01),
+        ("", ""),  # kill 后的收尾 communicate()
+    ]
+
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=mock_proc):
+        with pytest.raises(AudioParsePaused):
+            AudioParser(poll_interval_s=0.01).parse_to_chunks(
+                str(audio), book_id="b", should_pause=lambda: True)
+
+    mock_proc.kill.assert_called_once()
+
+
+def test_audio_parser_no_pause_requested_completes_normally(tmp_path):
+    audio = tmp_path / "short.mp3"
+    audio.write_bytes(b"fake")
+    segments = [{"start": 0.0, "end": 1.0, "text": "hi"}]
+
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
+        chunks = AudioParser().parse_to_chunks(
+            str(audio), book_id="b", should_pause=lambda: False)
+
+    assert len(chunks) == 1
+
+
+def test_audio_parser_pause_polls_multiple_times_before_pausing(tmp_path):
+    """should_pause 一开始返回 False，过几轮才返回 True——确认是真的在轮询,不是只看一次。"""
+    audio = tmp_path / "long.mp3"
+    audio.write_bytes(b"fake")
+
+    mock_proc = MagicMock()
+    mock_proc.communicate.side_effect = [
+        subprocess.TimeoutExpired(cmd="x", timeout=0.01),
+        subprocess.TimeoutExpired(cmd="x", timeout=0.01),
+        ("", ""),
+    ]
+    pause_calls = []
+
+    def fake_should_pause():
+        pause_calls.append(1)
+        return len(pause_calls) >= 2
+
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=mock_proc):
+        with pytest.raises(AudioParsePaused):
+            AudioParser(poll_interval_s=0.01).parse_to_chunks(
+                str(audio), book_id="b", should_pause=fake_should_pause)
+
+    assert len(pause_calls) == 2

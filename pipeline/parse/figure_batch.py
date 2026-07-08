@@ -11,21 +11,23 @@ Ollama 系统性不可用，剩余图片直接降级不再等待超时。
 """
 from __future__ import annotations
 import base64
+import hashlib
 import os
 import re
 import time
 from dataclasses import dataclass, field
+from typing import Callable
 
 import httpx
 from openai import OpenAI, OpenAIError
 
+from pipeline.parse import vlm_cache
 from pipeline.parse.base import CAPTION_RE, Element
 from pipeline.parse.image import (
     _DESCRIBE_PROMPT,
     _OLLAMA_BASE,
     _VLM_MODEL,
     _release_model,
-    _resize_to_limit,
     describe_image,
 )
 
@@ -72,6 +74,10 @@ def resolve_figures(
     model: str = _VLM_MODEL,
     ollama_base: str = _OLLAMA_BASE,
     timeout: float = 120.0,
+    chroma_dir: str | None = None,
+    book_id: str | None = None,
+    should_pause: Callable[[], bool] = lambda: False,
+    on_progress: Callable[[int, int], None] = lambda current, total: None,
 ) -> FigureBatchStats:
     stats = FigureBatchStats()
     targets: list[tuple[Element, str]] = []
@@ -98,11 +104,27 @@ def resolve_figures(
     t_start = time.perf_counter()
     try:
         for n, (elem, caption) in enumerate(targets, start=1):
+            on_progress(n, len(targets))
+            if should_pause():
+                print(f"\n  [pause] 收到暂停请求，VLM 批量描述在第 {n}/{len(targets)} 张图边界停止。")
+                break
             if stats.breaker_tripped:
                 _mark_degraded(elem, stats)
                 continue
-            b64 = base64.b64encode(
-                _resize_to_limit(elem.metadata["image_bytes"])).decode()
+            image_bytes = elem.metadata["image_bytes"]
+            image_sha = hashlib.sha256(image_bytes).hexdigest()
+            cached_desc = vlm_cache.get(chroma_dir, book_id, image_sha) if chroma_dir else None
+            if cached_desc is not None:
+                alt_m = _ALT_RE.match(elem.content)
+                alt = alt_m.group(1).strip() if alt_m else ""
+                elem.content = f"[alt: {alt}] {cached_desc}" if alt else cached_desc
+                elem.metadata["vlm_status"] = "described"
+                elem.metadata.pop("image_bytes", None)
+                stats.described += 1
+                consecutive = 0
+                print(f"  VLM 描述 {n}/{len(targets)}（缓存命中）", end="\r")
+                continue
+            b64 = base64.b64encode(image_bytes).decode()
             t_img = time.perf_counter()
             usage_holder: list = []
             try:
@@ -132,6 +154,8 @@ def resolve_figures(
             elem.metadata.pop("image_bytes", None)
             stats.described += 1
             consecutive = 0
+            if chroma_dir:
+                vlm_cache.set(chroma_dir, book_id, image_sha, desc)
             tok_str = f", {usage_holder[0]} tok" if usage_holder else ""
             print(f"  VLM 描述 {n}/{len(targets)} 完成 ({dt:.1f}s{tok_str})", end="\r")
     finally:

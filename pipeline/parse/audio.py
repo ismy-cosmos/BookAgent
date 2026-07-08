@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import tiktoken
 
@@ -15,7 +15,12 @@ _WHISPERX_VENV_PYTHON = os.environ.get(
     str(_REPO_ROOT / "whisperx.venv" / "bin" / "python"),
 )
 _WHISPERX_WRAPPER = str(Path(__file__).resolve().parent / "whisperx_transcribe.py")
+_DEFAULT_POLL_INTERVAL_S = 2.0
 _ENC = None
+
+
+def _always_false() -> bool:
+    return False
 
 
 def _enc():
@@ -23,6 +28,11 @@ def _enc():
     if _ENC is None:
         _ENC = tiktoken.get_encoding("cl100k_base")
     return _ENC
+
+
+class AudioParsePaused(RuntimeError):
+    """转写过程中收到暂停请求，子进程已被终止——这个文件的转写工作完全
+    作废（WhisperX 不支持流式吐出部分结果），没有部分结果可用。"""
 
 
 class AudioParser:
@@ -33,12 +43,20 @@ class AudioParser:
         whisperx_python: str = _WHISPERX_VENV_PYTHON,
         model: str = "small",
         language: Optional[str] = None,
+        poll_interval_s: float = _DEFAULT_POLL_INTERVAL_S,
     ):
         self._wx_python = whisperx_python
         self._model = model
         self._lang = language
+        self._poll_interval_s = poll_interval_s
 
-    def parse_to_chunks(self, audio_path: str, book_id: str, source_file: str = "") -> list[Chunk]:
+    def parse_to_chunks(
+        self,
+        audio_path: str,
+        book_id: str,
+        source_file: str = "",
+        should_pause: Callable[[], bool] = _always_false,
+    ) -> list[Chunk]:
         if not Path(self._wx_python).exists():
             raise RuntimeError(
                 f"WhisperX venv 未找到：{self._wx_python}\n"
@@ -50,13 +68,26 @@ class AudioParser:
         cmd = [self._wx_python, _WHISPERX_WRAPPER, audio_path, "--model", self._model]
         if self._lang is not None:
             cmd.extend(["--language", self._lang])
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        while True:
+            try:
+                stdout, stderr = proc.communicate(timeout=self._poll_interval_s)
+                break
+            except subprocess.TimeoutExpired:
+                if should_pause():
+                    proc.kill()
+                    proc.communicate()
+                    raise AudioParsePaused(f"暂停请求中止了音频转写：{audio_path}")
+
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd, output=stdout, stderr=stderr)
 
         try:
-            data = json.loads(result.stdout)
+            data = json.loads(stdout)
         except json.JSONDecodeError as e:
             raise RuntimeError(
-                f"WhisperX wrapper 输出不是合法 JSON: {result.stdout[:500]!r}"
+                f"WhisperX wrapper 输出不是合法 JSON: {stdout[:500]!r}"
             ) from e
 
         chunks: list[Chunk] = []
