@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -408,6 +409,56 @@ def test_run_ingest_resizes_figure_bytes_before_caching(tmp_path):
     mock_resize.assert_called_once_with(b"raw-bytes")
     cached_elements, _ = parse_cache.get(str(chroma_dir), "b", sha)
     assert cached_elements[0].metadata["image_bytes"] == b"raw-bytes-resized"
+
+
+# ── 文件完整入库后清理缓存 ──────────────────────────────────────────────
+
+def test_run_ingest_cleans_up_caches_after_successful_commit(tmp_path):
+    from pipeline.parse import parse_cache, vlm_cache
+
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    sha = _sha256(str(f))
+    fig = Element(type="figure", content="![]()", page_num=1,
+                  metadata={"image_bytes": b"resized-bytes"})
+    image_sha = hashlib.sha256(b"resized-bytes").hexdigest()
+
+    parse_cache.set(str(chroma_dir), "b", sha, [fig], None)
+    vlm_cache.set(str(chroma_dir), "b", image_sha, "some description")
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 1
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))
+
+    assert parse_cache.get(str(chroma_dir), "b", sha) is None
+    assert vlm_cache.get(str(chroma_dir), "b", image_sha) is None
+
+
+def test_run_ingest_does_not_clean_caches_on_failure(tmp_path):
+    from pipeline.parse import parse_cache
+
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    sha = _sha256(str(f))
+    elem = Element(type="text", content="x", page_num=1)
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", side_effect=RuntimeError("boom")):
+        mock_store_cls.return_value.count.return_value = 0
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))
+
+    # 阶段1 解析后写了缓存，阶段3 失败——缓存条目必须还在，下次重跑省掉重新解析
+    assert parse_cache.get(str(chroma_dir), "b", sha) is not None
 
 
 def test_main_no_files_in_dir_returns_early(tmp_path, monkeypatch, capsys):

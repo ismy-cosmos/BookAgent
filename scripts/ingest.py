@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 
 from pipeline.chunk import Chunker
 from pipeline.embed import Embedder
-from pipeline.parse import parse_cache
+from pipeline.parse import parse_cache, vlm_cache
 from pipeline.parse.audio import AudioParser
 from pipeline.parse.epub import EPUBParser
 from pipeline.parse.figure_batch import resolve_figures
@@ -323,6 +323,9 @@ def run_ingest(
             manifest = _load_manifest(manifest_dir, book_id)
             manifest["sha256_to_file"][p.sha] = p.source_file
             _save_manifest(manifest_dir, book_id, manifest)
+            parse_cache.delete(chroma_dir, book_id, p.sha)
+            for image_sha in p.image_shas:
+                vlm_cache.delete(chroma_dir, book_id, image_sha)
             total_chunks += n
             consecutive_failures = 0
         except Exception as e:
