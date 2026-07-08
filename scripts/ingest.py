@@ -193,28 +193,24 @@ def _store_file(
     return total
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest files into Chroma vector store")
-    parser.add_argument("--book-id", required=True, help="Chroma collection name")
-    parser.add_argument("--file", action="append", default=[], dest="files",
-                        help="File to ingest (repeatable)")
-    parser.add_argument("--dir", help="Directory: ingest all supported files")
-    parser.add_argument("--chroma-dir", default=_CHROMA_DIR)
-    parser.add_argument("--batch-size", type=int, default=_DEFAULT_BATCH)
-    args = parser.parse_args()
+@dataclass
+class IngestResult:
+    total_chunks: int
+    failures: list[dict]
+    not_attempted: list[str]
+    aborted_early: bool
 
-    if not args.files and not args.dir:
-        parser.error("Provide at least --file or --dir")
 
-    all_files = _collect_files(args.files, args.dir)
-    if not all_files:
-        print("No files found.")
-        return
-
-    manifest_dir = str(Path(args.chroma_dir) / ".manifests")
+def run_ingest(
+    book_id: str,
+    file_paths: list[str],
+    chroma_dir: str = _CHROMA_DIR,
+    batch_size: int = _DEFAULT_BATCH,
+) -> IngestResult:
+    manifest_dir = str(Path(chroma_dir) / ".manifests")
     chunker = Chunker()
     embedder = Embedder()
-    store = ChromaStore(persist_dir=args.chroma_dir)
+    store = ChromaStore(persist_dir=chroma_dir)
 
     max_consecutive_failures = int(os.environ.get("INGEST_MAX_CONSECUTIVE_FAILURES", "0"))
 
@@ -237,9 +233,9 @@ def main() -> None:
     # ── 阶段1：全部解析（sha 跳过检查在解析前——解析是最贵的一步）──
     t_stage1 = time.perf_counter()
     pending: list[_PendingFile] = []
-    manifest = _load_manifest(manifest_dir, args.book_id)
+    manifest = _load_manifest(manifest_dir, book_id)
     manifest_view = {"sha256_to_file": dict(manifest["sha256_to_file"])}
-    for idx, file_path in enumerate(all_files):
+    for idx, file_path in enumerate(file_paths):
         try:
             sha = _sha256(file_path)
             if sha in manifest["sha256_to_file"]:
@@ -250,7 +246,7 @@ def main() -> None:
             source_file = _resolve_source_file(filename, manifest_view)
             manifest_view["sha256_to_file"][f"pending:{sha}"] = source_file
             print(f"Parsing: {file_path} → {source_file}")
-            elements, chunks = _parse_file(file_path, args.book_id, source_file)
+            elements, chunks = _parse_file(file_path, book_id, source_file)
             pending.append(_PendingFile(
                 file_path=file_path, source_file=source_file, sha=sha,
                 elements=elements, chunks=chunks,
@@ -261,7 +257,7 @@ def main() -> None:
             consecutive_failures += 1
             if max_consecutive_failures and consecutive_failures >= max_consecutive_failures:
                 print(f"\n[abort] {consecutive_failures} 个文件连续解析失败，疑似系统性问题，已中止批次。")
-                not_attempted = all_files[idx + 1:]
+                not_attempted = file_paths[idx + 1:]
                 aborted_early = True
                 break
 
@@ -289,16 +285,16 @@ def main() -> None:
                 if elem.metadata.get("vlm_status") != "described":
                     raise RuntimeError(
                         "VLM 描述失败——独立图片文件没有占位符可回退，整个文件视为失败")
-            n = _store_file(p, args.book_id, chunker, embedder, store, args.batch_size)
-            manifest = _load_manifest(manifest_dir, args.book_id)
+            n = _store_file(p, book_id, chunker, embedder, store, batch_size)
+            manifest = _load_manifest(manifest_dir, book_id)
             manifest["sha256_to_file"][p.sha] = p.source_file
-            _save_manifest(manifest_dir, args.book_id, manifest)
+            _save_manifest(manifest_dir, book_id, manifest)
             total_chunks += n
             consecutive_failures = 0
         except Exception as e:
             _record_failure(p.file_path, e)
             try:
-                store.delete_by_source(args.book_id, p.source_file)
+                store.delete_by_source(book_id, p.source_file)
             except Exception as cleanup_exc:
                 print(f"[warn] Rollback for {p.file_path} also failed: {cleanup_exc}")
             consecutive_failures += 1
@@ -309,11 +305,11 @@ def main() -> None:
                 aborted_early = True
                 break
 
-    _save_failures(manifest_dir, args.book_id, failures, not_attempted, aborted_early)
+    _save_failures(manifest_dir, book_id, failures, not_attempted, aborted_early)
 
     print(f"阶段3 入库完成，耗时 {time.perf_counter() - t_stage3:.1f}s")
     print(f"\nDone. Total chunks ingested: {total_chunks}")
-    print(f"Chroma collection '{args.book_id}' now has {store.count(args.book_id)} chunks.")
+    print(f"Chroma collection '{book_id}' now has {store.count(book_id)} chunks.")
 
     if failures:
         print(f"\n{len(failures)} file(s) failed:")
@@ -324,7 +320,36 @@ def main() -> None:
         for fp in not_attempted:
             print(f"  - {fp}")
 
-    if failures or aborted_early:
+    return IngestResult(
+        total_chunks=total_chunks,
+        failures=failures,
+        not_attempted=not_attempted,
+        aborted_early=aborted_early,
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Ingest files into Chroma vector store")
+    parser.add_argument("--book-id", required=True, help="Chroma collection name")
+    parser.add_argument("--file", action="append", default=[], dest="files",
+                        help="File to ingest (repeatable)")
+    parser.add_argument("--dir", help="Directory: ingest all supported files")
+    parser.add_argument("--chroma-dir", default=_CHROMA_DIR)
+    parser.add_argument("--batch-size", type=int, default=_DEFAULT_BATCH)
+    args = parser.parse_args()
+
+    if not args.files and not args.dir:
+        parser.error("Provide at least --file or --dir")
+
+    all_files = _collect_files(args.files, args.dir)
+    if not all_files:
+        print("No files found.")
+        return
+
+    result = run_ingest(args.book_id, all_files, chroma_dir=args.chroma_dir,
+                        batch_size=args.batch_size)
+
+    if result.failures or result.aborted_early:
         sys.exit(1)
 
 

@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from pipeline.chunk.schema import Chunk
+from pipeline.parse.base import Element
 from scripts.ingest import (
     _sha256,
     _load_manifest,
@@ -16,6 +17,8 @@ from scripts.ingest import (
     _parse_file,
     _store_file,
     _PendingFile,
+    run_ingest,
+    IngestResult,
     main,
 )
 
@@ -254,6 +257,45 @@ def test_store_file_empty_chunks_returns_zero(capsys):
     assert n == 0
     embedder.embed.assert_not_called()
     assert "No chunks produced" in capsys.readouterr().out
+
+
+# ── run_ingest() 直接调用（不经过 argparse）─────────────────────────────────
+
+def test_run_ingest_returns_structured_result(tmp_path):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", return_value=3):
+        mock_store_cls.return_value.count.return_value = 3
+        result = run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))
+
+    assert result == IngestResult(
+        total_chunks=3, failures=[], not_attempted=[], aborted_early=False,
+    )
+
+
+def test_run_ingest_reports_failures_without_raising(tmp_path):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", side_effect=RuntimeError("boom")):
+        mock_store_cls.return_value.count.return_value = 0
+        result = run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))
+
+    # 直接调用 run_ingest 不会 sys.exit —— main() 才负责把失败翻译成退出码
+    assert result.failures[0]["error_type"] == "RuntimeError"
 
 
 def test_main_no_files_in_dir_returns_early(tmp_path, monkeypatch, capsys):
