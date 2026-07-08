@@ -213,6 +213,7 @@ def test_store_file_chunks_elements_and_batches(tmp_path):
     embedder = MagicMock()
     embedder.embed.side_effect = lambda texts: [[0.1] * 1024 for _ in texts]
     store = MagicMock()
+    store.get.return_value = []
 
     n = _store_file(_pending(elements=["e1"]), "b", chunker, embedder, store, batch_size=2)
 
@@ -228,6 +229,7 @@ def test_store_file_audio_chunks_skip_chunker():
     chunker = MagicMock()
     embedder = MagicMock(); embedder.embed.return_value = [[0.1] * 1024]
     store = MagicMock()
+    store.get.return_value = []
 
     n = _store_file(_pending(source_file="a.mp3", chunks=[chunk]),
                     "b", chunker, embedder, store, batch_size=64)
@@ -241,9 +243,11 @@ def test_store_file_overrides_source_file_on_chunks():
                   element_type="text", content="hi", token_count=1)
     chunker = MagicMock(); chunker.chunk.return_value = [chunk]
     embedder = MagicMock(); embedder.embed.return_value = [[0.1] * 1024]
+    store = MagicMock()
+    store.get.return_value = []
 
     _store_file(_pending(source_file="ch01(1).pdf", elements=["e"]),
-                "b", chunker, embedder, MagicMock(), batch_size=64)
+                "b", chunker, embedder, store, batch_size=64)
 
     assert chunk.source_file == "ch01(1).pdf"
 
@@ -257,6 +261,40 @@ def test_store_file_empty_chunks_returns_zero(capsys):
     assert n == 0
     embedder.embed.assert_not_called()
     assert "No chunks produced" in capsys.readouterr().out
+
+
+def test_store_file_skips_already_existing_chunks():
+    chunks = [
+        Chunk(chunk_id=f"b/ch01.pdf/p0001/{i:04d}", book_id="b", source_file="ch01.pdf",
+              element_type="text", content=f"chunk {i}", token_count=1)
+        for i in range(3)
+    ]
+    chunker = MagicMock(); chunker.chunk.return_value = chunks
+    embedder = MagicMock()
+    embedder.embed.side_effect = lambda texts: [[0.1] * 1024 for _ in texts]
+    store = MagicMock()
+    store.get.return_value = [{"chunk_id": chunks[0].chunk_id}, {"chunk_id": chunks[1].chunk_id}]
+
+    n = _store_file(_pending(elements=["e1"]), "b", chunker, embedder, store, batch_size=64)
+
+    assert n == 3  # 批次整体仍然算"处理完"，即便部分是复用的
+    embedder.embed.assert_called_once_with([chunks[2].content])
+    store.add_chunks.assert_called_once_with("b", [chunks[2]], [[0.1] * 1024])
+
+
+def test_store_file_all_chunks_exist_skips_embed_entirely():
+    chunks = [Chunk(chunk_id="b/ch01.pdf/p0001/0000", book_id="b", source_file="ch01.pdf",
+                     element_type="text", content="c", token_count=1)]
+    chunker = MagicMock(); chunker.chunk.return_value = chunks
+    embedder = MagicMock()
+    store = MagicMock()
+    store.get.return_value = [{"chunk_id": chunks[0].chunk_id}]
+
+    n = _store_file(_pending(elements=["e1"]), "b", chunker, embedder, store, batch_size=64)
+
+    assert n == 1
+    embedder.embed.assert_not_called()
+    store.add_chunks.assert_not_called()
 
 
 # ── run_ingest() 直接调用（不经过 argparse）─────────────────────────────────

@@ -204,9 +204,13 @@ def _store_file(
     total = 0
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i : i + batch_size]
-        texts = [c.content for c in batch]
-        embeddings = embedder.embed(texts)
-        store.add_chunks(book_id, batch, embeddings)
+        existing = store.get(book_id, [c.chunk_id for c in batch])
+        existing_ids = {r["chunk_id"] for r in existing}
+        missing = [c for c in batch if c.chunk_id not in existing_ids]
+        if missing:
+            texts = [c.content for c in missing]
+            embeddings = embedder.embed(texts)
+            store.add_chunks(book_id, missing, embeddings)
         total += len(batch)
         print(f"  Stored {total}/{len(chunks)} chunks...", end="\r")
 
