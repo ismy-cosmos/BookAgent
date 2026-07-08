@@ -1,7 +1,11 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
+from pipeline.agent.answer import answer
 from pipeline.api import conversations as conv_store
+from pipeline.api.agent_registry import get_client
 from pipeline.api.config import get_chroma_dir
+from pipeline.store.chroma_store import ChromaStore
 
 router = APIRouter()
 
@@ -31,3 +35,48 @@ def delete_conversation(book_id: str, conversation_id: str) -> dict:
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"对话 '{conversation_id}' 不存在")
     return {"deleted": conversation_id}
+
+
+class AskRequest(BaseModel):
+    question: str
+
+
+@router.post("/books/{book_id}/conversations/{conversation_id}/ask")
+def ask(book_id: str, conversation_id: str, body: AskRequest) -> dict:
+    try:
+        record = conv_store.load_conversation(get_chroma_dir(), book_id, conversation_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"对话 '{conversation_id}' 不存在")
+
+    store = ChromaStore(persist_dir=get_chroma_dir())
+    if store.count(book_id) == 0:
+        raise HTTPException(status_code=400, detail=f"book '{book_id}' 还没有可用内容")
+
+    history = conv_store.history_from_record(record)
+    client = get_client(book_id)
+    try:
+        result = answer(body.question, history=history, client=client)
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"无法连接本地模型服务，请检查 Ollama 是否已启动（{type(e).__name__}: {e}）",
+        )
+
+    conv_store.append_turn(get_chroma_dir(), book_id, conversation_id, result.history[-1])
+
+    return {
+        "answer": result.answer,
+        "citations": [
+            {
+                "chunk_id": c.chunk_id,
+                "source_file": c.source_file,
+                "element_type": c.element_type,
+                "citation": c.citation,
+                "score": c.score,
+            }
+            for c in result.citations
+        ],
+        "triggered_tool": result.triggered_tool,
+        "total_tokens": result.total_tokens,
+        "latency_s": result.latency_s,
+    }
