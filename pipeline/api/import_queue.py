@@ -22,6 +22,8 @@ class ImportQueue:
         self._queue: "queue.Queue[ImportTask]" = queue.Queue()
         self._lock = threading.Lock()
         self._current_task: Optional[ImportTask] = None
+        self._queued_tasks: dict[str, ImportTask] = {}
+        self._cancelled_ids: set[str] = set()
         self._thread: Optional[threading.Thread] = None
 
     def start(self) -> None:
@@ -32,8 +34,18 @@ class ImportQueue:
 
     def enqueue(self, book_id: str, file_paths: list[str]) -> str:
         task = ImportTask(task_id=uuid.uuid4().hex[:12], book_id=book_id, file_paths=file_paths)
+        with self._lock:
+            self._queued_tasks[task.task_id] = task
         self._queue.put(task)
         return task.task_id
+
+    def cancel(self, task_id: str) -> bool:
+        with self._lock:
+            if task_id in self._queued_tasks:
+                del self._queued_tasks[task_id]
+                self._cancelled_ids.add(task_id)
+                return True
+            return False
 
     def get_status(self) -> dict:
         with self._lock:
@@ -60,6 +72,11 @@ class ImportQueue:
         while True:
             task = self._queue.get()
             with self._lock:
+                if task.task_id in self._cancelled_ids:
+                    self._cancelled_ids.discard(task.task_id)
+                    self._queue.task_done()
+                    continue
+                self._queued_tasks.pop(task.task_id, None)
                 self._current_task = task
             self._processor(task.book_id, task.file_paths, lambda: False)
             with self._lock:

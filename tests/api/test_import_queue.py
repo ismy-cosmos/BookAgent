@@ -81,3 +81,55 @@ def test_get_status_busy_while_processing():
     release.set()
     q.wait_until_idle(timeout=2.0)
     assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
+
+
+def test_cancel_queued_task_succeeds_and_it_never_runs():
+    processor = _RecordingProcessor()
+    blocker_started = threading.Event()
+    blocker_release = threading.Event()
+
+    def blocking_first_call(book_id, file_paths, should_pause):
+        if not blocker_started.is_set():
+            blocker_started.set()
+            blocker_release.wait(timeout=2.0)
+        else:
+            processor(book_id, file_paths, should_pause)
+
+    q = ImportQueue(processor=blocking_first_call)
+    q.start()
+
+    q.enqueue("book-a", ["a1.pdf"])  # 占住工作线程，让第二个任务保持"排队中"
+    assert blocker_started.wait(timeout=2.0)
+
+    task_id_b = q.enqueue("book-b", ["b1.pdf"])
+    assert q.cancel(task_id_b) is True
+
+    blocker_release.set()
+    q.wait_until_idle(timeout=2.0)
+
+    assert processor.calls == []  # book-b 的任务从没被真正处理过
+
+
+def test_cancel_already_processing_task_fails():
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_processor(book_id, file_paths, should_pause):
+        started.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_processor)
+    q.start()
+    task_id = q.enqueue("ostep", ["ch1.pdf"])
+
+    assert started.wait(timeout=2.0)
+    assert q.cancel(task_id) is False  # 已经在处理中，取消失败
+
+    release.set()
+    q.wait_until_idle(timeout=2.0)
+
+
+def test_cancel_unknown_task_id_fails():
+    q = ImportQueue(processor=_RecordingProcessor())
+    q.start()
+    assert q.cancel("does-not-exist") is False
