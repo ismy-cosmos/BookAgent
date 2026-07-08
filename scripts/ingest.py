@@ -18,14 +18,15 @@ from pathlib import Path
 # Ensure repo root is on path when run as a script
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pipeline.chunk import Chunker
 from pipeline.embed import Embedder
+from pipeline.parse import parse_cache
 from pipeline.parse.audio import AudioParser
 from pipeline.parse.epub import EPUBParser
 from pipeline.parse.figure_batch import resolve_figures
-from pipeline.parse.image import VLMImageParser, load_image_element
+from pipeline.parse.image import VLMImageParser, _resize_to_limit, load_image_element
 from pipeline.parse.marker import MarkerParser
 from pipeline.store import ChromaStore
 
@@ -143,6 +144,7 @@ class _PendingFile:
     sha: str
     elements: list | None = None
     chunks: list | None = None
+    image_shas: list = field(default_factory=list)
 
 
 def _parse_file(file_path: str, book_id: str, source_file: str):
@@ -156,6 +158,25 @@ def _parse_file(file_path: str, book_id: str, source_file: str):
         return [load_image_element(file_path)], None
     parser = _route_parser(file_path)
     return parser.parse(file_path), None
+
+
+def _resize_figure_elements(elements: list | None) -> None:
+    """阶段1 解析完/从缓存加载后统一做一次缩放，阶段2 不再重复缩放。"""
+    if not elements:
+        return
+    for elem in elements:
+        if elem.type == "figure" and elem.metadata.get("image_bytes"):
+            elem.metadata["image_bytes"] = _resize_to_limit(elem.metadata["image_bytes"])
+
+
+def _figure_image_shas(elements: list | None) -> list[str]:
+    if not elements:
+        return []
+    return [
+        hashlib.sha256(elem.metadata["image_bytes"]).hexdigest()
+        for elem in elements
+        if elem.type == "figure" and elem.metadata.get("image_bytes")
+    ]
 
 
 def _store_file(
@@ -246,10 +267,19 @@ def run_ingest(
             source_file = _resolve_source_file(filename, manifest_view)
             manifest_view["sha256_to_file"][f"pending:{sha}"] = source_file
             print(f"Parsing: {file_path} → {source_file}")
-            elements, chunks = _parse_file(file_path, book_id, source_file)
+            cached = parse_cache.get(chroma_dir, book_id, sha)
+            if cached is not None:
+                elements, chunks = cached
+                _resize_figure_elements(elements)  # 幂等安全网：缓存里本就是缩放后的字节，这里兜住旧版本缓存
+                print("  (解析缓存命中，跳过重新解析)")
+            else:
+                elements, chunks = _parse_file(file_path, book_id, source_file)
+                _resize_figure_elements(elements)
+                parse_cache.set(chroma_dir, book_id, sha, elements, chunks)
+            image_shas = _figure_image_shas(elements)
             pending.append(_PendingFile(
                 file_path=file_path, source_file=source_file, sha=sha,
-                elements=elements, chunks=chunks,
+                elements=elements, chunks=chunks, image_shas=image_shas,
             ))
             consecutive_failures = 0
         except Exception as e:

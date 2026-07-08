@@ -298,6 +298,80 @@ def test_run_ingest_reports_failures_without_raising(tmp_path):
     assert result.failures[0]["error_type"] == "RuntimeError"
 
 
+# ── 阶段1 解析结果缓存接入 ──────────────────────────────────────────────
+
+def test_run_ingest_cache_hit_skips_parse_file(tmp_path):
+    from pipeline.parse import parse_cache
+
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    sha = _sha256(str(f))
+    parse_cache.set(str(chroma_dir), "b", sha, [Element(type="text", content="cached", page_num=1)], None)
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file") as mock_parse_file, \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 1
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))
+
+    mock_parse_file.assert_not_called()
+
+
+def test_run_ingest_cache_miss_calls_parse_file_and_writes_cache(tmp_path):
+    from pipeline.parse import parse_cache
+
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    sha = _sha256(str(f))
+    elem = Element(type="text", content="fresh", page_num=1)
+
+    # _store_file 抛错让阶段3失败——失败不是缓存的清理触发点（清理只发生在
+    # 成功入库、提交时排除、删书三种终态），条目留存，正是失败重试要复用的
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)) as mock_parse_file, \
+         patch("scripts.ingest._store_file", side_effect=RuntimeError("boom")):
+        mock_store_cls.return_value.count.return_value = 0
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))
+
+    mock_parse_file.assert_called_once()
+    cached_elements, _ = parse_cache.get(str(chroma_dir), "b", sha)
+    assert cached_elements == [elem]
+
+
+def test_run_ingest_resizes_figure_bytes_before_caching(tmp_path):
+    from pipeline.parse import parse_cache
+
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    sha = _sha256(str(f))
+    fig = Element(type="figure", content="![]()", page_num=1,
+                  metadata={"image_bytes": b"raw-bytes"})
+
+    # 同上：阶段3失败不触发清理，缓存条目留存，可以断言里面存的是缩放后字节
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([fig], None)), \
+         patch("scripts.ingest._resize_to_limit", side_effect=lambda b: b + b"-resized") as mock_resize, \
+         patch("scripts.ingest._store_file", side_effect=RuntimeError("boom")):
+        mock_store_cls.return_value.count.return_value = 0
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))
+
+    mock_resize.assert_called_once_with(b"raw-bytes")
+    cached_elements, _ = parse_cache.get(str(chroma_dir), "b", sha)
+    assert cached_elements[0].metadata["image_bytes"] == b"raw-bytes-resized"
+
+
 def test_main_no_files_in_dir_returns_early(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["ingest.py", "--book-id", "b", "--dir", str(tmp_path)])
     with patch("scripts.ingest.ChromaStore") as mock_store_cls:
@@ -338,7 +412,7 @@ def test_main_success_writes_manifest_and_empty_failures_json(tmp_path, monkeypa
          patch("scripts.ingest.ChromaStore") as mock_store_cls, \
          patch("scripts.ingest.resolve_figures", return_value=MagicMock(
              described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
-         patch("scripts.ingest._parse_file", return_value=(["elem"], None)), \
+         patch("scripts.ingest._parse_file", return_value=([Element(type="text", content="x", page_num=1)], None)), \
          patch("scripts.ingest._store_file", return_value=3):
         mock_store_cls.return_value.count.return_value = 3
         main()
@@ -364,7 +438,7 @@ def test_main_one_file_fails_others_continue_and_exits_nonzero(tmp_path, monkeyp
     def fake_parse(file_path, *args, **kwargs):
         if file_path == str(f1):
             raise RuntimeError("boom")
-        return (["elem"], None)
+        return ([Element(type="text", content="x", page_num=1)], None)
 
     with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
          patch("scripts.ingest.ChromaStore") as mock_store_cls, \
@@ -402,7 +476,7 @@ def test_main_failure_rolls_back_chroma_data(tmp_path, monkeypatch):
          patch("scripts.ingest.ChromaStore") as mock_store_cls, \
          patch("scripts.ingest.resolve_figures", return_value=MagicMock(
              described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
-         patch("scripts.ingest._parse_file", return_value=(["elem"], None)), \
+         patch("scripts.ingest._parse_file", return_value=([Element(type="text", content="x", page_num=1)], None)), \
          patch("scripts.ingest._store_file", side_effect=RuntimeError("boom")):
         mock_store = mock_store_cls.return_value
         mock_store.count.return_value = 0
@@ -429,7 +503,7 @@ def test_main_rollback_failure_does_not_crash_batch(tmp_path, monkeypatch):
          patch("scripts.ingest.ChromaStore") as mock_store_cls, \
          patch("scripts.ingest.resolve_figures", return_value=MagicMock(
              described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
-         patch("scripts.ingest._parse_file", return_value=(["elem"], None)), \
+         patch("scripts.ingest._parse_file", return_value=([Element(type="text", content="x", page_num=1)], None)), \
          patch("scripts.ingest._store_file", side_effect=fake_store):
         mock_store = mock_store_cls.return_value
         mock_store.count.return_value = 5
@@ -452,7 +526,7 @@ def test_main_success_does_not_call_rollback(tmp_path, monkeypatch):
          patch("scripts.ingest.ChromaStore") as mock_store_cls, \
          patch("scripts.ingest.resolve_figures", return_value=MagicMock(
              described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
-         patch("scripts.ingest._parse_file", return_value=(["elem"], None)), \
+         patch("scripts.ingest._parse_file", return_value=([Element(type="text", content="x", page_num=1)], None)), \
          patch("scripts.ingest._store_file", return_value=3):
         mock_store = mock_store_cls.return_value
         mock_store.count.return_value = 3
@@ -501,10 +575,10 @@ def test_main_circuit_breaker_resets_on_success(tmp_path, monkeypatch):
          patch("scripts.ingest.resolve_figures", return_value=MagicMock()), \
          patch("scripts.ingest._parse_file", side_effect=[
              RuntimeError("boom"),  # ch0.pdf — parse 失败释放
-             (["elem"], None),     # ch1.pdf — 成功
-             (["elem"], None),     # ch2.pdf — 成功
-             (["elem"], None),     # ch3.pdf — 成功
-             (["elem"], None),     # ch4.pdf — 成功但不会进 store
+             ([Element(type="text", content="x", page_num=1)], None),     # ch1.pdf — 成功
+             ([Element(type="text", content="x", page_num=1)], None),     # ch2.pdf — 成功
+             ([Element(type="text", content="x", page_num=1)], None),     # ch3.pdf — 成功
+             ([Element(type="text", content="x", page_num=1)], None),     # ch4.pdf — 成功但不会进 store
          ]), \
          patch("scripts.ingest._store_file", side_effect=[
              1,                     # ch1.pdf — 成功，consecutive_failures 重置
@@ -592,7 +666,7 @@ def test_main_releases_marker_before_vlm_batch(tmp_path, monkeypatch):
          patch("scripts.ingest.resolve_figures",
                side_effect=lambda *a, **k: call_order.append("vlm") or MagicMock(
                    described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
-         patch("scripts.ingest._parse_file", return_value=(["elem"], None)), \
+         patch("scripts.ingest._parse_file", return_value=([Element(type="text", content="x", page_num=1)], None)), \
          patch("scripts.ingest._store_file", return_value=1):
         mock_marker_cls.release_models.side_effect = lambda: call_order.append("release")
         mock_store_cls.return_value.count.return_value = 1
