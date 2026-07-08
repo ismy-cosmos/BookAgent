@@ -42,6 +42,19 @@ def _always_false() -> bool:
     return False
 
 
+@dataclass
+class ProgressUpdate:
+    stage: str  # "parsing" | "vlm" | "storing"
+    current_file: int | None = None
+    total_files: int | None = None
+    current_image: int | None = None
+    total_images: int | None = None
+
+
+def _no_op_progress(update: ProgressUpdate) -> None:
+    pass
+
+
 def _sha256(file_path: str) -> str:
     h = hashlib.sha256()
     with open(file_path, "rb") as f:
@@ -243,6 +256,7 @@ def run_ingest(
     chroma_dir: str = _CHROMA_DIR,
     batch_size: int = _DEFAULT_BATCH,
     should_pause: Callable[[], bool] = _always_false,
+    on_progress: Callable[[ProgressUpdate], None] = _no_op_progress,
 ) -> IngestResult:
     manifest_dir = str(Path(chroma_dir) / ".manifests")
     chunker = Chunker()
@@ -278,6 +292,7 @@ def run_ingest(
             not_attempted = file_paths[idx:]
             aborted_early = True
             break
+        on_progress(ProgressUpdate(stage="parsing", current_file=idx + 1, total_files=len(file_paths)))
         try:
             sha = _sha256(file_path)
             if sha in manifest["sha256_to_file"]:
@@ -325,8 +340,15 @@ def run_ingest(
     files_with_elements = [p.elements for p in pending if p.elements is not None]
     if files_with_elements:
         MarkerParser.release_models()
+
+        def _vlm_progress(current_image: int, total_images: int) -> None:
+            on_progress(ProgressUpdate(
+                stage="vlm", current_file=len(pending), total_files=len(pending),
+                current_image=current_image, total_images=total_images,
+            ))
+
         stats = resolve_figures(files_with_elements, chroma_dir=chroma_dir, book_id=book_id,
-                                should_pause=should_pause)
+                                should_pause=should_pause, on_progress=_vlm_progress)
         if stats.described or stats.degraded or stats.no_bytes:
             print(f"\nVLM 批量描述：成功 {stats.described} / 降级 {stats.degraded}"
                   f" / 无字节跳过 {stats.no_bytes}"
@@ -335,6 +357,8 @@ def run_ingest(
 
     # ── 阶段3：逐文件分块 → 嵌入 → 入库 ──
     t_stage3 = time.perf_counter()
+    if pending:
+        on_progress(ProgressUpdate(stage="storing"))
     for p in pending:
         try:
             ext = Path(p.file_path).suffix.lower()

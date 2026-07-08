@@ -582,6 +582,91 @@ def test_run_ingest_default_should_pause_never_stops(tmp_path):
     assert result.aborted_early is False
 
 
+# ── on_progress 回调 ─────────────────────────────────────────────────────
+
+def test_run_ingest_reports_parsing_progress_per_file(tmp_path):
+    f1 = tmp_path / "ch01.pdf"; f1.write_bytes(b"one")
+    f2 = tmp_path / "ch02.pdf"; f2.write_bytes(b"two")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+    updates = []
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 2
+        run_ingest("b", [str(f1), str(f2)], chroma_dir=str(chroma_dir),
+                   on_progress=updates.append)
+
+    parsing_updates = [u for u in updates if u.stage == "parsing"]
+    assert [(u.current_file, u.total_files) for u in parsing_updates] == [(1, 2), (2, 2)]
+    assert all(u.current_image is None for u in parsing_updates)
+
+
+def test_run_ingest_reports_vlm_progress_with_frozen_file_counts(tmp_path):
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    chroma_dir = tmp_path / "chroma"
+    fig = Element(type="figure", content="![]()", page_num=1, metadata={"image_bytes": b"x"})
+    updates = []
+
+    def fake_resolve(files_elements, chroma_dir=None, book_id=None, should_pause=None, on_progress=None):
+        on_progress(1, 3)
+        on_progress(2, 3)
+        return MagicMock(described=2, degraded=0, no_bytes=0, breaker_tripped=False)
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", side_effect=fake_resolve), \
+         patch("scripts.ingest._parse_file", return_value=([fig], None)), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 1
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir), on_progress=updates.append)
+
+    vlm_updates = [u for u in updates if u.stage == "vlm"]
+    assert [(u.current_image, u.total_images) for u in vlm_updates] == [(1, 3), (2, 3)]
+    assert all((u.current_file, u.total_files) == (1, 1) for u in vlm_updates)  # 阶段1只有1个文件成功解析
+
+
+def test_run_ingest_reports_storing_stage_without_counts(tmp_path):
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+    updates = []
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 1
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir), on_progress=updates.append)
+
+    storing_updates = [u for u in updates if u.stage == "storing"]
+    assert len(storing_updates) == 1
+    u = storing_updates[0]
+    assert (u.current_file, u.total_files, u.current_image, u.total_images) == (None, None, None, None)
+
+
+def test_run_ingest_default_on_progress_is_noop(tmp_path):
+    """不传 on_progress 时（比如现有 CLI 用法）不应该报错。"""
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 1
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir))  # 不传 on_progress，不应抛异常
+
+
 def test_main_no_files_in_dir_returns_early(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["ingest.py", "--book-id", "b", "--dir", str(tmp_path)])
     with patch("scripts.ingest.ChromaStore") as mock_store_cls:

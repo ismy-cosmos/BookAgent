@@ -77,6 +77,7 @@ def resolve_figures(
     chroma_dir: str | None = None,
     book_id: str | None = None,
     should_pause: Callable[[], bool] = lambda: False,
+    on_progress: Callable[[int, int], None] = lambda current, total: None,
 ) -> FigureBatchStats:
     stats = FigureBatchStats()
     targets: list[tuple[Element, str]] = []
@@ -103,6 +104,7 @@ def resolve_figures(
     t_start = time.perf_counter()
     try:
         for n, (elem, caption) in enumerate(targets, start=1):
+            on_progress(n, len(targets))
             if should_pause():
                 print(f"\n  [pause] 收到暂停请求，VLM 批量描述在第 {n}/{len(targets)} 张图边界停止。")
                 break

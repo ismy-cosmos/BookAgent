@@ -220,3 +220,35 @@ def test_should_pause_stops_loop_without_marking_remaining_degraded():
     assert stats.degraded == 0  # 剩下两张没做完，但不算"降级"，也没被动过
     assert figs[1].metadata.get("vlm_status") is None
     assert figs[2].metadata.get("vlm_status") is None
+
+
+# ── on_progress 回调 ─────────────────────────────────────────────────────
+
+def test_on_progress_called_per_image_with_current_and_total():
+    figs = [_fig(), _fig(), _fig()]
+    updates = []
+
+    with patch("pipeline.parse.figure_batch.OpenAI"), \
+         patch("pipeline.parse.figure_batch.describe_image", return_value="d"), \
+         patch("pipeline.parse.figure_batch._release_model"):
+        resolve_figures([figs], on_progress=lambda c, t: updates.append((c, t)))
+
+    assert updates == [(1, 3), (2, 3), (3, 3)]
+
+
+def test_on_progress_still_called_for_degraded_images():
+    figs = [_fig(), _fig()]
+    updates = []
+
+    with patch("pipeline.parse.figure_batch.OpenAI"), \
+         patch("pipeline.parse.figure_batch.describe_image",
+               side_effect=[ValueError("x"), "ok"]), \
+         patch("pipeline.parse.figure_batch._release_model"):
+        resolve_figures([figs], on_progress=lambda c, t: updates.append((c, t)))
+
+    assert updates == [(1, 2), (2, 2)]
+
+
+def test_no_on_progress_default_is_noop():
+    fig = _fig()
+    _run([[fig]], describe_side_effect=["desc"])  # 不传 on_progress，不应抛异常
