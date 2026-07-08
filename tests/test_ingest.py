@@ -478,6 +478,110 @@ def test_run_ingest_does_not_clean_caches_on_failure(tmp_path):
     assert parse_cache.get(str(chroma_dir), "b", sha) is not None
 
 
+# ── should_pause 贯穿 ────────────────────────────────────────────────────
+
+def test_run_ingest_pause_stops_before_next_file(tmp_path):
+    f1 = tmp_path / "ch01.pdf"; f1.write_bytes(b"one")
+    f2 = tmp_path / "ch02.pdf"; f2.write_bytes(b"two")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+    pause_after_first = []
+
+    def should_pause():
+        return len(pause_after_first) > 0
+
+    def fake_parse(file_path, *a, **k):
+        pause_after_first.append(file_path)  # 第一个文件解析完之后才开始返回 True
+        return ([elem], None)
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", side_effect=fake_parse), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 1
+        result = run_ingest("b", [str(f1), str(f2)], chroma_dir=str(chroma_dir),
+                            should_pause=should_pause)
+
+    assert pause_after_first == [str(f1)]  # f2 从未被解析
+    assert result.not_attempted == [str(f2)]
+    assert result.aborted_early is True
+
+
+def test_run_ingest_pause_not_checked_mid_stage3(tmp_path):
+    """阶段3不检查暂停——should_pause 在第2个文件开始前才变 True，
+    但第1个文件已经在阶段1 通过、进了 pending，阶段3 会把它完整跑完，
+    不会因为 should_pause 已经变 True 而被腰斩。"""
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    f2 = tmp_path / "ch02.pdf"; f2.write_bytes(b"two")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+    call_count = []
+
+    def fake_pause():
+        call_count.append(1)
+        return len(call_count) > 1  # 第2个文件开始前才暂停
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", return_value=1) as mock_store_file:
+        mock_store_cls.return_value.count.return_value = 1
+        result = run_ingest("b", [str(f), str(f2)], chroma_dir=str(chroma_dir),
+                            should_pause=fake_pause)
+
+    # 只有第一个文件解析进了 pending 并走完阶段3——阶段3 本身不查 should_pause，
+    # 已经进 pending 的那一个文件完整跑完，没有被"腰斩"。
+    mock_store_file.assert_called_once()
+    assert result.not_attempted == [str(f2)]
+
+
+def test_run_ingest_audio_paused_mid_file_treated_as_not_attempted(tmp_path):
+    from scripts.ingest import AudioParsePaused
+
+    f1 = tmp_path / "a.mp3"; f1.write_bytes(b"one")
+    f2 = tmp_path / "b.mp3"; f2.write_bytes(b"two")
+    chroma_dir = tmp_path / "chroma"
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", side_effect=AudioParsePaused("killed")), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 0
+        result = run_ingest("b", [str(f1), str(f2)], chroma_dir=str(chroma_dir))
+
+    # AudioParsePaused 不是"失败"——不进 failures，整批从这个文件开始都算 not_attempted
+    assert result.failures == []
+    assert result.not_attempted == [str(f1), str(f2)]
+    assert result.aborted_early is True
+
+
+def test_run_ingest_default_should_pause_never_stops(tmp_path):
+    """不传 should_pause 时（比如现有 CLI 用法）行为完全不变。"""
+    f1 = tmp_path / "ch01.pdf"; f1.write_bytes(b"one")
+    f2 = tmp_path / "ch02.pdf"; f2.write_bytes(b"two")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", return_value=1) as mock_store_file:
+        mock_store_cls.return_value.count.return_value = 2
+        result = run_ingest("b", [str(f1), str(f2)], chroma_dir=str(chroma_dir))
+
+    assert mock_store_file.call_count == 2
+    assert result.not_attempted == []
+    assert result.aborted_early is False
+
+
 def test_main_no_files_in_dir_returns_early(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["ingest.py", "--book-id", "b", "--dir", str(tmp_path)])
     with patch("scripts.ingest.ChromaStore") as mock_store_cls:

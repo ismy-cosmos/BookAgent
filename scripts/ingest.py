@@ -242,6 +242,7 @@ def run_ingest(
     file_paths: list[str],
     chroma_dir: str = _CHROMA_DIR,
     batch_size: int = _DEFAULT_BATCH,
+    should_pause: Callable[[], bool] = _always_false,
 ) -> IngestResult:
     manifest_dir = str(Path(chroma_dir) / ".manifests")
     chunker = Chunker()
@@ -272,6 +273,11 @@ def run_ingest(
     manifest = _load_manifest(manifest_dir, book_id)
     manifest_view = {"sha256_to_file": dict(manifest["sha256_to_file"])}
     for idx, file_path in enumerate(file_paths):
+        if should_pause():
+            print(f"\n[pause] 收到暂停请求，阶段1 在文件边界停止。")
+            not_attempted = file_paths[idx:]
+            aborted_early = True
+            break
         try:
             sha = _sha256(file_path)
             if sha in manifest["sha256_to_file"]:
@@ -288,7 +294,8 @@ def run_ingest(
                 _resize_figure_elements(elements)  # 幂等安全网：缓存里本就是缩放后的字节，这里兜住旧版本缓存
                 print("  (解析缓存命中，跳过重新解析)")
             else:
-                elements, chunks = _parse_file(file_path, book_id, source_file)
+                elements, chunks = _parse_file(file_path, book_id, source_file,
+                                               should_pause=should_pause)
                 _resize_figure_elements(elements)
                 parse_cache.set(chroma_dir, book_id, sha, elements, chunks)
             image_shas = _figure_image_shas(elements)
@@ -297,6 +304,11 @@ def run_ingest(
                 elements=elements, chunks=chunks, image_shas=image_shas,
             ))
             consecutive_failures = 0
+        except AudioParsePaused:
+            print(f"\n[pause] 音频转写被暂停请求中止：{file_path}")
+            not_attempted = file_paths[idx:]
+            aborted_early = True
+            break
         except Exception as e:
             _record_failure(file_path, e)
             consecutive_failures += 1
@@ -313,7 +325,8 @@ def run_ingest(
     files_with_elements = [p.elements for p in pending if p.elements is not None]
     if files_with_elements:
         MarkerParser.release_models()
-        stats = resolve_figures(files_with_elements, chroma_dir=chroma_dir, book_id=book_id)
+        stats = resolve_figures(files_with_elements, chroma_dir=chroma_dir, book_id=book_id,
+                                should_pause=should_pause)
         if stats.described or stats.degraded or stats.no_bytes:
             print(f"\nVLM 批量描述：成功 {stats.described} / 降级 {stats.degraded}"
                   f" / 无字节跳过 {stats.no_bytes}"
