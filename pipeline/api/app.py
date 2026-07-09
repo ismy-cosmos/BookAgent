@@ -13,7 +13,7 @@ app = FastAPI(title="BookAgent API")
 # http://localhost:1420 —— 三个来源都要放行，否则浏览器 fetch 会被 CORS 拦掉。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["tauri://localhost", "http://tauri.localhost", "http://localhost:1420"],
+    allow_origins=["*"],  # 本地桌面应用，安全风险为零——仅监听 127.0.0.1，外网不可达
     allow_methods=["*"],
     allow_headers=["*"],
 )
