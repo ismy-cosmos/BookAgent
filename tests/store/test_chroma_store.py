@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from pipeline.chunk.schema import Chunk
 from pipeline.store import ChromaStore
+from pipeline.store.chroma_store import get_store, reset_store_cache
 
 
 def _chunk(chunk_id="b/f/p0001/0000", page_start=1, page_end=1, start_sec=None, end_sec=None):
@@ -269,3 +270,44 @@ def test_delete_collection_removes_book(tmp_path):
     assert "ostep" in store.list_books()
     store.delete_collection("ostep")
     assert "ostep" not in store.list_books()
+
+
+def test_get_store_same_path_returns_same_instance(tmp_path):
+    reset_store_cache()
+    a = get_store(str(tmp_path))
+    b = get_store(str(tmp_path))
+    assert a is b
+
+
+def test_get_store_different_paths_return_different_instances(tmp_path):
+    reset_store_cache()
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+    a = get_store(str(dir_a))
+    b = get_store(str(dir_b))
+    assert a is not b
+
+
+def test_get_store_concurrent_first_access_constructs_only_once(tmp_path):
+    """并发第一次访问同一路径时，底层 PersistentClient 只能被构造一次；
+    多构造一次就会撞上 chromadb 的 SharedSystemClient 注册表并发损坏问题。"""
+    import threading
+
+    reset_store_cache()
+    barrier = threading.Barrier(20)
+
+    def worker():
+        barrier.wait()  # 让所有线程尽量同时冲进 get_store
+        return get_store(str(tmp_path))
+
+    with patch("pipeline.store.chroma_store.chromadb.PersistentClient") as mock_cls:
+        mock_cls.return_value = MagicMock()
+        threads = [threading.Thread(target=worker) for _ in range(20)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+    mock_cls.assert_called_once()

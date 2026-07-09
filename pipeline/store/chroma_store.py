@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import threading
 
 import chromadb
 
@@ -117,3 +118,23 @@ class ChromaStore:
 
     def delete_collection(self, book_id: str) -> None:
         self._client.delete_collection(name=book_id)
+
+
+# 按 persist_dir 缓存：并发创建同路径的 PersistentClient 会破坏 chromadb 内部
+# 的 SharedSystemClient 注册表。lru_cache 的锁只护住查/写缓存两步，构造对象
+# 那一步是在锁外面跑的，并发下照样会重复构造——所以这里手写锁整段锁住。
+_store_lock = threading.Lock()
+_stores: dict[str, ChromaStore] = {}
+
+
+def get_store(persist_dir: str = _CHROMA_DIR) -> ChromaStore:
+    with _store_lock:
+        if persist_dir not in _stores:
+            _stores[persist_dir] = ChromaStore(persist_dir=persist_dir)
+        return _stores[persist_dir]
+
+
+def reset_store_cache() -> None:
+    """仅供测试用：清空缓存，避免测试间互相污染。"""
+    with _store_lock:
+        _stores.clear()

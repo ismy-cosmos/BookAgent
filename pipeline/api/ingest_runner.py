@@ -14,6 +14,7 @@ from typing import Callable
 from pipeline.api import staging
 from pipeline.api.config import get_chroma_dir
 from pipeline.parse import parse_cache, vlm_cache
+from pipeline.store.chroma_store import get_store
 
 
 def _purge_excluded_cache_entries(chroma_dir: str, book_id: str, keep_shas: set[str]) -> None:
@@ -63,6 +64,7 @@ def ingest_processor(
         should_pause=should_pause,
         on_progress=lambda update: report_progress(asdict(update)),
         on_file_committed=_on_committed,
+        store=get_store(chroma_dir),
     )
     return {
         "book_id": book_id,

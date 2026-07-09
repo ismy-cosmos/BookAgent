@@ -5,14 +5,14 @@ from fastapi import APIRouter, HTTPException
 from pipeline.api import staging
 from pipeline.api.config import get_chroma_dir
 from pipeline.api.import_queue import get_import_queue
-from pipeline.store.chroma_store import ChromaStore
+from pipeline.store.chroma_store import get_store
 from scripts.ingest import _load_manifest, _save_manifest, _remove_by_source_file
 
 router = APIRouter()
 
 
-def _store() -> ChromaStore:
-    return ChromaStore(persist_dir=get_chroma_dir())
+def _store():
+    return get_store(get_chroma_dir())
 
 
 @router.get("/books")

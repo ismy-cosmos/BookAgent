@@ -275,11 +275,13 @@ def run_ingest(
     should_pause: Callable[[], bool] = _always_false,
     on_progress: Callable[[ProgressUpdate], None] = _no_op_progress,
     on_file_committed: Callable[[str], None] = _no_op_file_committed,
+    store: ChromaStore | None = None,
 ) -> IngestResult:
     manifest_dir = str(Path(chroma_dir) / ".manifests")
     chunker = Chunker()
     embedder = Embedder()
-    store = ChromaStore(persist_dir=chroma_dir)
+    if store is None:
+        store = ChromaStore(persist_dir=chroma_dir)
 
     max_consecutive_failures = int(os.environ.get("INGEST_MAX_CONSECUTIVE_FAILURES", "0"))
 
