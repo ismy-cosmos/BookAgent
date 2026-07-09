@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { cancelImport, pauseImport, resumeImport, submitImport } from "../api/client";
 import { useStagedFiles } from "../hooks/useStagedFiles";
 import { stageText } from "../importProgressText";
-import type { ProgressResponse } from "../api/types";
+import { ImportCompletionToast } from "./ImportCompletionToast";
+import type { LastResult, ProgressResponse } from "../api/types";
 
 // 跟后端 scripts/ingest.py 的 _ALL_EXTS 保持一致
 const SUPPORTED_EXTENSIONS = ["pdf", "epub", "mp3", "wav", "flac", "png", "jpg", "jpeg", "svg"];
@@ -21,10 +22,13 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   const importingThisBook = !!progress?.busy && progress.book_id === bookId;
 
   // 导入进行中每个文件成功入库会从待导入列表消失（后端行为）——
-  // 随进度变化（文件边界/任务结束）重新拉取列表
+  // 随进度变化（文件边界/任务结束）重新拉取列表。单独盯 last_result 的内容
+  // （而非 busy）是因为导入耗时可能短于轮询间隔，busy 从未被前端观察到变
+  // true 过，此时只有 last_result 的内容会变化。
+  const lastResultKey = JSON.stringify(progress?.last_result);
   useEffect(() => {
     refresh();
-  }, [refresh, progress?.busy, progress?.progress?.current_file]);
+  }, [refresh, progress?.busy, progress?.progress?.current_file, lastResultKey]);
 
   // 自己排队的任务开始处理后，"取消排队"不再适用
   useEffect(() => {
@@ -65,6 +69,18 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
       ? progress.last_result
       : null;
 
+  // 弹窗自己不会随 lastResult 消失而消失（消失了没法读），所以用一个 ref
+  // 记住"这份结果是不是已经弹过"，避免每次轮询都重新弹出同一份结果。
+  const [toastResult, setToastResult] = useState<LastResult | null>(null);
+  const shownResultKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = JSON.stringify(lastResult);
+    if (lastResult && key !== shownResultKeyRef.current) {
+      shownResultKeyRef.current = key;
+      setToastResult(lastResult);
+    }
+  }, [lastResult]);
+
   return (
     <section aria-label="导入管理">
       <h3>待导入</h3>
@@ -104,34 +120,11 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
         </div>
       )}
 
-      {lastResult && (
-        <div role="status">
-          {lastResult.error ? (
-            <span>导入失败：{lastResult.error}</span>
-          ) : (
-            <>
-              <span>
-                导入完成：入库 {lastResult.total_chunks} 块
-                {(lastResult.failures?.length ?? 0) > 0 &&
-                  `，${lastResult.failures!.length} 个文件失败`}
-                {(lastResult.not_attempted?.length ?? 0) > 0 &&
-                  `，${lastResult.not_attempted!.length} 个文件未处理`}
-              </span>
-              {(lastResult.failures?.length ?? 0) > 0 && (
-                <details>
-                  <summary>查看失败详情</summary>
-                  <ul>
-                    {lastResult.failures!.map((f) => (
-                      <li key={f.file}>
-                        {f.file}：{f.error_message}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </>
-          )}
-        </div>
+      {toastResult && (
+        <ImportCompletionToast
+          result={toastResult}
+          onDismiss={() => setToastResult(null)}
+        />
       )}
 
       {(error ?? actionError) && <p role="alert">{error ?? actionError}</p>}

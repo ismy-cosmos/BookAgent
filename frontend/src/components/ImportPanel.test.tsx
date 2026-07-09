@@ -148,6 +148,32 @@ describe("ImportPanel", () => {
     expect(resumeSpy).toHaveBeenCalled();
   });
 
+  it("refreshes staged files when an import finishes without ever observing busy:true", async () => {
+    // 导入耗时短于 2 秒轮询间隔时，前端可能完全错过 busy:true 那个中间态，
+    // progress 从"导入前"直接跳到"导入后"，busy 全程都是 false。
+    let fileImported = false;
+    const listSpy = vi.spyOn(client, "listStagedFiles")
+      .mockImplementation(async () => ({ files: fileImported ? [] : ["/a.pdf"] }));
+
+    const { rerender } = render(<ImportPanel bookId="ostep" progress={IDLE_PROGRESS} />);
+    await screen.findByText("/a.pdf");
+    const callsBeforeCompletion = listSpy.mock.calls.length;
+    fileImported = true;
+
+    const justFinished: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+      progress: null,
+      last_result: { book_id: "ostep", total_chunks: 3, aborted_early: false,
+                     failures: [], not_attempted: [] },
+    };
+    rerender(<ImportPanel bookId="ostep" progress={justFinished} />);
+
+    await waitFor(() =>
+      expect(listSpy.mock.calls.length).toBeGreaterThan(callsBeforeCompletion),
+    );
+    await waitFor(() => expect(screen.queryByText("/a.pdf")).toBeNull());
+  });
+
   it("offers cancel for a task queued behind another book and cancels it", async () => {
     vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
     vi.spyOn(client, "submitImport").mockResolvedValue({ task_id: "t-queued", file_count: 1 });
