@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
+from pipeline.api import staging
 from pipeline.api.config import get_chroma_dir
 from pipeline.api.import_queue import get_import_queue
 from pipeline.store.chroma_store import ChromaStore
@@ -27,6 +28,12 @@ def delete_book(book_id: str) -> dict:
     if get_import_queue().book_has_pending_or_active_task(book_id):
         raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
     store.delete_collection(book_id)
+    # 这本书名下所有落盘记录一起删，不留孤儿文件：
+    # manifest、失败清单、两个缓存、待导入列表
+    manifest_dir = Path(get_chroma_dir()) / ".manifests"
+    for suffix in ("json", "failures.json", "parse_cache.json", "vlm_cache.json"):
+        (manifest_dir / f"{book_id}.{suffix}").unlink(missing_ok=True)
+    staging.delete_list(get_chroma_dir(), book_id)
     return {"deleted": book_id}
 
 
