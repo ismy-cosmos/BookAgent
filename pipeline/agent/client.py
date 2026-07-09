@@ -14,6 +14,9 @@ from pipeline.agent.tools import get_tools_param
 
 _MAX_ROUNDS = 5  # 防止无限循环
 
+TOOL_ARGS_PARSE_ERROR = "[TOOL_ARGS_PARSE_ERROR]"
+MAX_ROUNDS_EXCEEDED = "[MAX_ROUNDS_EXCEEDED]"
+
 
 @dataclasses.dataclass
 class AgentTurn:
@@ -28,6 +31,7 @@ class AgentTurn:
     completion_tokens: int
     latency_s: float
     retrieved_chunks: list = dataclasses.field(default_factory=list)  # 本轮 retrieve 命中的记录（RealExecutor honest 形状）
+    used_calculate: bool = False        # 本轮是否调用过 calculate
 
 
 def _format_turn_for_replay(turn: ChatTurn) -> list[dict]:
@@ -61,7 +65,9 @@ class OllamaAgentClient:
         "- get_chunk: 当需要回看之前 retrieve 结果或对话历史中出现过的某个具体 chunk 原文时，"
         "用其 chunk_id 直接取回；探索新话题仍应使用 retrieve\n"
         "对于普通对话或无需查阅/计算的问题，直接回答，不调用任何工具。\n"
-        "回答必须有据可查，检索不到相关内容时输出 [未找到参考资料]。"
+        "禁止自己编造任何形如 [xxx] 的引用/来源/未找到参考资料/计算工具标记——"
+        "系统会在你回答之后，根据你这一轮有没有真的调用 retrieve、有没有真的"
+        "调用 calculate，自动附加准确的标记，你自己写的不算数、也不需要写。"
     )
 
     def __init__(
@@ -107,6 +113,7 @@ class OllamaAgentClient:
         prompt_tokens: int = 0
         completion_tokens: int = 0
         retrieved_chunks: list = []
+        used_calculate = False
 
         for _ in range(_MAX_ROUNDS):
             response = self._openai.chat.completions.create(
@@ -142,12 +149,13 @@ class OllamaAgentClient:
                         tool_args=None,
                         format_ok=False,
                         fill_ok=None,
-                        final_answer="[TOOL_ARGS_PARSE_ERROR]",
+                        final_answer=TOOL_ARGS_PARSE_ERROR,
                         total_tokens=total_tokens,
                         prompt_tokens=prompt_tokens,
                         completion_tokens=completion_tokens,
                         latency_s=time.perf_counter() - t0,
                         retrieved_chunks=retrieved_chunks,
+                        used_calculate=used_calculate,
                     )
 
                 triggered_tool = tool_name
@@ -163,6 +171,8 @@ class OllamaAgentClient:
                             retrieved_chunks.extend(parsed)
                     except json.JSONDecodeError:
                         pass
+                elif tool_name == "calculate":
+                    used_calculate = True
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
@@ -184,6 +194,7 @@ class OllamaAgentClient:
                     completion_tokens=completion_tokens,
                     latency_s=time.perf_counter() - t0,
                     retrieved_chunks=retrieved_chunks,
+                    used_calculate=used_calculate,
                 )
 
         # Max rounds exceeded
@@ -193,10 +204,11 @@ class OllamaAgentClient:
             tool_args=tool_args,
             format_ok=format_ok,
             fill_ok=None,
-            final_answer="[MAX_ROUNDS_EXCEEDED]",
+            final_answer=MAX_ROUNDS_EXCEEDED,
             total_tokens=total_tokens,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             latency_s=time.perf_counter() - t0,
             retrieved_chunks=retrieved_chunks,
+            used_calculate=used_calculate,
         )

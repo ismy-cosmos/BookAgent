@@ -9,13 +9,14 @@ client = TestClient(app)
 
 
 def _fake_turn(final_answer="答案", triggered_tool=None, retrieved_chunks=None,
-               total_tokens=42, latency_s=0.5):
+               total_tokens=42, latency_s=0.5, used_calculate=False):
     turn = MagicMock()
     turn.final_answer = final_answer
     turn.triggered_tool = triggered_tool
     turn.retrieved_chunks = retrieved_chunks or []
     turn.total_tokens = total_tokens
     turn.latency_s = latency_s
+    turn.used_calculate = used_calculate
     return turn
 
 
@@ -97,7 +98,7 @@ def test_ask_returns_answer_and_citations(tmp_path, monkeypatch):
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body["answer"] == "fork 创建子进程副本"
+    assert body["answer"] == "fork 创建子进程副本\n[引用来源：第3章]"
     assert body["citations"][0]["chunk_id"] == "c1"
     assert body["total_tokens"] == 42
 
