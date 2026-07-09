@@ -336,6 +336,43 @@ def test_processor_returning_none_keeps_previous_last_result():
     assert q.get_progress()["last_result"] == first  # None 返回值不覆盖已有存档
 
 
+def test_worker_survives_processor_exception():
+    """处理器抛未捕获异常不能杀死工作线程——线程要活着继续服务后续任务，
+    状态不能卡在 busy。"""
+    calls = []
+
+    def flaky_processor(book_id, file_paths, should_pause, report_progress):
+        calls.append(book_id)
+        if book_id == "bad-book":
+            raise RuntimeError("boom")
+        return {"book_id": book_id, "total_chunks": 1, "failures": [],
+                "not_attempted": [], "aborted_early": False}
+
+    q = ImportQueue(processor=flaky_processor)
+    q.start()
+    q.enqueue("bad-book", ["a.pdf"])
+    q.enqueue("good-book", ["b.pdf"])
+    q.wait_until_idle(timeout=2.0)
+
+    assert calls == ["bad-book", "good-book"]  # 第二个任务照常被处理
+    assert q.get_status()["busy"] is False     # 状态没有卡死
+    assert q.get_progress()["last_result"]["book_id"] == "good-book"  # 后续任务正常存档
+
+
+def test_processor_exception_recorded_in_last_result():
+    def exploding_processor(book_id, file_paths, should_pause, report_progress):
+        raise RuntimeError("manifest 损坏")
+
+    q = ImportQueue(processor=exploding_processor)
+    q.start()
+    q.enqueue("ostep", ["a.pdf"])
+    q.wait_until_idle(timeout=2.0)
+
+    last = q.get_progress()["last_result"]
+    assert last["book_id"] == "ostep"
+    assert "RuntimeError" in last["error"] and "manifest 损坏" in last["error"]
+
+
 # ── 删除拦截（语义不变，签名适配）───────────────────────────────────────
 
 def test_book_has_pending_or_active_task_true_while_queued():

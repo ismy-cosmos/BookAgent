@@ -2,6 +2,7 @@ from __future__ import annotations
 import queue
 import threading
 import time
+import traceback
 import uuid
 from dataclasses import dataclass
 from typing import Callable, Optional
@@ -121,8 +122,17 @@ class ImportQueue:
                 self._queued_tasks.pop(task.task_id, None)
                 self._current_task = task
                 self._progress = None
-            summary = self._processor(task.book_id, task.file_paths,
-                                      self._pause_event.is_set, self._report_progress)
+            try:
+                summary = self._processor(task.book_id, task.file_paths,
+                                          self._pause_event.is_set, self._report_progress)
+            except Exception as e:
+                # 兜底：处理器抛任何未捕获异常都不能杀死工作线程——否则 busy 永久
+                # 卡死、删除拦截永久生效、后续任务全部滞留，只能重启应用。
+                # 错误摘要进 last_result，前端轮询看到 error 键即知任务失败。
+                print(f"[error] 导入任务处理器异常（task={task.task_id}, book={task.book_id}）: "
+                      f"{type(e).__name__}: {e}")
+                traceback.print_exc()
+                summary = {"book_id": task.book_id, "error": f"{type(e).__name__}: {e}"}
             with self._lock:
                 self._current_task = None
                 self._progress = None
