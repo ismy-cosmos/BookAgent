@@ -30,12 +30,21 @@ class AgentTurn:
     retrieved_chunks: list = dataclasses.field(default_factory=list)  # 本轮 retrieve 命中的记录（RealExecutor honest 形状）
 
 
-def _format_turn_for_replay(turn: ChatTurn) -> str:
-    """把历史轮次压成回放给模型的文本：答案 + 紧凑句柄清单（不含原文）。"""
-    if not turn.citations:
-        return turn.answer
-    handles = "；".join(f"{c.citation}(chunk_id={c.chunk_id})" for c in turn.citations)
-    return f"{turn.answer}\n[本轮引用: {handles}]"
+def _format_turn_for_replay(turn: ChatTurn) -> list[dict]:
+    """把一个历史轮次压成回放给模型的消息列表。
+
+    citation 句柄单独放进一条 system 消息，不粘在 assistant 的原话后面——
+    粘在一起时模型容易把这段拼接格式误当成自己该输出的东西，在没有真实
+    检索的新一轮里原样抄一遍（复现：同一问题在同一对话里问第二遍）。
+    """
+    messages = [{"role": "assistant", "content": turn.answer}]
+    if turn.citations:
+        handles = "；".join(f"{c.citation}(chunk_id={c.chunk_id})" for c in turn.citations)
+        messages.append({
+            "role": "system",
+            "content": f"（上一轮回答引用的原文定位，需要回看原文用 get_chunk：{handles}）",
+        })
+    return messages
 
 
 class OllamaAgentClient:
@@ -88,7 +97,7 @@ class OllamaAgentClient:
         ]
         for turn in history or []:
             messages.append({"role": "user", "content": turn.question})
-            messages.append({"role": "assistant", "content": _format_turn_for_replay(turn)})
+            messages.extend(_format_turn_for_replay(turn))
         messages.append({"role": "user", "content": question})
 
         triggered_tool: Optional[str] = None

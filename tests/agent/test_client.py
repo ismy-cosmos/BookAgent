@@ -216,10 +216,15 @@ def test_history_replay_includes_compact_handle_list(mock_openai_cls):
     client.run("追问", history=history)
 
     messages = mock_create.call_args.kwargs["messages"]
-    replayed_assistant = messages[2]["content"]
-    assert "答案" in replayed_assistant
-    assert "f.pdf p.1" in replayed_assistant
-    assert "chunk_id=b/f/p0001/0000" in replayed_assistant
+    # citation 句柄必须放在独立的 system 消息里，不能粘在 assistant 的原话
+    # 后面——不然模型容易把这段拼接文本误当成自己该输出的格式抄一遍
+    # （复现过：同一问题在同一对话里问第二遍时，模型会把这段文本原样
+    # 抄进新回答，即使这轮根本没有真实检索）。
+    assert messages[2] == {"role": "assistant", "content": "答案"}
+    handle_message = messages[3]["content"]
+    assert messages[3]["role"] == "system"
+    assert "f.pdf p.1" in handle_message
+    assert "chunk_id=b/f/p0001/0000" in handle_message
 
 
 @patch("pipeline.agent.client.OpenAI")
