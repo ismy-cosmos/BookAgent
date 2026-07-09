@@ -3,27 +3,28 @@ from dataclasses import dataclass
 from typing import Optional
 
 from pipeline.agent.client import (
+    CITATION_TAG_PREFIX,
     MAX_ROUNDS_EXCEEDED,
+    NO_CITATION_TAG,
     TOOL_ARGS_PARSE_ERROR,
+    USED_CALCULATE_TAG,
     OllamaAgentClient,
 )
 from pipeline.agent.schema import ChatTurn, Citation
 
-_NO_CITATION_TAG = "[未找到参考资料]"
-_USED_CALCULATE_TAG = "[已使用计算工具]"
 _ERROR_SENTINELS = (TOOL_ARGS_PARSE_ERROR, MAX_ROUNDS_EXCEEDED)
 
 
 def _citation_tag(citations: list[Citation]) -> str:
     handles = "；".join(c.citation for c in citations)
-    return f"[引用来源：{handles}]"
+    return f"{CITATION_TAG_PREFIX}{handles}]"
 
 
 def _append_tool_tags(text: str, citations: list[Citation], used_calculate: bool) -> str:
     """按这一轮真实用没用过 retrieve/calculate 拼标记，不信模型自己写的。"""
-    tags = [_citation_tag(citations) if citations else _NO_CITATION_TAG]
+    tags = [_citation_tag(citations) if citations else NO_CITATION_TAG]
     if used_calculate:
-        tags.append(_USED_CALCULATE_TAG)
+        tags.append(USED_CALCULATE_TAG)
     return text + "\n" + "\n".join(tags)
 
 

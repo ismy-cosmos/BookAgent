@@ -17,6 +17,13 @@ _MAX_ROUNDS = 5  # 防止无限循环
 TOOL_ARGS_PARSE_ERROR = "[TOOL_ARGS_PARSE_ERROR]"
 MAX_ROUNDS_EXCEEDED = "[MAX_ROUNDS_EXCEEDED]"
 
+# 由 pipeline/agent/answer.py 按真实工具调用强制拼在答案末尾的标记——
+# 回放历史时必须剥掉（见 _strip_known_tags），不然模型会把自己"说过"的
+# 标记文本原样抄进没有真实检索/计算的新一轮。
+NO_CITATION_TAG = "[未找到参考资料]"
+USED_CALCULATE_TAG = "[已使用计算工具]"
+CITATION_TAG_PREFIX = "[引用来源："
+
 
 @dataclasses.dataclass
 class AgentTurn:
@@ -34,19 +41,33 @@ class AgentTurn:
     used_calculate: bool = False        # 本轮是否调用过 calculate
 
 
+def _strip_known_tags(text: str) -> str:
+    """去掉 answer.py 强制拼在末尾的标记行，只留模型自己的原话。"""
+    lines = text.split("\n")
+    while lines and (
+        lines[-1] == NO_CITATION_TAG
+        or lines[-1] == USED_CALCULATE_TAG
+        or lines[-1].startswith(CITATION_TAG_PREFIX)
+    ):
+        lines.pop()
+    return "\n".join(lines)
+
+
 def _format_turn_for_replay(turn: ChatTurn) -> list[dict]:
     """把一个历史轮次压成回放给模型的消息列表。
 
     citation 句柄单独放进一条 system 消息，不粘在 assistant 的原话后面——
     粘在一起时模型容易把这段拼接格式误当成自己该输出的东西，在没有真实
-    检索的新一轮里原样抄一遍（复现：同一问题在同一对话里问第二遍）。
+    检索的新一轮里原样抄一遍（复现：同一问题在同一对话里问第二遍）。回放
+    的 assistant 内容本身也要先剥掉强制拼上的标记行，理由相同。
     """
-    messages = [{"role": "assistant", "content": turn.answer}]
+    messages = [{"role": "assistant", "content": _strip_known_tags(turn.answer)}]
     if turn.citations:
         handles = "；".join(f"{c.citation}(chunk_id={c.chunk_id})" for c in turn.citations)
         messages.append({
             "role": "system",
-            "content": f"（上一轮回答引用的原文定位，需要回看原文用 get_chunk：{handles}）",
+            "content": f"（你上一轮 retrieve 到的原文出处：{handles}；"
+                       f"需要回看原文用 get_chunk 取对应 chunk_id 即可）",
         })
     return messages
 
@@ -60,11 +81,15 @@ class OllamaAgentClient:
 
     _SYSTEM_PROMPT = (
         "你是一位严谨的学术助手，配有以下工具：\n"
-        "- retrieve: 当需要查阅书中具体知识、公式、定义时调用\n"
-        "- calculate: 当需要进行精确数值运算时调用（如乘除法、百分比、幂次）\n"
+        "- retrieve: 只要问题涉及书中内容、任何具体知识点/公式/定义，或者有可能需要查证，"
+        "就必须调用，不要凭自己的知识直接回答；用户只要是在主动问书里的内容，"
+        "就一定要调用，哪怕你觉得自己已经知道答案\n"
+        "- calculate: 只要问题涉及任何数值计算，哪怕只是很简单的加减乘除，都必须调用，"
+        "不要自己心算\n"
         "- get_chunk: 当需要回看之前 retrieve 结果或对话历史中出现过的某个具体 chunk 原文时，"
         "用其 chunk_id 直接取回；探索新话题仍应使用 retrieve\n"
-        "对于普通对话或无需查阅/计算的问题，直接回答，不调用任何工具。\n"
+        "只有纯打招呼、寒暄这类跟书本内容和计算完全无关的对话，才可以不调用任何工具直接回答；"
+        "拿不准该不该调用时，优先调用 retrieve。\n"
         "禁止自己编造任何形如 [xxx] 的引用/来源/未找到参考资料/计算工具标记——"
         "系统会在你回答之后，根据你这一轮有没有真的调用 retrieve、有没有真的"
         "调用 calculate，自动附加准确的标记，你自己写的不算数、也不需要写。"

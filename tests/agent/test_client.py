@@ -228,6 +228,52 @@ def test_history_replay_includes_compact_handle_list(mock_openai_cls):
 
 
 @patch("pipeline.agent.client.OpenAI")
+def test_history_replay_strips_deterministic_tags_from_answer(mock_openai_cls):
+    """turn.answer 落盘时已经被 answer.py 拼上了强制标记（见 pipeline/agent/answer.py）。
+    回放历史时必须把这些标记条剥掉，不然模型会看到自己"说过"的标记文本，
+    在没有真实检索/计算的新一轮里原样抄一遍（复现过：同一问题问第二遍）。"""
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+    from pipeline.agent.schema import ChatTurn, Citation
+
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("好的")
+
+    citation = Citation(chunk_id="b/f/p0001/0000", source_file="f.pdf",
+                         element_type="text", citation="f.pdf p.1", score=0.1)
+    history = [ChatTurn(
+        question="问题",
+        answer="答案正文\n[引用来源：f.pdf p.1]",
+        citations=[citation],
+    )]
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    client.run("追问", history=history)
+
+    messages = mock_create.call_args.kwargs["messages"]
+    assert messages[2] == {"role": "assistant", "content": "答案正文"}
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_history_replay_strips_no_citation_and_calculate_tags(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+    from pipeline.agent.schema import ChatTurn
+
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("好的")
+
+    history = [ChatTurn(
+        question="1+1等于几",
+        answer="等于2\n[未找到参考资料]\n[已使用计算工具]",
+    )]
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    client.run("追问", history=history)
+
+    messages = mock_create.call_args.kwargs["messages"]
+    assert messages[2] == {"role": "assistant", "content": "等于2"}
+
+
+@patch("pipeline.agent.client.OpenAI")
 def test_no_history_behaves_like_before(mock_openai_cls):
     from pipeline.agent.client import OllamaAgentClient
     from pipeline.agent.executor import StubExecutor
