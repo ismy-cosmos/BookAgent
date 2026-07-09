@@ -13,7 +13,7 @@
 
 ## 待办 issue 优先级顺序
 
-**已完成**：issue #6（`scripts/ingest.py` 批量单文件失败容错+回滚+连续失败熔断，PR #23）、issue #16（8GB 显卡 mmproj 上不了 GPU 是 Ollama 自身回归 bug，已升级版本修复）、**issue #13 + #14**（内嵌图片 VLM 描述回填 + resize，PR #26，2026-07-07 合并）、**issue #20**（GPU 显存互斥锁：`ImportQueue` 单工作线程 FIFO 队列+忙碌状态接入问答/删除接口，PR #28，2026-07-08 合并，issue 已关闭）。
+**已完成**：issue #6（`scripts/ingest.py` 批量单文件失败容错+回滚+连续失败熔断，PR #23）、issue #16（8GB 显卡 mmproj 上不了 GPU 是 Ollama 自身回归 bug，已升级版本修复）、**issue #13 + #14**（内嵌图片 VLM 描述回填 + resize，PR #26，2026-07-07 合并）、**issue #20**（GPU 显存互斥锁：`ImportQueue` 单工作线程 FIFO 队列+忙碌状态接入问答/删除接口，PR #28，2026-07-08 合并，issue 已关闭）、**issue #27**（ingest 异步执行+进度上报：`run_ingest()` 可复用化+解析/VLM双缓存+暂停支持（PR #29）、`ImportQueue` 真实接入+待导入文件列表+进度/暂停/取消 HTTP 接口（PR #30），2026-07-09 全部合并，issue 已关闭）。
 
 1. **下一步：issue #17**（agent 溯源可靠性：问题简单时不 retrieve + 伪造历史引用）。真实数据 QA 端到端验收时重新复现并追加了证据（`_format_turn_for_replay` 格式被模仿，可凭空编造不存在的文件名），优先级提前——"VLM 图片理解对最终问答质量的实际贡献"这件事目前无法验证，每次尝试都被这个 bug 拦住（该调用 retrieve 时模型跳过了）。
 2. **之后：issue #11 + #10**：
