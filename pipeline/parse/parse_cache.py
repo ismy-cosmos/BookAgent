@@ -104,3 +104,7 @@ def delete(chroma_dir: str, book_id: str, file_sha: str) -> None:
     if file_sha in data:
         del data[file_sha]
         _save_all(chroma_dir, book_id, data)
+
+
+def keys(chroma_dir: str, book_id: str) -> list[str]:
+    return list(_load_all(chroma_dir, book_id).keys())

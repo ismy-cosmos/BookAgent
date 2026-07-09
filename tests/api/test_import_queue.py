@@ -10,7 +10,8 @@ class _RecordingProcessor:
     def __init__(self):
         self.calls: list[tuple[str, list[str]]] = []
 
-    def __call__(self, book_id: str, file_paths: list[str], should_pause) -> None:
+    def __call__(self, book_id: str, file_paths: list[str], should_pause,
+                 report_progress) -> None:
         self.calls.append((book_id, file_paths))
 
 
@@ -60,14 +61,16 @@ def test_no_cross_book_leakage():
 def test_get_status_idle_before_anything_enqueued():
     q = ImportQueue(processor=_RecordingProcessor())
     q.start()
-    assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
+    assert q.get_status() == {
+        "busy": False, "reason": "idle", "book_id": None, "pause_requested": False,
+    }
 
 
 def test_get_status_busy_while_processing():
     started = threading.Event()
     release = threading.Event()
 
-    def slow_processor(book_id, file_paths, should_pause):
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
         started.set()
         release.wait(timeout=2.0)
 
@@ -76,11 +79,15 @@ def test_get_status_busy_while_processing():
     q.enqueue("ostep", ["ch1.pdf"])
 
     assert started.wait(timeout=2.0)
-    assert q.get_status() == {"busy": True, "reason": "ingesting", "book_id": "ostep"}
+    assert q.get_status() == {
+        "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": False,
+    }
 
     release.set()
     q.wait_until_idle(timeout=2.0)
-    assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
+    assert q.get_status() == {
+        "busy": False, "reason": "idle", "book_id": None, "pause_requested": False,
+    }
 
 
 def test_cancel_queued_task_succeeds_and_it_never_runs():
@@ -88,12 +95,12 @@ def test_cancel_queued_task_succeeds_and_it_never_runs():
     blocker_started = threading.Event()
     blocker_release = threading.Event()
 
-    def blocking_first_call(book_id, file_paths, should_pause):
+    def blocking_first_call(book_id, file_paths, should_pause, report_progress):
         if not blocker_started.is_set():
             blocker_started.set()
             blocker_release.wait(timeout=2.0)
         else:
-            processor(book_id, file_paths, should_pause)
+            processor(book_id, file_paths, should_pause, report_progress)
 
     q = ImportQueue(processor=blocking_first_call)
     q.start()
@@ -114,7 +121,7 @@ def test_cancel_already_processing_task_fails():
     started = threading.Event()
     release = threading.Event()
 
-    def slow_processor(book_id, file_paths, should_pause):
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
         started.set()
         release.wait(timeout=2.0)
 
@@ -135,128 +142,244 @@ def test_cancel_unknown_task_id_fails():
     assert q.cancel("does-not-exist") is False
 
 
-def test_pause_takes_effect_at_file_boundary_not_mid_file():
-    """处理器模拟处理两个文件；请求暂停后，当前文件必须先跑完，才会真正停下来。"""
-    completed_files: list[str] = []
-    release_file_1 = threading.Event()
-    file_1_started = threading.Event()
+# ── 按工作线程暂停 ───────────────────────────────────────────────────────
 
-    def two_file_processor(book_id, file_paths, should_pause):
-        for f in file_paths:
-            if f == "f1.pdf":
-                file_1_started.set()
-                release_file_1.wait(timeout=2.0)
-            completed_files.append(f)
-            if should_pause():
-                return
+def test_should_pause_reflects_request_pause():
+    """处理器拿到的 should_pause 就是工作线程级暂停标志——请求暂停后立刻变 True。"""
+    observed = []
+    started = threading.Event()
+    release = threading.Event()
 
-    q = ImportQueue(processor=two_file_processor)
+    def observing_processor(book_id, file_paths, should_pause, report_progress):
+        started.set()
+        release.wait(timeout=2.0)
+        observed.append(should_pause())
+
+    q = ImportQueue(processor=observing_processor)
     q.start()
-    task_id = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
+    q.enqueue("ostep", ["f1.pdf"])
 
-    assert file_1_started.wait(timeout=2.0)
-    assert q.request_pause(task_id) is True
-
-    # 暂停请求发出后，f1 还没处理完，忙碌状态必须依然是 True
-    assert q.get_status()["busy"] is True
-
-    release_file_1.set()  # 放行，让 f1 跑完
+    assert started.wait(timeout=2.0)
+    q.request_pause()
+    release.set()
     q.wait_until_idle(timeout=2.0)
 
-    assert completed_files == ["f1.pdf"]  # f2 没有被处理——暂停在文件边界生效
-    assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
+    assert observed == [True]
 
 
-def test_paused_task_does_not_auto_resume():
-    """入队后不能立刻调用 request_pause——工作线程有没有真的开始处理这个任务
-    完全没保证，必须先等它明确进入处理中，暂停请求才有意义可以断言成功。"""
-    file_1_started = threading.Event()
-    release_file_1 = threading.Event()
+def test_pause_stops_worker_from_taking_next_queued_task():
+    processed = []
+    started = threading.Event()
+    release = threading.Event()
 
-    def two_file_processor(book_id, file_paths, should_pause):
-        for f in file_paths:
-            if f == "f1.pdf":
-                file_1_started.set()
-                release_file_1.wait(timeout=2.0)
-            if should_pause():
-                return
+    def slow_first_processor(book_id, file_paths, should_pause, report_progress):
+        processed.append(book_id)
+        if len(processed) == 1:
+            started.set()
+            release.wait(timeout=2.0)
 
-    q = ImportQueue(processor=two_file_processor)
+    q = ImportQueue(processor=slow_first_processor)
     q.start()
-    task_id = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
+    q.enqueue("book-a", ["a1.pdf"])
+    q.enqueue("book-b", ["b1.pdf"])  # 排队等着
 
-    assert file_1_started.wait(timeout=2.0)
-    assert q.request_pause(task_id) is True  # 确认暂停请求真的被工作线程接受了
+    assert started.wait(timeout=2.0)
+    q.request_pause()  # 第一个任务还在跑的时候请求暂停
+    release.set()      # 放行第一个任务收尾
 
-    release_file_1.set()
+    time.sleep(0.3)    # 给"如果它会继续取任务"留出反应时间
+    assert processed == ["book-a"]  # book-b 没有被开始处理
+
+    q.resume()
     q.wait_until_idle(timeout=2.0)
-    assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
-
-    time.sleep(0.05)  # 给"如果它会自动恢复"留出反应时间
-    assert q.get_status() == {"busy": False, "reason": "idle", "book_id": None}
+    assert processed == ["book-a", "book-b"]  # 恢复后才轮到 book-b
 
 
-def test_resume_fails_for_a_task_that_was_never_paused():
+def test_pause_while_idle_holds_subsequently_enqueued_task():
     processor = _RecordingProcessor()
-
     q = ImportQueue(processor=processor)
     q.start()
-    task_id = q.enqueue("ostep", ["f1.pdf"])
-    q.wait_until_idle(timeout=2.0)  # 直接跑完，从没暂停过
 
-    assert q.resume(task_id) is False  # 没暂停过的任务不能恢复
+    q.request_pause()  # 空闲时请求暂停
+    q.enqueue("ostep", ["f1.pdf"])
+
+    time.sleep(0.3)
+    assert processor.calls == []  # 已暂停：新入队的任务不会被开始处理
+
+    q.resume()
+    q.wait_until_idle(timeout=2.0)
+    assert processor.calls == [("ostep", ["f1.pdf"])]
 
 
-def test_resume_after_pause_reenqueues_same_task():
-    """同样不能入队后立刻暂停——用跟 test_pause_takes_effect_at_file_boundary_not_mid_file
-    一样的阻塞同步方式，确保暂停请求是在工作线程真正处理到 f1 的时候打进去的。"""
-    call_log: list[str] = []
-    file_1_started = threading.Event()
-    release_file_1 = threading.Event()
-
-    def one_shot_pause_processor(book_id, file_paths, should_pause):
-        for f in file_paths:
-            if f == "f1.pdf":
-                file_1_started.set()
-                release_file_1.wait(timeout=2.0)
-            call_log.append(f)
-            if should_pause():
-                return
-
-    q = ImportQueue(processor=one_shot_pause_processor)
+def test_cancel_works_on_task_held_during_pause():
+    processor = _RecordingProcessor()
+    q = ImportQueue(processor=processor)
     q.start()
-    task_id = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
 
-    assert file_1_started.wait(timeout=2.0)
-    assert q.request_pause(task_id) is True
-    release_file_1.set()
+    q.request_pause()
+    task_id = q.enqueue("ostep", ["f1.pdf"])
+    time.sleep(0.2)  # 让工作线程有机会把任务从队列里取出来、进入暂停等待
 
+    assert q.cancel(task_id) is True  # 暂停期间任务仍算"排队中"，可以取消
+
+    q.resume()
     q.wait_until_idle(timeout=2.0)
-    assert call_log == ["f1.pdf"]
+    assert processor.calls == []  # 被取消的任务恢复后也不会被处理
 
-    assert q.resume(task_id) is True
+
+def test_get_status_pausing_vs_paused():
+    """pause_requested=True + busy=True 是"正在暂停中"；+ busy=False 是"已暂停"。"""
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
+        started.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+    assert started.wait(timeout=2.0)
+
+    q.request_pause()
+    status = q.get_status()
+    assert status["busy"] is True and status["pause_requested"] is True  # 正在暂停中
+
+    release.set()
     q.wait_until_idle(timeout=2.0)
+    status = q.get_status()
+    assert status["busy"] is False and status["pause_requested"] is True  # 已暂停
 
-    # 恢复后重新丢回队列，重新从头跑（跳过已完成文件是 issue #27 里
-    # ingest.py 的 sha 去重逻辑负责的，不是 ImportQueue 自己的职责）
-    assert call_log == ["f1.pdf", "f1.pdf", "f2.pdf"]
+    q.resume()
+    assert q.get_status()["pause_requested"] is False
 
 
-def test_request_pause_unknown_or_not_processing_task_fails():
+def test_book_has_pending_or_active_task_true_for_task_held_during_pause():
+    """暂停期间被扣住的任务仍算"排队中"——它的书必须继续被删除拦截保护。"""
     q = ImportQueue(processor=_RecordingProcessor())
     q.start()
-    assert q.request_pause("does-not-exist") is False
 
-    task_id = q.enqueue("ostep", ["f1.pdf"])
+    q.request_pause()
+    q.enqueue("ostep", ["f1.pdf"])
+    time.sleep(0.2)
+
+    assert q.book_has_pending_or_active_task("ostep") is True
+
+    q.resume()
     q.wait_until_idle(timeout=2.0)
-    assert q.request_pause(task_id) is False  # 已经处理完了，不是"处理中"
+    assert q.book_has_pending_or_active_task("ostep") is False
 
+
+# ── 进度与结果存档 ───────────────────────────────────────────────────────
+
+def test_progress_visible_while_processing_and_cleared_after():
+    reported = threading.Event()
+    release = threading.Event()
+
+    def reporting_processor(book_id, file_paths, should_pause, report_progress):
+        report_progress({"stage": "parsing", "current_file": 1, "total_files": 2,
+                         "current_image": None, "total_images": None})
+        reported.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=reporting_processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
+
+    assert reported.wait(timeout=2.0)
+    progress = q.get_progress()["progress"]
+    assert progress == {"stage": "parsing", "current_file": 1, "total_files": 2,
+                        "current_image": None, "total_images": None}
+
+    release.set()
+    q.wait_until_idle(timeout=2.0)
+    assert q.get_progress()["progress"] is None  # 任务结束，进度清空
+
+
+def test_last_result_stored_from_processor_return_value():
+    summary = {"book_id": "ostep", "total_chunks": 5, "failures": [],
+               "not_attempted": [], "aborted_early": False}
+
+    def returning_processor(book_id, file_paths, should_pause, report_progress):
+        return summary
+
+    q = ImportQueue(processor=returning_processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+    q.wait_until_idle(timeout=2.0)
+
+    assert q.get_progress()["last_result"] == summary
+
+
+def test_last_result_none_before_any_task():
+    q = ImportQueue(processor=_RecordingProcessor())
+    q.start()
+    assert q.get_progress() == {"progress": None, "last_result": None}
+
+
+def test_processor_returning_none_keeps_previous_last_result():
+    results = [{"book_id": "a", "total_chunks": 1, "failures": [],
+                "not_attempted": [], "aborted_early": False}, None]
+
+    def sequenced_processor(book_id, file_paths, should_pause, report_progress):
+        return results.pop(0)
+
+    q = ImportQueue(processor=sequenced_processor)
+    q.start()
+    q.enqueue("book-a", ["a1.pdf"])
+    q.wait_until_idle(timeout=2.0)
+    first = q.get_progress()["last_result"]
+
+    q.enqueue("book-b", ["b1.pdf"])
+    q.wait_until_idle(timeout=2.0)
+
+    assert q.get_progress()["last_result"] == first  # None 返回值不覆盖已有存档
+
+
+def test_worker_survives_processor_exception():
+    """处理器抛未捕获异常不能杀死工作线程——线程要活着继续服务后续任务，
+    状态不能卡在 busy。"""
+    calls = []
+
+    def flaky_processor(book_id, file_paths, should_pause, report_progress):
+        calls.append(book_id)
+        if book_id == "bad-book":
+            raise RuntimeError("boom")
+        return {"book_id": book_id, "total_chunks": 1, "failures": [],
+                "not_attempted": [], "aborted_early": False}
+
+    q = ImportQueue(processor=flaky_processor)
+    q.start()
+    q.enqueue("bad-book", ["a.pdf"])
+    q.enqueue("good-book", ["b.pdf"])
+    q.wait_until_idle(timeout=2.0)
+
+    assert calls == ["bad-book", "good-book"]  # 第二个任务照常被处理
+    assert q.get_status()["busy"] is False     # 状态没有卡死
+    assert q.get_progress()["last_result"]["book_id"] == "good-book"  # 后续任务正常存档
+
+
+def test_processor_exception_recorded_in_last_result():
+    def exploding_processor(book_id, file_paths, should_pause, report_progress):
+        raise RuntimeError("manifest 损坏")
+
+    q = ImportQueue(processor=exploding_processor)
+    q.start()
+    q.enqueue("ostep", ["a.pdf"])
+    q.wait_until_idle(timeout=2.0)
+
+    last = q.get_progress()["last_result"]
+    assert last["book_id"] == "ostep"
+    assert "RuntimeError" in last["error"] and "manifest 损坏" in last["error"]
+
+
+# ── 删除拦截（语义不变，签名适配）───────────────────────────────────────
 
 def test_book_has_pending_or_active_task_true_while_queued():
     started = threading.Event()
     release = threading.Event()
 
-    def slow_processor(book_id, file_paths, should_pause):
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
         started.set()
         release.wait(timeout=2.0)
 
@@ -276,7 +399,7 @@ def test_book_has_pending_or_active_task_true_while_processing():
     started = threading.Event()
     release = threading.Event()
 
-    def slow_processor(book_id, file_paths, should_pause):
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
         started.set()
         release.wait(timeout=2.0)
 
@@ -291,27 +414,12 @@ def test_book_has_pending_or_active_task_true_while_processing():
     q.wait_until_idle(timeout=2.0)
 
 
-def test_book_has_pending_or_active_task_false_when_paused():
-    def pausing_processor(book_id, file_paths, should_pause):
-        for f in file_paths:
-            if should_pause():
-                return
-
-    q = ImportQueue(processor=pausing_processor)
-    q.start()
-    task_id = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
-    q.request_pause(task_id)
-    q.wait_until_idle(timeout=2.0)
-
-    assert q.book_has_pending_or_active_task("ostep") is False  # 已暂停不拦删除
-
-
 def test_book_has_pending_or_active_task_false_after_cancel():
     processor = _RecordingProcessor()
     blocker_started = threading.Event()
     blocker_release = threading.Event()
 
-    def blocking_first_call(book_id, file_paths, should_pause):
+    def blocking_first_call(book_id, file_paths, should_pause, report_progress):
         if not blocker_started.is_set():
             blocker_started.set()
             blocker_release.wait(timeout=2.0)
@@ -341,7 +449,7 @@ def test_book_has_pending_or_active_task_false_for_unrelated_book():
     started = threading.Event()
     release = threading.Event()
 
-    def slow_processor(book_id, file_paths, should_pause):
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
         started.set()
         release.wait(timeout=2.0)
 

@@ -134,3 +134,33 @@ def test_delete_file_rejected_while_book_has_pending_task(tmp_path, monkeypatch)
 
     resp = client.delete("/books/ostep/files/ch01.pdf")
     assert resp.status_code == 409
+
+
+def test_delete_book_removes_all_on_disk_records(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+    manifest_dir = tmp_path / ".manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    suffixes = ["json", "failures.json", "parse_cache.json",
+                "vlm_cache.json", "pending_files.json"]
+    for suffix in suffixes:
+        (manifest_dir / f"ostep.{suffix}").write_text("{}")
+    # 别的书的记录不能被误删
+    (manifest_dir / "other.json").write_text("{}")
+
+    resp = client.delete("/books/ostep")
+
+    assert resp.status_code == 200
+    for suffix in suffixes:
+        assert not (manifest_dir / f"ostep.{suffix}").exists(), suffix
+    assert (manifest_dir / "other.json").exists()
+
+
+def test_delete_book_without_on_disk_records_still_succeeds(tmp_path, monkeypatch):
+    """一本书可能从来没导入过任何文件——manifest 等文件不存在时删书不能报错。"""
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+
+    resp = client.delete("/books/ostep")
+
+    assert resp.status_code == 200
