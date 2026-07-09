@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pipeline.api.routes_books import router as books_router
 from pipeline.api.routes_chunks import router as chunks_router
 from pipeline.api.routes_conversations import router as conversations_router
+from pipeline.api.routes_import import router as import_router
 from pipeline.api.routes_status import router as status_router
 
 app = FastAPI(title="BookAgent API")
@@ -18,5 +19,6 @@ app.add_middleware(
 )
 app.include_router(status_router)
 app.include_router(books_router)
+app.include_router(import_router)
 app.include_router(conversations_router)
 app.include_router(chunks_router)
