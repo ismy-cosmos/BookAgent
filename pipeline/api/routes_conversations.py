@@ -6,7 +6,7 @@ from pipeline.api import conversations as conv_store
 from pipeline.api.agent_registry import get_client
 from pipeline.api.config import get_chroma_dir
 from pipeline.api.status import get_status
-from pipeline.store.chroma_store import ChromaStore
+from pipeline.store.chroma_store import get_store
 
 router = APIRouter()
 
@@ -52,7 +52,7 @@ def ask(book_id: str, conversation_id: str, body: AskRequest) -> dict:
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"对话 '{conversation_id}' 不存在")
 
-    store = ChromaStore(persist_dir=get_chroma_dir())
+    store = get_store(get_chroma_dir())
     if store.count(book_id) == 0:
         raise HTTPException(status_code=400, detail=f"book '{book_id}' 还没有可用内容")
 

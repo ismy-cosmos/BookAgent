@@ -337,6 +337,25 @@ def test_run_ingest_returns_structured_result(tmp_path):
     )
 
 
+def test_run_ingest_uses_injected_store_instead_of_constructing_one(tmp_path):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="x", page_num=1)
+    injected_store = MagicMock()
+    injected_store.count.return_value = 3
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)), \
+         patch("scripts.ingest._store_file", return_value=3):
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir), store=injected_store)
+
+    mock_store_cls.assert_not_called()
+
+
 def test_run_ingest_reports_failures_without_raising(tmp_path):
     f = tmp_path / "ch01.pdf"
     f.write_bytes(b"content")

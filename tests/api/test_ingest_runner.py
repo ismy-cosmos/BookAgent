@@ -43,7 +43,7 @@ def test_summary_dict_built_from_ingest_result(tmp_path, monkeypatch):
 def test_progress_updates_converted_to_dicts(tmp_path, monkeypatch):
     f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
 
-    def fake_run(book_id, file_paths, chroma_dir, should_pause, on_progress, on_file_committed):
+    def fake_run(book_id, file_paths, chroma_dir, should_pause, on_progress, on_file_committed, store):
         on_progress(ProgressUpdate(stage="parsing", current_file=1, total_files=1))
         return _ok_result()
 
@@ -57,7 +57,7 @@ def test_on_file_committed_removes_from_staging(tmp_path, monkeypatch):
     f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
     staging.add_file(str(tmp_path), "b", str(f))
 
-    def fake_run(book_id, file_paths, chroma_dir, should_pause, on_progress, on_file_committed):
+    def fake_run(book_id, file_paths, chroma_dir, should_pause, on_progress, on_file_committed, store):
         on_file_committed(str(f))
         return _ok_result()
 
@@ -75,7 +75,7 @@ def test_on_file_committed_swallows_staging_errors(tmp_path, monkeypatch):
         raise OSError("disk full")
     monkeypatch.setattr("pipeline.api.ingest_runner.staging.remove_file", boom_remove)
 
-    def fake_run(book_id, file_paths, chroma_dir, should_pause, on_progress, on_file_committed):
+    def fake_run(book_id, file_paths, chroma_dir, should_pause, on_progress, on_file_committed, store):
         on_file_committed(str(f))  # 不应抛异常
         return _ok_result()
 
