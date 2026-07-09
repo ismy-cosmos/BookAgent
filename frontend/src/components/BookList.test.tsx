@@ -34,6 +34,19 @@ describe("BookList", () => {
     expect(deleteButtons[1]).not.toBeDisabled();
   });
 
+  it("creates a new book id and selects it", async () => {
+    vi.spyOn(client, "listBooks").mockResolvedValue({ books: [] });
+    const onSelectBook = vi.fn();
+
+    render(<BookList status={IDLE} selectedBook={null} onSelectBook={onSelectBook} />);
+
+    await userEvent.click(screen.getByText("新建书"));
+    await userEvent.type(screen.getByLabelText("新书 book_id"), "my-new-book");
+    await userEvent.click(screen.getByText("确定"));
+
+    expect(onSelectBook).toHaveBeenCalledWith("my-new-book");
+  });
+
   it("shows confirm dialog and deletes on confirm", async () => {
     vi.spyOn(client, "listBooks").mockResolvedValue({ books: ["ostep"] });
     const deleteSpy = vi.spyOn(client, "deleteBook").mockResolvedValue({ deleted: "ostep" });
