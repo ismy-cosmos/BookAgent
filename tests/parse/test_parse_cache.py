@@ -88,3 +88,13 @@ def test_set_with_unserializable_elements_degrades_silently(tmp_path, capsys):
 
     assert "warn" in capsys.readouterr().out.lower()
     assert parse_cache.get(str(tmp_path), "b", "sha1") is None
+
+
+def test_keys_empty_when_no_cache(tmp_path):
+    assert parse_cache.keys(str(tmp_path), "b") == []
+
+
+def test_keys_lists_all_entry_shas(tmp_path):
+    parse_cache.set(str(tmp_path), "b", "sha1", [_text_element()], None)
+    parse_cache.set(str(tmp_path), "b", "sha2", None, [_chunk()])
+    assert sorted(parse_cache.keys(str(tmp_path), "b")) == ["sha1", "sha2"]
