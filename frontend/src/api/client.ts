@@ -1,3 +1,4 @@
+import { isTauri } from "@tauri-apps/api/core";
 import type {
   AskResponse,
   ChunkDetail,
@@ -7,7 +8,18 @@ import type {
   Status,
 } from "./types";
 
-const BASE_URL = import.meta.env.VITE_BOOKAGENT_API_URL ?? "http://127.0.0.1:8420";
+const BASE_URL = import.meta.env.VITE_BOOKAGENT_API_URL ?? "http://localhost:8420";
+
+// Tauri webview（webkit2gtk 沙箱）不能直连 localhost，得走 @tauri-apps/plugin-http
+// 的 fetch（通过 Rust 后端发请求）。浏览器 / jsdom 测试里用原生 fetch。
+// isTauri() 是 @tauri-apps/api 的官方运行时检测函数。
+async function _fetch(): Promise<typeof fetch> {
+  if (isTauri()) {
+    const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
+    return tauriFetch as unknown as typeof fetch;
+  }
+  return globalThis.fetch.bind(globalThis);
+}
 
 export class ApiError extends Error {
   status: number;
@@ -19,7 +31,8 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(`${BASE_URL}${path}`, {
+  const f = await _fetch();
+  const resp = await f(`${BASE_URL}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
