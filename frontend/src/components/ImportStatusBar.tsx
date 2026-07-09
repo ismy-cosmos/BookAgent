@@ -1,5 +1,5 @@
 import type { ProgressResponse } from "../api/types";
-import { stageText } from "./ImportPanel";
+import { stageText } from "../importProgressText";
 
 interface ImportStatusBarProps {
   progress: ProgressResponse | null;

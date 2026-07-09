@@ -5,8 +5,6 @@ import { useChat } from "./useChat";
 
 afterEach(() => vi.restoreAllMocks());
 
-const IDLE = { busy: false, reason: "idle", book_id: null, pause_requested: false } as const;
-
 describe("useChat", () => {
   it("loads history on mount", async () => {
     vi.spyOn(client, "getConversation").mockResolvedValue({

@@ -2,16 +2,11 @@ import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { cancelImport, pauseImport, resumeImport, submitImport } from "../api/client";
 import { useStagedFiles } from "../hooks/useStagedFiles";
-import type { ImportProgress, ProgressResponse } from "../api/types";
+import { stageText } from "../importProgressText";
+import type { ProgressResponse } from "../api/types";
 
 // 跟后端 scripts/ingest.py 的 _ALL_EXTS 保持一致
 const SUPPORTED_EXTENSIONS = ["pdf", "epub", "mp3", "wav", "flac", "png", "jpg", "jpeg", "svg"];
-
-export function stageText(p: ImportProgress): string {
-  if (p.stage === "parsing") return `解析中 文件 ${p.current_file}/${p.total_files}`;
-  if (p.stage === "vlm") return `图片描述 ${p.current_image}/${p.total_images}`;
-  return "正在存储…";
-}
 
 interface ImportPanelProps {
   bookId: string;
