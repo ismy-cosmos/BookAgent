@@ -9,6 +9,7 @@ export function useBooks() {
     try {
       const result = await listBooks();
       setBooks(result.books);
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }

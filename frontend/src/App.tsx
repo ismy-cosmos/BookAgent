@@ -25,7 +25,9 @@ function App() {
       {unreachable && <div role="alert">服务未响应，重试中…</div>}
       <ImportStatusBar progress={progress} onJumpToBook={selectBook} />
 
-      <BookList status={status} selectedBook={selectedBook} onSelectBook={selectBook} />
+      {!unreachable && (
+        <BookList status={status} selectedBook={selectedBook} onSelectBook={selectBook} />
+      )}
 
       {selectedBook && <ImportPanel bookId={selectedBook} progress={progress} />}
 
