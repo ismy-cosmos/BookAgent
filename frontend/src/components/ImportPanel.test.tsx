@@ -114,4 +114,57 @@ describe("ImportPanel", () => {
 
     expect(await screen.findByText(/导入失败：RuntimeError: manifest 损坏/)).toBeInTheDocument();
   });
+
+  it("shows a disabled '正在暂停…' button while the pause is taking effect", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    const pausing: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "ostep", pause_requested: true,
+      progress: { stage: "parsing", current_file: 2, total_files: 5,
+                  current_image: null, total_images: null },
+      last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={pausing} />);
+
+    expect(await screen.findByText("正在暂停…")).toBeDisabled();
+    // 暂停按钮不应该跟"正在暂停…"同时出现
+    expect(screen.queryByText("暂停")).toBeNull();
+  });
+
+  it("shows the paused state and resumes", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    const resumeSpy = vi.spyOn(client, "resumeImport").mockResolvedValue({
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+    });
+    const paused: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: true,
+      progress: null, last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={paused} />);
+
+    expect(await screen.findByText("已暂停")).toBeInTheDocument();
+    await userEvent.click(screen.getByText("恢复"));
+    expect(resumeSpy).toHaveBeenCalled();
+  });
+
+  it("offers cancel for a task queued behind another book and cancels it", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    vi.spyOn(client, "submitImport").mockResolvedValue({ task_id: "t-queued", file_count: 1 });
+    const cancelSpy = vi.spyOn(client, "cancelImport").mockResolvedValue({ cancelled: "t-queued" });
+    const busyElsewhere: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "other-book", pause_requested: false,
+      progress: { stage: "parsing", current_file: 1, total_files: 2,
+                  current_image: null, total_images: null },
+      last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={busyElsewhere} />);
+
+    await screen.findByText("/a.pdf");
+    await userEvent.click(screen.getByText("开始导入"));
+
+    await userEvent.click(await screen.findByText("取消排队"));
+    expect(cancelSpy).toHaveBeenCalledWith("t-queued");
+  });
 });

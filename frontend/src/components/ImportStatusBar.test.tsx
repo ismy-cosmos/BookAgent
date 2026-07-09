@@ -30,4 +30,17 @@ describe("ImportStatusBar", () => {
     await userEvent.click(bar);
     expect(onJumpToBook).toHaveBeenCalledWith("ostep");
   });
+
+  it("appends a pausing hint while the pause is taking effect", () => {
+    const pausing: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "ostep", pause_requested: true,
+      progress: { stage: "vlm", current_file: 3, total_files: 3,
+                  current_image: 7, total_images: 40 },
+      last_result: null,
+    };
+
+    render(<ImportStatusBar progress={pausing} onJumpToBook={vi.fn()} />);
+
+    expect(screen.getByText(/正在暂停…/)).toBeInTheDocument();
+  });
 });
