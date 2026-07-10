@@ -19,6 +19,19 @@
   --text-secondary: #8A93A3;
   --card-border: transparent;
 
+  /* 悬浮面板（进度胶囊展开态、弹窗）用的是纯色背景，不是卡片渐变——
+     跟书卡的 --card-grad-* 是两套不同的东西，深色模式下数值也不一样，
+     不能共用同一个 token（复用过一次导致胶囊背景色错，見 full-style-summary
+     确认稿）。 */
+  --panel-bg: #FFFFFF;
+  --track-bg: #ECEEF2;
+  --input-border: #D8DCE3;
+
+  /* 悬浮按钮覆盖层里的白底按钮（导入文件）文字色——按钮背景不随主题切换
+     （浅深色模式下都是同一个近白色），所以文字色也必须固定不跟着
+     --text-primary 变浅，否则深色模式下会出现"浅色文字+近白底"看不清的问题。 */
+  --overlay-button-text: #222222;
+
   --accent-blue: #2C6FEF;
   --accent-red: #EF5B4D;
 
@@ -49,6 +62,9 @@
     --text-primary: #E2E3E6;
     --text-secondary: #8B8F99;
     --card-border: rgba(255, 255, 255, .14);
+    --panel-bg: #26282F;
+    --track-bg: #34363D;
+    --input-border: #3D3F47;
 
     --shadow-l1: 0 4px 12px rgba(0, 0, 0, .4);
     --shadow-l2: 0 10px 24px rgba(0, 0, 0, .5);

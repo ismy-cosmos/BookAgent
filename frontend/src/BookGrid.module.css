@@ -1,0 +1,20 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 96px);
+  gap: var(--space-5);
+  overflow-y: auto;
+}
+
+.addTile {
+  width: 96px;
+  height: 112px;
+  background: rgba(255, 255, 255, .08);
+  border: 1.5px dashed var(--text-secondary);
+  border-radius: var(--radius-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+}

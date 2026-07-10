@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { dirname } from "@tauri-apps/api/path";
 import { cancelImport, pauseImport, resumeImport, submitImport } from "../api/client";
 import { useStagedFiles } from "../hooks/useStagedFiles";
 import { stageText } from "../importProgressText";
@@ -8,6 +9,10 @@ import type { LastResult, ProgressResponse } from "../api/types";
 
 // 跟后端 scripts/ingest.py 的 _ALL_EXTS 保持一致
 const SUPPORTED_EXTENSIONS = ["pdf", "epub", "mp3", "wav", "flac", "png", "jpg", "jpeg", "svg"];
+
+// 文件选择器默认打开上次选文件所在的目录，全局共享（不分 book）——用户
+// 一般连续导入同一批资料时素材都在同一个文件夹，不需要每本书单独记一份。
+const LAST_IMPORT_DIR_KEY = "bookagent:lastImportDir";
 
 interface ImportPanelProps {
   bookId: string;
@@ -38,10 +43,13 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   async function handleAddFiles() {
     const picked = await open({
       multiple: true,
+      defaultPath: localStorage.getItem(LAST_IMPORT_DIR_KEY) ?? undefined,
       filters: [{ name: "支持的文件", extensions: SUPPORTED_EXTENSIONS }],
     });
     if (!picked) return;
-    await add(Array.isArray(picked) ? picked : [picked]);
+    const paths = Array.isArray(picked) ? picked : [picked];
+    localStorage.setItem(LAST_IMPORT_DIR_KEY, await dirname(paths[0]));
+    await add(paths);
   }
 
   async function handleSubmit() {
@@ -71,15 +79,27 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
 
   // 弹窗自己不会随 lastResult 消失而消失（消失了没法读），所以用一个 ref
   // 记住"这份结果是不是已经弹过"，避免每次轮询都重新弹出同一份结果。
+  // 这份"已弹过"记录还落一份到 localStorage（按 book 分开存）：窗口关掉
+  // 重开是组件重新 mount，内存态会丢，但后端 last_result 还在，不落盘的话
+  // 同一份结果会在重开窗口时再弹一次。
+  const shownResultStorageKey = `bookagent:importToastShown:${bookId}`;
   const [toastResult, setToastResult] = useState<LastResult | null>(null);
-  const shownResultKeyRef = useRef<string | null>(null);
+  const shownResultKeyRef = useRef<string | null>(
+    localStorage.getItem(shownResultStorageKey),
+  );
   useEffect(() => {
     const key = JSON.stringify(lastResult);
     if (lastResult && key !== shownResultKeyRef.current) {
       shownResultKeyRef.current = key;
+      localStorage.setItem(shownResultStorageKey, key);
       setToastResult(lastResult);
     }
-  }, [lastResult]);
+  }, [lastResult, shownResultStorageKey]);
+
+  // 稳定的引用：ImportCompletionToast 内部拿它当 useEffect 依赖来控制自动
+  // 消失的计时器，如果每次渲染都传一个新的内联函数，计时器会跟着轮询
+  // （每次渲染）反复清掉重开，永远攒不够 6 秒，弹窗就变成"不会自动消失"。
+  const dismissToast = useCallback(() => setToastResult(null), []);
 
   return (
     <section aria-label="导入管理">
@@ -121,10 +141,7 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
       )}
 
       {toastResult && (
-        <ImportCompletionToast
-          result={toastResult}
-          onDismiss={() => setToastResult(null)}
-        />
+        <ImportCompletionToast result={toastResult} onDismiss={dismissToast} />
       )}
 
       {(error ?? actionError) && <p role="alert">{error ?? actionError}</p>}

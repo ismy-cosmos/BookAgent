@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import * as client from "../api/client";
@@ -37,5 +37,27 @@ describe("BookGrid", () => {
 
     expect(openOrFocusWindow).toHaveBeenCalledWith("import", "new-book", "new-book");
     expect(await screen.findByText("new-book")).toBeInTheDocument();
+  });
+
+  it("removing a pending (not-yet-imported) book drops it locally without calling the delete API", async () => {
+    const user = userEvent.setup();
+    const deleteBookSpy = vi.spyOn(client, "deleteBook").mockResolvedValue({ deleted: "new-book" });
+    vi.spyOn(client, "listBooks").mockResolvedValue({ books: [] });
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+    });
+
+    render(<BookGrid />);
+    await user.click(screen.getByLabelText("新建书"));
+    await user.type(screen.getByLabelText("新书 book_id"), "new-book");
+    await user.click(screen.getByText("确定"));
+    expect(await screen.findByText("new-book")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("new-book").closest('[data-testid="book-card"]')!);
+    fireEvent.click(screen.getByText("删除丛书"));
+    await user.click(screen.getByText("确认删除"));
+
+    expect(screen.queryByText("new-book")).not.toBeInTheDocument();
+    expect(deleteBookSpy).not.toHaveBeenCalled();
   });
 });

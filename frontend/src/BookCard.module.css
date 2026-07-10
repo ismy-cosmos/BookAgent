@@ -30,8 +30,19 @@
 }
 
 .name {
+  width: 96px;
+  box-sizing: border-box;
+  text-align: center;
   font-size: var(--font-body);
   color: var(--text-primary);
+}
+
+input.name {
+  font-family: inherit;
+  background: var(--panel-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-button);
+  padding: 2px 4px;
 }
 
 .badge {
@@ -43,6 +54,7 @@
   width: 64px;
   padding: 5px 0;
   background: rgba(255, 255, 255, .92);
+  color: var(--overlay-button-text);
   border: none;
   border-radius: var(--radius-button);
   font-size: var(--font-label);
