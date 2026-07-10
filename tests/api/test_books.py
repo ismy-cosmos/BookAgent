@@ -164,3 +164,25 @@ def test_delete_book_without_on_disk_records_still_succeeds(tmp_path, monkeypatc
     resp = client.delete("/books/ostep")
 
     assert resp.status_code == 200
+
+
+def test_delete_book_removes_conversations(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+    client.post("/books/ostep/conversations")
+    assert (tmp_path / ".conversations" / "ostep").exists()
+
+    resp = client.delete("/books/ostep")
+
+    assert resp.status_code == 200
+    assert not (tmp_path / ".conversations" / "ostep").exists()
+
+
+def test_delete_book_without_conversations_still_succeeds(tmp_path, monkeypatch):
+    """从没开过对话的书删除时不能因为目录不存在而报错。"""
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+
+    resp = client.delete("/books/ostep")
+
+    assert resp.status_code == 200

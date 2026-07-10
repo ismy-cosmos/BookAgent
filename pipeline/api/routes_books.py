@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -29,11 +30,12 @@ def delete_book(book_id: str) -> dict:
         raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
     store.delete_collection(book_id)
     # 这本书名下所有落盘记录一起删，不留孤儿文件：
-    # manifest、失败清单、两个缓存、待导入列表
+    # manifest、失败清单、两个缓存、待导入列表、对话历史
     manifest_dir = Path(get_chroma_dir()) / ".manifests"
     for suffix in ("json", "failures.json", "parse_cache.json", "vlm_cache.json"):
         (manifest_dir / f"{book_id}.{suffix}").unlink(missing_ok=True)
     staging.delete_list(get_chroma_dir(), book_id)
+    shutil.rmtree(Path(get_chroma_dir()) / ".conversations" / book_id, ignore_errors=True)
     return {"deleted": book_id}
 
 
