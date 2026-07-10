@@ -1,61 +1,44 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import * as client from "./api/client";
-import type { ProgressResponse } from "./api/types";
+import { describe, expect, it, vi, afterEach } from "vitest";
+
+vi.mock("./views/HomeView", () => ({ HomeView: () => <div>home-view</div> }));
+vi.mock("./views/ImportView", () => ({
+  ImportView: ({ bookId }: { bookId: string }) => <div>import-view:{bookId}</div>,
+}));
+vi.mock("./views/ChatView", () => ({
+  ChatView: ({ bookId }: { bookId: string }) => <div>chat-view:{bookId}</div>,
+}));
+
 import App from "./App";
 
-afterEach(() => vi.restoreAllMocks());
+function withSearch(search: string, run: () => void) {
+  window.history.pushState({}, "", `/${search}`);
+  run();
+}
 
-const IDLE_PROGRESS: ProgressResponse = {
-  busy: false, reason: "idle", book_id: null, pause_requested: false,
-  progress: null, last_result: null,
-};
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.history.pushState({}, "", "/");
+});
 
-describe("App", () => {
-  it("renders the BookAgent title", async () => {
-    vi.spyOn(client, "getStatus").mockResolvedValue({
-      busy: false, reason: "idle", book_id: null, pause_requested: false,
-    });
-    vi.spyOn(client, "listBooks").mockResolvedValue({ books: [] });
-    vi.spyOn(client, "getProgress").mockResolvedValue(IDLE_PROGRESS);
-
-    render(<App />);
-    expect(screen.getByText("BookAgent")).toBeInTheDocument();
+describe("App routing", () => {
+  it("renders HomeView when there is no view param", () => {
+    withSearch("", () => render(<App />));
+    expect(screen.getByText("home-view")).toBeInTheDocument();
   });
 
-  it("shows a banner when the backend is unreachable", async () => {
-    vi.spyOn(client, "getStatus").mockRejectedValue(new Error("network error"));
-    vi.spyOn(client, "listBooks").mockResolvedValue({ books: [] });
-    vi.spyOn(client, "getProgress").mockRejectedValue(new Error("network error"));
-
-    render(<App />);
-
-    expect(await screen.findByText(/服务未响应/)).toBeInTheDocument();
+  it("renders ImportView with the book id when view=import", () => {
+    withSearch("?view=import&book=ostep", () => render(<App />));
+    expect(screen.getByText("import-view:ostep")).toBeInTheDocument();
   });
 
-  it("shows the global import bar and jumps to the importing book on click", async () => {
-    vi.spyOn(client, "getStatus").mockResolvedValue({
-      busy: true, reason: "ingesting", book_id: "ostep", pause_requested: false,
-    });
-    vi.spyOn(client, "listBooks").mockResolvedValue({ books: ["ostep"] });
-    vi.spyOn(client, "getProgress").mockResolvedValue({
-      busy: true, reason: "ingesting", book_id: "ostep", pause_requested: false,
-      progress: { stage: "parsing", current_file: 2, total_files: 5,
-                  current_image: null, total_images: null },
-      last_result: null,
-    });
-    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
-    vi.spyOn(client, "listFiles").mockResolvedValue({ files: [] });
-    vi.spyOn(client, "listConversations").mockResolvedValue({ conversations: [] });
+  it("renders ChatView with the book id when view=chat", () => {
+    withSearch("?view=chat&book=civil-law", () => render(<App />));
+    expect(screen.getByText("chat-view:civil-law")).toBeInTheDocument();
+  });
 
-    render(<App />);
-
-    const bar = await screen.findByText(/正在导入《ostep》/);
-    expect(bar).toHaveTextContent("解析中 文件 2/5");
-    await userEvent.click(bar);
-
-    // 跳到了 ostep 的书页，内嵌导入区可见
-    expect(await screen.findByText("待导入")).toBeInTheDocument();
+  it("falls back to HomeView when view is import but book is missing", () => {
+    withSearch("?view=import", () => render(<App />));
+    expect(screen.getByText("home-view")).toBeInTheDocument();
   });
 });
