@@ -18,9 +18,10 @@ def _path(chroma_dir: str, book_id: str, conversation_id: str) -> Path:
 
 
 def _write(chroma_dir: str, book_id: str, record: dict) -> None:
-    _path(chroma_dir, book_id, record["id"]).write_text(
-        json.dumps(record, ensure_ascii=False, indent=2)
-    )
+    p = _path(chroma_dir, book_id, record["id"])
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(record, ensure_ascii=False, indent=2))
+    tmp.replace(p)
 
 
 def create_conversation(chroma_dir: str, book_id: str) -> dict:
