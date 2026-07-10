@@ -129,3 +129,18 @@ def test_append_turn_concurrent_writes_do_not_lose_turns(tmp_path):
 
     final = conv.load_conversation(str(tmp_path), "ostep", record["id"])
     assert len(final["turns"]) == 10
+
+
+def test_rename_book_moves_directory_and_patches_book_id(tmp_path):
+    record = conv.create_conversation(str(tmp_path), "old-id")
+
+    conv.rename_book(str(tmp_path), "old-id", "new-id")
+
+    assert conv.list_conversations(str(tmp_path), "old-id") == []
+    reloaded = conv.load_conversation(str(tmp_path), "new-id", record["id"])
+    assert reloaded["book_id"] == "new-id"
+
+
+def test_rename_book_noop_when_no_conversations_exist(tmp_path):
+    conv.rename_book(str(tmp_path), "old-id", "new-id")  # 不报错、不建空目录
+    assert not (tmp_path / ".conversations" / "new-id").exists()

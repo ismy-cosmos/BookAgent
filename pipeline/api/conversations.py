@@ -105,3 +105,15 @@ def history_from_record(record: dict) -> list[ChatTurn]:
         )
         for t in record.get("turns", [])
     ]
+
+
+def rename_book(chroma_dir: str, old_book_id: str, new_book_id: str) -> None:
+    old_dir = Path(chroma_dir) / ".conversations" / old_book_id
+    if not old_dir.exists():
+        return
+    new_dir = Path(chroma_dir) / ".conversations" / new_book_id
+    old_dir.rename(new_dir)
+    for p in new_dir.glob("*.json"):
+        record = json.loads(p.read_text())
+        record["book_id"] = new_book_id
+        _write(chroma_dir, new_book_id, record)

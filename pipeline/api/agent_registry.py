@@ -28,6 +28,10 @@ def get_client(book_id: str) -> OllamaAgentClient:
     return _clients[book_id]
 
 
+def evict_client(book_id: str) -> None:
+    _clients.pop(book_id, None)
+
+
 def reset_registry() -> None:
     """仅供测试用：清空缓存的 client/embedder，避免测试间互相污染。"""
     global _embedder, _clients

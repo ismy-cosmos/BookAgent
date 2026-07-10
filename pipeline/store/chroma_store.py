@@ -119,6 +119,9 @@ class ChromaStore:
     def delete_collection(self, book_id: str) -> None:
         self._client.delete_collection(name=book_id)
 
+    def rename_collection(self, book_id: str, new_book_id: str) -> None:
+        self._collection(book_id).modify(name=new_book_id)
+
 
 # 按 persist_dir 缓存：并发创建同路径的 PersistentClient 会破坏 chromadb 内部
 # 的 SharedSystemClient 注册表。lru_cache 的锁只护住查/写缓存两步，构造对象

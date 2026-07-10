@@ -86,3 +86,17 @@ def test_write_failure_raises(tmp_path, monkeypatch):
 
     with pytest.raises(OSError):
         staging.add_file(str(tmp_path), "b", "/data/ch01.pdf")
+
+
+def test_rename_list_moves_file(tmp_path):
+    staging.add_file(str(tmp_path), "old-id", "/x/ch01.pdf")
+
+    staging.rename_list(str(tmp_path), "old-id", "new-id")
+
+    assert staging.list_files(str(tmp_path), "old-id") == []
+    assert staging.list_files(str(tmp_path), "new-id") == ["/x/ch01.pdf"]
+
+
+def test_rename_list_noop_when_no_list_exists(tmp_path):
+    staging.rename_list(str(tmp_path), "old-id", "new-id")  # 不报错
+    assert staging.list_files(str(tmp_path), "new-id") == []

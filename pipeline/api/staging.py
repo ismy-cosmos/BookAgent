@@ -53,3 +53,9 @@ def remove_file(chroma_dir: str, book_id: str, file_path: str) -> bool:
 
 def delete_list(chroma_dir: str, book_id: str) -> None:
     _list_path(chroma_dir, book_id).unlink(missing_ok=True)
+
+
+def rename_list(chroma_dir: str, old_book_id: str, new_book_id: str) -> None:
+    old_path = _list_path(chroma_dir, old_book_id)
+    if old_path.exists():
+        old_path.rename(_list_path(chroma_dir, new_book_id))
