@@ -1,0 +1,41 @@
+.collapsed {
+  position: fixed;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  background: var(--card-grad-start);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-l3);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--font-meta);
+  color: var(--text-primary);
+}
+
+.expanded {
+  position: fixed;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  width: 200px;
+  background: var(--card-grad-start);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-l3);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  cursor: pointer;
+  font-size: var(--font-meta);
+  color: var(--text-primary);
+}
+
+.pauseButton {
+  margin-top: var(--space-2);
+  width: 100%;
+  padding: 5px 0;
+  background: var(--accent-red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-button);
+}
