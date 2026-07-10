@@ -16,15 +16,14 @@
 
 - 归入同一 `book_id` 的所有文件，均视为这本书的内容
 - 支持 PDF、EPUB、音频（MP3/WAV/FLAC）、图片（PNG/JPG/SVG）等所有解析层支持的格式，混合添加没有限制
-- 文件只能追加，不支持单独删除某个文件
+- 支持单文件删除（`DELETE /books/{book_id}/files/{source_file}`，见 `pipeline/api/routes_books.py`），也支持整本删除（`DELETE /books/{book_id}`）
 
 ## 删除
 
-整本书删除（`client.delete_collection(book_id)`）当前 `ChromaStore` 尚未实现，以下为设计约定，落地时按 collection-per-book 模型执行：
+整本书删除和单文件删除都已实现（`pipeline/api/routes_books.py`）：
 
-- **最小删除单位是整本书**：删除一本书 = 丢弃该 `book_id` 对应的整个 collection（`client.delete_collection(book_id)`）
-- 如果用户上传了错误的文件，只能删整本书后重新上传全部文件
-- **文件级别删除在技术上可行**（在该 `book_id` 的 collection 内按 `source_file` 过滤删除对应 chunk，不影响同一本书里的其他文件）——底层能力已经实现为 `ChromaStore.delete_by_source(book_id, source_file)`，目前只被 `scripts/ingest.py` 内部用于失败回滚（见 issue #6 设计）；接入到"用户主动删除某个文件"这个产品功能仍预留为未来工作，还需要同步清理 manifest 里对应的 sha 记录、大概率还需要用户确认
+- **整本删除**：`DELETE /books/{book_id}` —— 丢弃该 `book_id` 对应的整个 Chroma collection，同时清理 manifest、失败记录、解析/VLM 缓存、待导入列表、对话历史等所有落盘记录，不留孤儿文件。导入中的书禁止删除（409）。
+- **单文件删除**：`DELETE /books/{book_id}/files/{source_file}` —— 按 `source_file` 过滤删除该文件在 Chroma 里的所有 chunk（`ChromaStore.delete_by_source`），并同步更新 manifest。导入中的书禁止删除文件（409）。
 
 ## 检索边界
 
