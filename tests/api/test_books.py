@@ -186,3 +186,48 @@ def test_delete_book_without_conversations_still_succeeds(tmp_path, monkeypatch)
     resp = client.delete("/books/ostep")
 
     assert resp.status_code == 200
+
+
+def test_rename_book_not_found(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    resp = client.patch("/books/missing", json={"new_book_id": "new"})
+    assert resp.status_code == 404
+
+
+def test_rename_book_conflict_when_new_id_exists(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("book-a")
+    ChromaStore(persist_dir=str(tmp_path))._collection("book-b")
+    resp = client.patch("/books/book-a", json={"new_book_id": "book-b"})
+    assert resp.status_code == 409
+
+
+def test_rename_book_rejected_while_busy(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("book-a")
+    fake_queue = MagicMock()
+    fake_queue.book_has_pending_or_active_task.return_value = True
+    monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
+    resp = client.patch("/books/book-a", json={"new_book_id": "book-b"})
+    assert resp.status_code == 409
+
+
+def test_rename_book_renames_everything(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("old")
+    manifest_dir = tmp_path / ".manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    (manifest_dir / "old.json").write_text("{}")
+    (manifest_dir / "old.pending_files.json").write_text('["/x/ch01.pdf"]')
+    conv_id = client.post("/books/old/conversations").json()["id"]
+
+    resp = client.patch("/books/old", json={"new_book_id": "new"})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"book_id": "new"}
+    assert client.get("/books").json() == {"books": ["new"]}
+    assert (manifest_dir / "new.json").exists()
+    assert not (manifest_dir / "old.json").exists()
+    assert (manifest_dir / "new.pending_files.json").exists()
+    assert client.get(f"/books/new/conversations/{conv_id}").status_code == 200
+    assert client.get(f"/books/old/conversations/{conv_id}").status_code == 404
