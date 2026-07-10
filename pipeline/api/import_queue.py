@@ -142,12 +142,22 @@ class ImportQueue:
 
 
 _queue_singleton: Optional[ImportQueue] = None
+_singleton_lock = threading.Lock()
 
 
 def get_import_queue() -> ImportQueue:
     global _queue_singleton
     if _queue_singleton is None:
-        from pipeline.api.ingest_runner import ingest_processor
-        _queue_singleton = ImportQueue(processor=ingest_processor)
-        _queue_singleton.start()
+        with _singleton_lock:
+            if _queue_singleton is None:
+                from pipeline.api.ingest_runner import ingest_processor
+                _queue_singleton = ImportQueue(processor=ingest_processor)
+                _queue_singleton.start()
     return _queue_singleton
+
+
+def reset_import_queue() -> None:
+    """仅供测试用：清空单例，避免测试间互相污染。"""
+    global _queue_singleton
+    with _singleton_lock:
+        _queue_singleton = None
