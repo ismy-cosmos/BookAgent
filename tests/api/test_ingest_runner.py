@@ -1,6 +1,8 @@
 import hashlib
 from dataclasses import asdict
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from pipeline.api import staging
 from pipeline.api.ingest_runner import ingest_processor
@@ -115,6 +117,32 @@ def test_purge_skips_unreadable_submitted_files(tmp_path, monkeypatch):
                                 lambda *a, **k: _ok_result())
 
     mock_run.assert_called_once()  # purge 没崩，run_ingest 照常被调
+
+
+def test_releases_gpu_embedder_after_successful_import(tmp_path, monkeypatch):
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    release_spy = MagicMock()
+    monkeypatch.setattr("pipeline.api.ingest_runner.release_gpu_model", release_spy)
+
+    _run(tmp_path, monkeypatch, [str(f)], lambda *a, **k: _ok_result())
+
+    release_spy.assert_called_once()
+
+
+def test_releases_gpu_embedder_even_when_run_ingest_raises(tmp_path, monkeypatch):
+    # 任务结束不只是"成功"这一种——run_ingest 抛异常时也不能把显存一直占着，
+    # 不然一次失败的导入就会让后续每次导入都被迫跟 Ollama 抢显存。
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    release_spy = MagicMock()
+    monkeypatch.setattr("pipeline.api.ingest_runner.release_gpu_model", release_spy)
+
+    def boom(*a, **k):
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        _run(tmp_path, monkeypatch, [str(f)], boom)
+
+    release_spy.assert_called_once()
 
 
 def test_audio_chunks_cache_entry_purged_without_error(tmp_path, monkeypatch):

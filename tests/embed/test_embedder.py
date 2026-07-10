@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 import pytest
 from pipeline.embed import Embedder
+from pipeline.embed.embedder import release_gpu_model
 import pipeline.embed.embedder as emb_mod
 
 
@@ -105,3 +106,33 @@ def test_embedder_same_explicit_device_shares_cache():
         Embedder(device="cpu").embed(["x"])
         Embedder(device="cpu").embed(["y"])
         assert mock_cls.call_count == 1  # same device string, shared model
+
+
+# ── release_gpu_model ────────────────────────────────────────────────────────
+
+def test_release_gpu_model_forces_reload_on_next_use():
+    with patch("FlagEmbedding.BGEM3FlagModel") as mock_cls:
+        mock_cls.return_value = _mock_model(["x"])
+        Embedder().embed(["x"])
+        assert mock_cls.call_count == 1
+
+        release_gpu_model()
+        Embedder().embed(["y"])
+        assert mock_cls.call_count == 2  # cache was cleared, reloaded from scratch
+
+
+def test_release_gpu_model_does_not_touch_cpu_device_cache():
+    """device="cpu" 那份是查询用的，跟导入的 GPU 那份分开缓存，不该被一起清掉。"""
+    with patch("FlagEmbedding.BGEM3FlagModel") as mock_cls:
+        mock_cls.return_value = _mock_model(["x"])
+        Embedder().embed(["gpu-one"])            # 缓存键 "auto"
+        Embedder(device="cpu").embed(["cpu-one"])  # 缓存键 "cpu"
+        assert mock_cls.call_count == 2
+
+        release_gpu_model()
+        Embedder(device="cpu").embed(["cpu-two"])
+        assert mock_cls.call_count == 2  # cpu 缓存还在，没有重新加载
+
+
+def test_release_gpu_model_is_a_no_op_when_nothing_cached():
+    release_gpu_model()  # 不应抛异常

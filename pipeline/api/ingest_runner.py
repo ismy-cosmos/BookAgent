@@ -13,6 +13,7 @@ from typing import Callable
 
 from pipeline.api import staging
 from pipeline.api.config import get_chroma_dir
+from pipeline.embed.embedder import release_gpu_model
 from pipeline.parse import parse_cache, vlm_cache
 from pipeline.store.chroma_store import get_store
 
@@ -59,13 +60,18 @@ def ingest_processor(
         except OSError as e:
             print(f"[warn] 待导入列表更新失败（文件已成功入库，下次提交时自愈）: {e}")
 
-    result = run_ingest(
-        book_id, file_paths, chroma_dir=chroma_dir,
-        should_pause=should_pause,
-        on_progress=lambda update: report_progress(asdict(update)),
-        on_file_committed=_on_committed,
-        store=get_store(chroma_dir),
-    )
+    try:
+        result = run_ingest(
+            book_id, file_paths, chroma_dir=chroma_dir,
+            should_pause=should_pause,
+            on_progress=lambda update: report_progress(asdict(update)),
+            on_file_committed=_on_committed,
+            store=get_store(chroma_dir),
+        )
+    finally:
+        # 任务结束（成功/失败/暂停提前收尾都算）就释放 GPU embedder，不留到
+        # 下一次导入才释放——避免跟 Ollama 抢显存，见 release_gpu_model 文档。
+        release_gpu_model()
     return {
         "book_id": book_id,
         "total_chunks": result.total_chunks,
