@@ -1,3 +1,6 @@
+import threading
+from pathlib import Path
+
 import pytest
 
 from pipeline.agent.schema import ChatTurn, Citation
@@ -67,3 +70,77 @@ def test_history_from_record_roundtrips_chat_turns(tmp_path):
     assert isinstance(history[0], ChatTurn)
     assert history[0].question == "Q1"
     assert history[0].answer == "A1"
+
+
+def test_write_uses_atomic_replace(tmp_path, monkeypatch):
+    calls = []
+    original_replace = Path.replace
+
+    def spy_replace(self, target):
+        calls.append((str(self), str(target)))
+        return original_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", spy_replace)
+    conv.create_conversation(str(tmp_path), "ostep")
+
+    assert len(calls) == 1
+    assert calls[0][0].endswith(".tmp")
+
+
+def test_write_failure_does_not_corrupt_existing_file(tmp_path, monkeypatch):
+    record = conv.create_conversation(str(tmp_path), "ostep")
+    original = conv.load_conversation(str(tmp_path), "ostep", record["id"])
+
+    original_write_text = Path.write_text
+    call_count = 0
+
+    def flaky_write_text(self, *a, **k):
+        nonlocal call_count
+        call_count += 1
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_text", flaky_write_text)
+
+    turn = ChatTurn(question="Q", answer="A", citations=[])
+    with pytest.raises(OSError):
+        conv.append_turn(str(tmp_path), "ostep", record["id"], turn)
+
+    monkeypatch.setattr(Path, "write_text", original_write_text)
+    reloaded = conv.load_conversation(str(tmp_path), "ostep", record["id"])
+    assert reloaded == original
+
+
+def test_append_turn_concurrent_writes_do_not_lose_turns(tmp_path):
+    record = conv.create_conversation(str(tmp_path), "ostep")
+    barrier = threading.Barrier(10)
+
+    def worker(i: int) -> None:
+        barrier.wait()
+        conv.append_turn(
+            str(tmp_path), "ostep", record["id"],
+            ChatTurn(question=f"Q{i}", answer=f"A{i}", citations=[]),
+        )
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    final = conv.load_conversation(str(tmp_path), "ostep", record["id"])
+    assert len(final["turns"]) == 10
+
+
+def test_rename_book_moves_directory_and_patches_book_id(tmp_path):
+    record = conv.create_conversation(str(tmp_path), "old-id")
+
+    conv.rename_book(str(tmp_path), "old-id", "new-id")
+
+    assert conv.list_conversations(str(tmp_path), "old-id") == []
+    reloaded = conv.load_conversation(str(tmp_path), "new-id", record["id"])
+    assert reloaded["book_id"] == "new-id"
+
+
+def test_rename_book_noop_when_no_conversations_exist(tmp_path):
+    conv.rename_book(str(tmp_path), "old-id", "new-id")  # 不报错、不建空目录
+    assert not (tmp_path / ".conversations" / "new-id").exists()

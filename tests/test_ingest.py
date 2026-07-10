@@ -630,6 +630,7 @@ def test_run_ingest_reports_parsing_progress_per_file(tmp_path):
 
     parsing_updates = [u for u in updates if u.stage == "parsing"]
     assert [(u.current_file, u.total_files) for u in parsing_updates] == [(1, 2), (2, 2)]
+    assert [u.current_filename for u in parsing_updates] == ["ch01.pdf", "ch02.pdf"]
     assert all(u.current_image is None for u in parsing_updates)
 
 

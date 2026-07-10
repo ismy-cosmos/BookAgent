@@ -1,6 +1,7 @@
 import threading
 import time
 
+import pipeline.api.import_queue as iq_module
 from pipeline.api.import_queue import ImportQueue
 
 
@@ -56,6 +57,28 @@ def test_no_cross_book_leakage():
     assert len(processor.calls) == 10
     for book_id, file_paths in processor.calls:
         assert file_paths[0].startswith(book_id)
+
+
+def test_get_import_queue_concurrent_first_access_constructs_only_once():
+    iq_module.reset_import_queue()
+    barrier = threading.Barrier(20)
+    results: list[iq_module.ImportQueue] = []
+    results_lock = threading.Lock()
+
+    def worker():
+        barrier.wait()
+        q = iq_module.get_import_queue()
+        with results_lock:
+            results.append(q)
+
+    threads = [threading.Thread(target=worker) for _ in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len({id(r) for r in results}) == 1
+    iq_module.reset_import_queue()
 
 
 def test_get_status_idle_before_anything_enqueued():

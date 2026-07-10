@@ -311,3 +311,10 @@ def test_get_store_concurrent_first_access_constructs_only_once(tmp_path):
             t.join()
 
     mock_cls.assert_called_once()
+
+
+def test_rename_collection_calls_modify(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    store = ChromaStore(persist_dir=str(tmp))
+    store.rename_collection("old-id", "new-id")
+    mock_col.modify.assert_called_once_with(name="new-id")

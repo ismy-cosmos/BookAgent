@@ -164,3 +164,87 @@ def test_delete_book_without_on_disk_records_still_succeeds(tmp_path, monkeypatc
     resp = client.delete("/books/ostep")
 
     assert resp.status_code == 200
+
+
+def test_delete_book_removes_conversations(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+    client.post("/books/ostep/conversations")
+    assert (tmp_path / ".conversations" / "ostep").exists()
+
+    resp = client.delete("/books/ostep")
+
+    assert resp.status_code == 200
+    assert not (tmp_path / ".conversations" / "ostep").exists()
+
+
+def test_delete_book_without_conversations_still_succeeds(tmp_path, monkeypatch):
+    """从没开过对话的书删除时不能因为目录不存在而报错。"""
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
+
+    resp = client.delete("/books/ostep")
+
+    assert resp.status_code == 200
+
+
+def test_rename_book_not_found(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    resp = client.patch("/books/missing", json={"new_book_id": "new"})
+    assert resp.status_code == 404
+
+
+def test_rename_book_conflict_when_new_id_exists(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("book-a")
+    ChromaStore(persist_dir=str(tmp_path))._collection("book-b")
+    resp = client.patch("/books/book-a", json={"new_book_id": "book-b"})
+    assert resp.status_code == 409
+
+
+def test_rename_book_rejected_while_busy(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("book-a")
+    fake_queue = MagicMock()
+    fake_queue.book_has_pending_or_active_task.return_value = True
+    monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
+    resp = client.patch("/books/book-a", json={"new_book_id": "book-b"})
+    assert resp.status_code == 409
+
+
+def test_rename_book_renames_everything(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("old")
+    manifest_dir = tmp_path / ".manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest_suffixes = ("json", "failures.json", "parse_cache.json", "vlm_cache.json")
+    for suffix in manifest_suffixes:
+        (manifest_dir / f"old.{suffix}").write_text("{}")
+    (manifest_dir / "old.pending_files.json").write_text('["/x/ch01.pdf"]')
+    conv_id = client.post("/books/old/conversations").json()["id"]
+
+    resp = client.patch("/books/old", json={"new_book_id": "new"})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"book_id": "new"}
+    assert client.get("/books").json() == {"books": ["new"]}
+    for suffix in manifest_suffixes:
+        assert (manifest_dir / f"new.{suffix}").exists(), suffix
+        assert not (manifest_dir / f"old.{suffix}").exists(), suffix
+    assert (manifest_dir / "new.pending_files.json").exists()
+    assert client.get(f"/books/new/conversations/{conv_id}").status_code == 200
+    assert client.get(f"/books/old/conversations/{conv_id}").status_code == 404
+
+
+def test_rename_book_evicts_cached_agent_client(tmp_path, monkeypatch):
+    from pipeline.api import agent_registry
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("old")
+    agent_registry.reset_registry()
+    monkeypatch.setattr(agent_registry, "_clients", {"old": object()})
+
+    resp = client.patch("/books/old", json={"new_book_id": "new"})
+
+    assert resp.status_code == 200
+    assert "old" not in agent_registry._clients
+    agent_registry.reset_registry()

@@ -1,8 +1,10 @@
+import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
-from pipeline.api import staging
+from pipeline.api import agent_registry, conversations as conv_store, staging
 from pipeline.api.config import get_chroma_dir
 from pipeline.api.import_queue import get_import_queue
 from pipeline.store.chroma_store import get_store
@@ -29,12 +31,42 @@ def delete_book(book_id: str) -> dict:
         raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
     store.delete_collection(book_id)
     # 这本书名下所有落盘记录一起删，不留孤儿文件：
-    # manifest、失败清单、两个缓存、待导入列表
+    # manifest、失败清单、两个缓存、待导入列表、对话历史
     manifest_dir = Path(get_chroma_dir()) / ".manifests"
     for suffix in ("json", "failures.json", "parse_cache.json", "vlm_cache.json"):
         (manifest_dir / f"{book_id}.{suffix}").unlink(missing_ok=True)
     staging.delete_list(get_chroma_dir(), book_id)
+    shutil.rmtree(Path(get_chroma_dir()) / ".conversations" / book_id, ignore_errors=True)
     return {"deleted": book_id}
+
+
+class RenameBookRequest(BaseModel):
+    new_book_id: str
+
+
+@router.patch("/books/{book_id}")
+def rename_book(book_id: str, body: RenameBookRequest) -> dict:
+    store = _store()
+    if book_id not in store.list_books():
+        raise HTTPException(status_code=404, detail=f"book_id '{book_id}' 不存在")
+    new_id = body.new_book_id
+    if new_id in store.list_books():
+        raise HTTPException(status_code=409, detail=f"book_id '{new_id}' 已存在")
+    if get_import_queue().book_has_pending_or_active_task(book_id):
+        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可改名")
+
+    store.rename_collection(book_id, new_id)
+
+    manifest_dir = Path(get_chroma_dir()) / ".manifests"
+    for suffix in ("json", "failures.json", "parse_cache.json", "vlm_cache.json"):
+        old_path = manifest_dir / f"{book_id}.{suffix}"
+        if old_path.exists():
+            old_path.rename(manifest_dir / f"{new_id}.{suffix}")
+    staging.rename_list(get_chroma_dir(), book_id, new_id)
+    conv_store.rename_book(get_chroma_dir(), book_id, new_id)
+    agent_registry.evict_client(book_id)
+
+    return {"book_id": new_id}
 
 
 @router.get("/books/{book_id}/files")

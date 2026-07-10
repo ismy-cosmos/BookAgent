@@ -1,10 +1,13 @@
 from __future__ import annotations
 import json
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from pipeline.agent.schema import ChatTurn, Citation
+
+_append_lock = threading.Lock()
 
 
 def _dir(chroma_dir: str, book_id: str) -> Path:
@@ -18,9 +21,10 @@ def _path(chroma_dir: str, book_id: str, conversation_id: str) -> Path:
 
 
 def _write(chroma_dir: str, book_id: str, record: dict) -> None:
-    _path(chroma_dir, book_id, record["id"]).write_text(
-        json.dumps(record, ensure_ascii=False, indent=2)
-    )
+    p = _path(chroma_dir, book_id, record["id"])
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(record, ensure_ascii=False, indent=2))
+    tmp.replace(p)
 
 
 def create_conversation(chroma_dir: str, book_id: str) -> dict:
@@ -82,13 +86,14 @@ def _turn_to_dict(turn: ChatTurn) -> dict:
 
 
 def append_turn(chroma_dir: str, book_id: str, conversation_id: str, turn: ChatTurn) -> dict:
-    record = load_conversation(chroma_dir, book_id, conversation_id)
-    record["turns"].append(_turn_to_dict(turn))
-    if len(record["turns"]) == 1:
-        record["title"] = turn.question[:20]
-    record["updated_at"] = datetime.now().isoformat()
-    _write(chroma_dir, book_id, record)
-    return record
+    with _append_lock:
+        record = load_conversation(chroma_dir, book_id, conversation_id)
+        record["turns"].append(_turn_to_dict(turn))
+        if len(record["turns"]) == 1:
+            record["title"] = turn.question[:20]
+        record["updated_at"] = datetime.now().isoformat()
+        _write(chroma_dir, book_id, record)
+        return record
 
 
 def history_from_record(record: dict) -> list[ChatTurn]:
@@ -100,3 +105,15 @@ def history_from_record(record: dict) -> list[ChatTurn]:
         )
         for t in record.get("turns", [])
     ]
+
+
+def rename_book(chroma_dir: str, old_book_id: str, new_book_id: str) -> None:
+    old_dir = Path(chroma_dir) / ".conversations" / old_book_id
+    if not old_dir.exists():
+        return
+    new_dir = Path(chroma_dir) / ".conversations" / new_book_id
+    old_dir.rename(new_dir)
+    for p in new_dir.glob("*.json"):
+        record = json.loads(p.read_text())
+        record["book_id"] = new_book_id
+        _write(chroma_dir, new_book_id, record)

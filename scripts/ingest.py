@@ -49,6 +49,7 @@ class ProgressUpdate:
     total_files: int | None = None
     current_image: int | None = None
     total_images: int | None = None
+    current_filename: str | None = None
 
 
 def _no_op_progress(update: ProgressUpdate) -> None:
@@ -312,7 +313,10 @@ def run_ingest(
             not_attempted = file_paths[idx:]
             aborted_early = True
             break
-        on_progress(ProgressUpdate(stage="parsing", current_file=idx + 1, total_files=len(file_paths)))
+        on_progress(ProgressUpdate(
+            stage="parsing", current_file=idx + 1, total_files=len(file_paths),
+            current_filename=Path(file_path).name,
+        ))
         try:
             sha = _sha256(file_path)
             if sha in manifest["sha256_to_file"]:
