@@ -4,6 +4,19 @@ import * as client from "../api/client";
 import type { ProgressResponse } from "../api/types";
 import { HomeView } from "./HomeView";
 
+// HomeView installs a real close-requested listener via
+// quitConfirmation.installQuitConfirmation, which calls into
+// @tauri-apps/api/window's getCurrentWindow() — that throws outside a real
+// Tauri webview (no IPC bridge in jsdom). Mock both Tauri modules it touches
+// so mounting HomeView in tests doesn't produce unhandled rejections.
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({ onCloseRequested: vi.fn().mockResolvedValue(() => {}) }),
+  getAllWindows: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  confirm: vi.fn().mockResolvedValue(false),
+}));
+
 afterEach(() => vi.restoreAllMocks());
 
 const IDLE_PROGRESS: ProgressResponse = {

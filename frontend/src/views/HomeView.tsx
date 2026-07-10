@@ -1,12 +1,25 @@
+import { useEffect, useRef } from "react";
 import { useStatus } from "../hooks/useStatus";
 import { useImportProgress } from "../hooks/useImportProgress";
 import { BookGrid } from "../components/BookGrid";
 import { GlobalImportCapsule } from "../components/GlobalImportCapsule";
 import { pauseImport } from "../api/client";
+import { installQuitConfirmation } from "../quitConfirmation";
+import type { Status } from "../api/types";
 
 export function HomeView() {
-  const { unreachable } = useStatus();
+  const { status, unreachable } = useStatus();
   const { progress } = useImportProgress();
+  const statusRef = useRef<Status>(status);
+  statusRef.current = status;
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    installQuitConfirmation(() => statusRef.current).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, []);
 
   return (
     <div>
