@@ -217,7 +217,9 @@ def test_rename_book_renames_everything(tmp_path, monkeypatch):
     ChromaStore(persist_dir=str(tmp_path))._collection("old")
     manifest_dir = tmp_path / ".manifests"
     manifest_dir.mkdir(parents=True, exist_ok=True)
-    (manifest_dir / "old.json").write_text("{}")
+    manifest_suffixes = ("json", "failures.json", "parse_cache.json", "vlm_cache.json")
+    for suffix in manifest_suffixes:
+        (manifest_dir / f"old.{suffix}").write_text("{}")
     (manifest_dir / "old.pending_files.json").write_text('["/x/ch01.pdf"]')
     conv_id = client.post("/books/old/conversations").json()["id"]
 
@@ -226,8 +228,23 @@ def test_rename_book_renames_everything(tmp_path, monkeypatch):
     assert resp.status_code == 200
     assert resp.json() == {"book_id": "new"}
     assert client.get("/books").json() == {"books": ["new"]}
-    assert (manifest_dir / "new.json").exists()
-    assert not (manifest_dir / "old.json").exists()
+    for suffix in manifest_suffixes:
+        assert (manifest_dir / f"new.{suffix}").exists(), suffix
+        assert not (manifest_dir / f"old.{suffix}").exists(), suffix
     assert (manifest_dir / "new.pending_files.json").exists()
     assert client.get(f"/books/new/conversations/{conv_id}").status_code == 200
     assert client.get(f"/books/old/conversations/{conv_id}").status_code == 404
+
+
+def test_rename_book_evicts_cached_agent_client(tmp_path, monkeypatch):
+    from pipeline.api import agent_registry
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    ChromaStore(persist_dir=str(tmp_path))._collection("old")
+    agent_registry.reset_registry()
+    monkeypatch.setattr(agent_registry, "_clients", {"old": object()})
+
+    resp = client.patch("/books/old", json={"new_book_id": "new"})
+
+    assert resp.status_code == 200
+    assert "old" not in agent_registry._clients
+    agent_registry.reset_registry()

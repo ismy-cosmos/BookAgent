@@ -9,7 +9,8 @@
 ## book_id
 
 - 创建书籍时由用户命名，作为 `book_id`
-- 一旦确定不可更改：**`book_id` 直接用作 ChromaDB 的 collection 名**，一本书的所有 chunk 存在这个以 `book_id` 命名的独立 collection 里（每本书一个物理独立 collection，天然隔离；`book_id` 同时冗余写入每条 chunk 的 metadata 便于溯源）
+- **`book_id` 直接用作 ChromaDB 的 collection 名**，一本书的所有 chunk 存在这个以 `book_id` 命名的独立 collection 里（每本书一个物理独立 collection，天然隔离；`book_id` 同时冗余写入每条 chunk 的 metadata 便于溯源）
+- 支持重命名（`PATCH /books/{book_id}`，见 `pipeline/api/routes_books.py`）：底层用 chromadb 的 `Collection.modify(name=...)` 原地改名（不搬向量数据），同时级联重命名 manifest 家族文件、待导入列表、对话历史目录。目标名已被占用或该书正在导入中时拒绝（409）；跨文件系统的多步重命名不保证完全事务性，中途失败可能留下部分改名的不一致状态，属已知取舍
 - 命名规则：用户自定义，系统侧不做格式限定，但建议简短无空格（如 `ostep`、`civil-law-2024`）
 
 ## 添加文件
