@@ -1,10 +1,13 @@
 from __future__ import annotations
 import json
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from pipeline.agent.schema import ChatTurn, Citation
+
+_append_lock = threading.Lock()
 
 
 def _dir(chroma_dir: str, book_id: str) -> Path:
@@ -83,13 +86,14 @@ def _turn_to_dict(turn: ChatTurn) -> dict:
 
 
 def append_turn(chroma_dir: str, book_id: str, conversation_id: str, turn: ChatTurn) -> dict:
-    record = load_conversation(chroma_dir, book_id, conversation_id)
-    record["turns"].append(_turn_to_dict(turn))
-    if len(record["turns"]) == 1:
-        record["title"] = turn.question[:20]
-    record["updated_at"] = datetime.now().isoformat()
-    _write(chroma_dir, book_id, record)
-    return record
+    with _append_lock:
+        record = load_conversation(chroma_dir, book_id, conversation_id)
+        record["turns"].append(_turn_to_dict(turn))
+        if len(record["turns"]) == 1:
+            record["title"] = turn.question[:20]
+        record["updated_at"] = datetime.now().isoformat()
+        _write(chroma_dir, book_id, record)
+        return record
 
 
 def history_from_record(record: dict) -> list[ChatTurn]:

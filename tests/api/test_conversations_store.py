@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 import pytest
@@ -107,3 +108,24 @@ def test_write_failure_does_not_corrupt_existing_file(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "write_text", original_write_text)
     reloaded = conv.load_conversation(str(tmp_path), "ostep", record["id"])
     assert reloaded == original
+
+
+def test_append_turn_concurrent_writes_do_not_lose_turns(tmp_path):
+    record = conv.create_conversation(str(tmp_path), "ostep")
+    barrier = threading.Barrier(10)
+
+    def worker(i: int) -> None:
+        barrier.wait()
+        conv.append_turn(
+            str(tmp_path), "ostep", record["id"],
+            ChatTurn(question=f"Q{i}", answer=f"A{i}", citations=[]),
+        )
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    final = conv.load_conversation(str(tmp_path), "ostep", record["id"])
+    assert len(final["turns"]) == 10
