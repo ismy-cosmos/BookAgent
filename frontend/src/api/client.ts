@@ -55,6 +55,16 @@ export function deleteBook(bookId: string): Promise<{ deleted: string }> {
   return request(`/books/${encodeURIComponent(bookId)}`, { method: "DELETE" });
 }
 
+export function renameBook(
+  bookId: string,
+  newBookId: string,
+): Promise<{ book_id: string }> {
+  return request(`/books/${encodeURIComponent(bookId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ new_book_id: newBookId }),
+  });
+}
+
 export function listFiles(bookId: string): Promise<{ files: string[] }> {
   return request(`/books/${encodeURIComponent(bookId)}/files`);
 }

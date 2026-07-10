@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { deleteBook, listBooks } from "../api/client";
+import { deleteBook, listBooks, renameBook } from "../api/client";
 
 export function useBooks() {
   const [books, setBooks] = useState<string[]>([]);
@@ -31,5 +31,18 @@ export function useBooks() {
     [refresh],
   );
 
-  return { books, error, refresh, remove };
+  const rename = useCallback(
+    async (bookId: string, newBookId: string) => {
+      try {
+        await renameBook(bookId, newBookId);
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        throw e;
+      }
+    },
+    [refresh],
+  );
+
+  return { books, error, refresh, remove, rename };
 }

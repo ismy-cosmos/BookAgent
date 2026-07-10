@@ -29,4 +29,21 @@ describe("useBooks", () => {
 
     expect(result.current.books).toEqual([]);
   });
+
+  it("renames a book and refreshes the list", async () => {
+    vi.spyOn(client, "listBooks")
+      .mockResolvedValueOnce({ books: ["old"] })
+      .mockResolvedValueOnce({ books: ["new"] });
+    vi.spyOn(client, "renameBook").mockResolvedValue({ book_id: "new" });
+
+    const { result } = renderHook(() => useBooks());
+    await waitFor(() => expect(result.current.books).toEqual(["old"]));
+
+    await act(async () => {
+      await result.current.rename("old", "new");
+    });
+
+    expect(client.renameBook).toHaveBeenCalledWith("old", "new");
+    expect(result.current.books).toEqual(["new"]);
+  });
 });
