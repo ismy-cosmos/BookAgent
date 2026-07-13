@@ -33,9 +33,12 @@ function stagePercent(stage: (typeof STAGES)[number], p: ImportProgress): number
   if (stage === "vlm" && p.stage === "vlm" && p.current_image != null && p.total_images) {
     return Math.round(((p.current_image - 1) / p.total_images) * 100);
   }
+  // storing 是最后一个阶段，不可能有"已经跑过 storing"这回事——真到了
+  // storing 阶段，渲染那边走的是 indeterminate 动画，根本不会调用这里；
+  // 走到这一行的 storing 恒为"还没轮到"，固定 0%。
+  if (stage === "storing") return 0;
   // 还没轮到这个阶段：0%；已经跑过这个阶段（当前阶段在它后面）：100%
-  const reached = STAGES.indexOf(p.stage) > STAGES.indexOf(stage);
-  return reached ? 100 : 0;
+  return STAGES.indexOf(p.stage) > STAGES.indexOf(stage) ? 100 : 0;
 }
 
 export function GlobalImportCapsule({ progress, onPause }: GlobalImportCapsuleProps) {
