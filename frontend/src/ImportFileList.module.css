@@ -1,0 +1,105 @@
+.heading {
+  font-weight: 600;
+  font-size: var(--font-body);
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.list {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-l1);
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-body);
+  border-bottom: 1px solid var(--track-bg);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: var(--space-3);
+}
+
+.removeAction {
+  color: var(--accent-red);
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: var(--font-body);
+  padding: 0;
+}
+
+.removeAction:disabled {
+  color: var(--text-secondary);
+  opacity: .55;
+  cursor: default;
+}
+
+.btnRow {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.btnWhite,
+.btnBlue,
+.btnRed {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-button);
+  padding: 7px 0;
+  font-size: var(--font-body);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnWhite {
+  background: #fff;
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
+}
+
+.btnBlue {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+.btnRed {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+.btnWhite:disabled,
+.btnBlue:disabled,
+.btnRed:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+.progressText {
+  font-size: var(--font-meta);
+  color: var(--text-secondary);
+}
