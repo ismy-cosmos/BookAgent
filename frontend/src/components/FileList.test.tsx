@@ -38,9 +38,15 @@ describe("FileList", () => {
     // 列表——导入完成后新文件要切书再切回来才能看到。这里模拟同一个
     // ImportView 里 progress 从"导入中"变成"带 last_result 的完成态"，
     // 断言 listFiles 被重新调用、新文件真的渲染出来了。
-    const listFilesSpy = vi.spyOn(client, "listFiles")
-      .mockResolvedValueOnce({ files: ["ch01.pdf"] })
-      .mockResolvedValueOnce({ files: ["ch01.pdf", "ch02.pdf"] });
+    // 用一个外部可翻转的标志位驱动 mock 返回值（跟 ImportPanel.test.tsx
+    // 的"refreshes staged files..."用的是同一个手法），而不是
+    // mockResolvedValueOnce 排队——挂载时 useFiles 自己的 mount effect 和
+    // FileList 这里新加的"跟 progress 变化刷新"effect 会各打一次，两次
+    // "once" 值会在真正测的那次 rerender 之前就被挂载阶段吃光。
+    let importFinished = false;
+    const listFilesSpy = vi.spyOn(client, "listFiles").mockImplementation(async () => ({
+      files: importFinished ? ["ch01.pdf", "ch02.pdf"] : ["ch01.pdf"],
+    }));
 
     const importing: ProgressResponse = {
       busy: true, reason: "ingesting", book_id: "ostep", pause_requested: false,
@@ -50,10 +56,8 @@ describe("FileList", () => {
     };
     const { rerender } = render(<FileList bookId="ostep" progress={importing} />);
     await screen.findByText("ch01.pdf");
-    // 挂载时会打两次：useFiles 自己的 mount effect 一次，FileList 这里新加
-    // 的"跟 progress 变化刷新"effect 挂载时也会触发一次——跟 ImportPanel.tsx
-    // /useStagedFiles 那对既有组合是同一个模式，不是这次新引入的重复。
     const callsAfterMount = listFilesSpy.mock.calls.length;
+    importFinished = true;
 
     const finished: ProgressResponse = {
       busy: false, reason: "idle", book_id: null, pause_requested: false,
