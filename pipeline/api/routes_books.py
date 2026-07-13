@@ -24,11 +24,15 @@ def list_books() -> dict:
 
 @router.delete("/books/{book_id}")
 def delete_book(book_id: str) -> dict:
+    # 忙碌检查必须排在"书存不存在"前面：一本书第一次导入、还没跑到阶段3
+    # 之前，collection 根本没被建出来（见 scripts/ingest.py 的 _store_file），
+    # 此时 store.list_books() 查不到它——如果先查存在，会被 404 抢跑，
+    # 忙碌检查永远轮不到，导致"正在导入的全新书"能被绕过保护直接删除。
+    if get_import_queue().book_has_pending_or_active_task(book_id):
+        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
     store = _store()
     if book_id not in store.list_books():
         raise HTTPException(status_code=404, detail=f"book_id '{book_id}' 不存在")
-    if get_import_queue().book_has_pending_or_active_task(book_id):
-        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
     store.delete_collection(book_id)
     # 这本书名下所有落盘记录一起删，不留孤儿文件：
     # manifest、失败清单、两个缓存、待导入列表、对话历史
@@ -46,14 +50,16 @@ class RenameBookRequest(BaseModel):
 
 @router.patch("/books/{book_id}")
 def rename_book(book_id: str, body: RenameBookRequest) -> dict:
+    # 顺序原因同 delete_book：忙碌检查要排在"书存不存在"前面，否则一本
+    # 正在第一次导入、collection 还没建出来的书会被 404 抢跑。
+    if get_import_queue().book_has_pending_or_active_task(book_id):
+        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可改名")
     store = _store()
     if book_id not in store.list_books():
         raise HTTPException(status_code=404, detail=f"book_id '{book_id}' 不存在")
     new_id = body.new_book_id
     if new_id in store.list_books():
         raise HTTPException(status_code=409, detail=f"book_id '{new_id}' 已存在")
-    if get_import_queue().book_has_pending_or_active_task(book_id):
-        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可改名")
 
     store.rename_collection(book_id, new_id)
 
@@ -82,11 +88,15 @@ def list_files(book_id: str) -> dict:
 
 @router.delete("/books/{book_id}/files/{source_file}")
 def delete_file(book_id: str, source_file: str) -> dict:
+    # 顺序原因同 delete_book：忙碌检查要排在"书存不存在"前面。这条目前
+    # 前端摸不到（FileList 依赖 list_files，同样先查存在，书没建出来时
+    # 文件列表本身就是空的/404，渲染不出可点的删除按钮）——但后端不能靠
+    # "现在没有调用方能触发"来决定要不要防护，必须自己保证正确。
+    if get_import_queue().book_has_pending_or_active_task(book_id):
+        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
     store = _store()
     if book_id not in store.list_books():
         raise HTTPException(status_code=404, detail=f"book_id '{book_id}' 不存在")
-    if get_import_queue().book_has_pending_or_active_task(book_id):
-        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
 
     manifest_dir = str(Path(get_chroma_dir()) / ".manifests")
     manifest = _load_manifest(manifest_dir, book_id)
