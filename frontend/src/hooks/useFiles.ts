@@ -35,5 +35,5 @@ export function useFiles(bookId: string) {
     [bookId, refresh],
   );
 
-  return { files, error, remove };
+  return { files, error, refresh, remove };
 }

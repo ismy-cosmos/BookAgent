@@ -1,14 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFiles } from "../hooks/useFiles";
 import { ConfirmDialog } from "./ConfirmDialog";
+import type { ProgressResponse } from "../api/types";
 
 interface FileListProps {
   bookId: string;
+  progress: ProgressResponse | null;
 }
 
-export function FileList({ bookId }: FileListProps) {
-  const { files, remove } = useFiles(bookId);
+export function FileList({ bookId, progress }: FileListProps) {
+  const { files, remove, refresh } = useFiles(bookId);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+
+  // 导入完成时每个文件成功入库会让"已导入文件"多一条——之前这里完全没
+  // 接 progress，只在 bookId 变化时拉一次，导入完成后要切书再切回来才能
+  // 看到新文件。用法跟 ImportPanel.tsx 里"待导入"列表的刷新时机一致：
+  // 盯 busy/current_file/last_result 的内容变化，不是只看 busy 的布尔值
+  // ——导入耗时可能短于轮询间隔，busy 从未被前端观察到变 true 过的情况下
+  // 只有 last_result 的内容会变。
+  const lastResultKey = JSON.stringify(progress?.last_result);
+  useEffect(() => {
+    refresh();
+  }, [refresh, progress?.busy, progress?.progress?.current_file, lastResultKey]);
 
   if (files.length === 0) return <p>暂无已导入文件</p>;
 

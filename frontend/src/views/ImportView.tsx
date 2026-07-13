@@ -11,7 +11,7 @@ export function ImportView({ bookId }: ImportViewProps) {
   return (
     <div>
       <ImportPanel bookId={bookId} progress={progress} />
-      <FileList bookId={bookId} />
+      <FileList bookId={bookId} progress={progress} />
     </div>
   );
 }
