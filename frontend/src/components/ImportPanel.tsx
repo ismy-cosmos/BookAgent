@@ -31,8 +31,16 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   // 随进度变化（文件边界/任务结束）重新拉取列表。单独盯 last_result 的内容
   // （而非 busy）是因为导入耗时可能短于轮询间隔，busy 从未被前端观察到变
   // true 过，此时只有 last_result 的内容会变化。
+  //
+  // 挂载那一刻 useStagedFiles 自己已经拉过一次了，这里跳过第一次运行，
+  // 避免挂载瞬间重复打两次 listStagedFiles。
   const lastResultKey = JSON.stringify(progress?.last_result);
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     refresh();
   }, [refresh, progress?.busy, progress?.progress?.current_file, lastResultKey]);
 

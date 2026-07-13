@@ -40,9 +40,8 @@ describe("FileList", () => {
     // 断言 listFiles 被重新调用、新文件真的渲染出来了。
     // 用一个外部可翻转的标志位驱动 mock 返回值（跟 ImportPanel.test.tsx
     // 的"refreshes staged files..."用的是同一个手法），而不是
-    // mockResolvedValueOnce 排队——挂载时 useFiles 自己的 mount effect 和
-    // FileList 这里新加的"跟 progress 变化刷新"effect 会各打一次，两次
-    // "once" 值会在真正测的那次 rerender 之前就被挂载阶段吃光。
+    // mockResolvedValueOnce 排队——更贴近真实场景里 listFiles 会被反复
+    // 轮询调用的情况。
     let importFinished = false;
     const listFilesSpy = vi.spyOn(client, "listFiles").mockImplementation(async () => ({
       files: importFinished ? ["ch01.pdf", "ch02.pdf"] : ["ch01.pdf"],

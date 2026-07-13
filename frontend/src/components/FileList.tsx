@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFiles } from "../hooks/useFiles";
 import { ConfirmDialog } from "./ConfirmDialog";
 import type { ProgressResponse } from "../api/types";
@@ -18,8 +18,16 @@ export function FileList({ bookId, progress }: FileListProps) {
   // 盯 busy/current_file/last_result 的内容变化，不是只看 busy 的布尔值
   // ——导入耗时可能短于轮询间隔，busy 从未被前端观察到变 true 过的情况下
   // 只有 last_result 的内容会变。
+  //
+  // 挂载那一刻 useFiles 自己已经拉过一次了（它内部的 mount effect），这里
+  // 跳过第一次运行，避免挂载瞬间重复打两次 listFiles。
   const lastResultKey = JSON.stringify(progress?.last_result);
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     refresh();
   }, [refresh, progress?.busy, progress?.progress?.current_file, lastResultKey]);
 
