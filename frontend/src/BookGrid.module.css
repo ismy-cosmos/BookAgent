@@ -1,6 +1,7 @@
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 96px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-5);
   overflow-y: auto;
 }
