@@ -138,6 +138,14 @@ class ImportQueue:
                 self._progress = None
                 if summary is not None:
                     self._last_result = summary
+                # 暂停标志本来的意义是"接下来还要不要继续处理"——任务收尾后
+                # 如果队列已经空了，没有下一个任务要被这个标志拦住，留着就
+                # 只是个不会自动消失的死状态（比如批次里图片太少，暂停请求
+                # 根本没赶上任何一个边界检查，任务正常跑完，标志却一直留着
+                # true）。队列还有别的任务排着时不清，保留"暂停中不取下一个
+                # 任务"的既有保护。
+                if self._queue.empty():
+                    self._pause_event.clear()
             self._queue.task_done()
 
 
