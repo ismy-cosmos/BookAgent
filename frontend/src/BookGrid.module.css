@@ -1,9 +1,14 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 96px);
-  /* 最多 8 列（8*96 + 7*space-5）：卡片区域本身在窗口里居中，但区域
-     内部还是从左往右正常排列，不会因为某一行没排满就把卡片推到中间。 */
-  max-width: 936px;
+  /* 最多 6 列（6*96 + 5*space-5 = 696px）：卡片区域本身在窗口里居中，
+     但区域内部还是从左往右正常排列，不会因为某一行没排满就把卡片推到
+     中间。6 列是照 tauri.conf.json 里默认窗口宽度 800px 算的——
+     800 - 2*space-5(HomeView padding) = 752px 可用宽度，7 列需要
+     816px 放不下；696 明显小于 752，保证默认窗口尺寸下也能看到居中
+     留白，而不是刚好等于可用宽度、永远撑满、看不出居中效果。窗口可
+     调整大小变宽时，留白会跟着变大，区域宽度本身不变。*/
+  max-width: 696px;
   margin: 0 auto;
   gap: var(--space-5);
   overflow-y: auto;
