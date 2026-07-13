@@ -145,7 +145,13 @@ class ImportQueue:
                 summary = {"book_id": task.book_id, "error": f"{type(e).__name__}: {e}"}
             with self._lock:
                 self._current_task = None
-                self._progress = None
+                # 暂停打断的任务不清空 progress——前端"已暂停"状态要展示
+                # 暂停前最后位置（如"已暂停 · ch02.pdf（2/3）"），这份数据
+                # 只存在 self._progress 里。正常完成/失败清空跟以前一样；
+                # 下一个任务开始处理时的 :134 行会自然覆盖清掉，不需要
+                # 额外的清理时机。
+                if summary is None or not summary.get("aborted_early"):
+                    self._progress = None
                 if summary is not None:
                     self._last_result = summary
                 # 暂停标志本来的意义是"接下来还要不要继续处理"——任务收尾后

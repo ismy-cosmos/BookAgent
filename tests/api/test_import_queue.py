@@ -540,3 +540,45 @@ def test_book_has_pending_or_active_task_false_for_unrelated_book():
 
     release.set()
     q.wait_until_idle(timeout=2.0)
+
+
+def test_progress_preserved_when_task_ends_aborted_early():
+    def processor(book_id, file_paths, should_pause, report_progress):
+        report_progress({"stage": "parsing", "current_file": 2, "total_files": 3,
+                         "current_image": None, "total_images": None,
+                         "current_filename": "ch02.pdf"})
+        return {"book_id": book_id, "aborted_early": True}
+
+    q = ImportQueue(processor=processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf", "f2.pdf", "f3.pdf"])
+    q.wait_until_idle(timeout=2.0)
+
+    assert q.get_progress()["progress"] == {
+        "stage": "parsing", "current_file": 2, "total_files": 3,
+        "current_image": None, "total_images": None, "current_filename": "ch02.pdf",
+    }
+
+
+def test_progress_cleared_once_next_task_starts_after_aborted_early():
+    call_count = 0
+
+    def processor(book_id, file_paths, should_pause, report_progress):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            report_progress({"stage": "parsing", "current_file": 1, "total_files": 1,
+                             "current_image": None, "total_images": None,
+                             "current_filename": "f1.pdf"})
+            return {"book_id": book_id, "aborted_early": True}
+        return {"book_id": book_id, "aborted_early": False}
+
+    q = ImportQueue(processor=processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+    q.wait_until_idle(timeout=2.0)
+    assert q.get_progress()["progress"] is not None  # 暂停打断，保留
+
+    q.enqueue("ostep", ["f1.pdf"])  # 模拟用户点"恢复"后重新提交
+    q.wait_until_idle(timeout=2.0)
+    assert q.get_progress()["progress"] is None  # 下一个任务开始时被 worker loop 清掉
