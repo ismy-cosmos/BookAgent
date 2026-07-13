@@ -1,7 +1,10 @@
 .grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 96px);
+  /* 最多 8 列（8*96 + 7*space-5）：卡片区域本身在窗口里居中，但区域
+     内部还是从左往右正常排列，不会因为某一行没排满就把卡片推到中间。 */
+  max-width: 936px;
+  margin: 0 auto;
   gap: var(--space-5);
   overflow-y: auto;
 }
