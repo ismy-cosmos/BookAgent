@@ -350,9 +350,9 @@ describe("ImportPanel", () => {
     await userEvent.click(screen.getByText("开始导入"));
     await screen.findByText("取消排队");
 
-    expect(screen.getByText("添加文件")).toBeDisabled();
-    expect(screen.getByText("移除")).toBeDisabled();
-    expect(screen.getByText("开始导入")).toBeDisabled();
+    expect(screen.queryByText("添加文件")).not.toBeInTheDocument();
+    expect(screen.queryByText("移除")).not.toBeInTheDocument();
+    expect(screen.queryByText("开始导入")).not.toBeInTheDocument();
     expect(screen.getByText("取消排队")).not.toBeDisabled();
   });
 

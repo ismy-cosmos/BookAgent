@@ -29,6 +29,7 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   const importingThisBook = !!progress?.busy && progress.book_id === bookId;
   // 已提交但还没轮到处理——这本书的批次不能再改，只能整批只读+取消排队。
   const isQueued = !!queuedTaskId && !importingThisBook;
+  const isPaused = !!(progress && !progress.busy && progress.pause_requested);
   const isReadOnly = importingThisBook || isQueued;
 
   // 导入进行中每个文件成功入库会从待导入列表消失（后端行为）——
@@ -117,33 +118,50 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   return (
     <section aria-label="导入管理">
       <h3 className={styles.heading}>待导入</h3>
-      <button className={styles.btnWhite} disabled={isReadOnly} onClick={handleAddFiles}>
-        添加文件
-      </button>
       <ul className={styles.list}>
         {files.map((path) => (
           <li key={path} className={styles.row}>
             <span className={styles.filename}>{path}</span>
-            <button
-              className={styles.removeAction}
-              disabled={isReadOnly}
-              aria-label={`移除 ${path}`}
-              onClick={() => remove(path)}
-            >
-              {importingThisBook ? "导入中" : "移除"}
-            </button>
+            {!isQueued && (
+              <button
+                className={styles.removeAction}
+                disabled={importingThisBook}
+                aria-label={`移除 ${path}`}
+                onClick={() => remove(path)}
+              >
+                {importingThisBook ? "导入中" : "移除"}
+              </button>
+            )}
           </li>
         ))}
       </ul>
-      <div className={styles.btnRow}>
-        <button
-          className={styles.btnBlue}
-          disabled={files.length === 0 || isReadOnly}
-          onClick={handleSubmit}
-        >
-          开始导入
-        </button>
-      </div>
+
+      {/* 待导入 / 正在导入：添加文件 + 开始导入 */}
+      {!isQueued && !isPaused && (
+        <div className={styles.btnRow}>
+          <button className={styles.btnWhite} disabled={isReadOnly} onClick={handleAddFiles}>
+            添加文件
+          </button>
+          <button
+            className={styles.btnBlue}
+            disabled={files.length === 0 || isReadOnly}
+            onClick={handleSubmit}
+          >
+            开始导入
+          </button>
+        </div>
+      )}
+
+      {/* 已暂停：只有添加文件 */}
+      {isPaused && (
+        <div className={styles.btnRow}>
+          <button className={styles.btnWhite} onClick={handleAddFiles}>
+            添加文件
+          </button>
+        </div>
+      )}
+
+      {/* 排队中：只有取消排队 */}
       {isQueued && (
         <div className={styles.btnRow}>
           <button className={styles.btnWhite} onClick={handleCancelQueued}>
@@ -152,6 +170,7 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
         </div>
       )}
 
+      {/* 正在导入：进度 + 暂停 */}
       {importingThisBook && progress?.progress && (
         <div role="status">
           <p className={styles.progressText}>{stageText(progress.progress)}</p>
@@ -169,7 +188,8 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
         </div>
       )}
 
-      {progress && !progress.busy && progress.pause_requested && (
+      {/* 已暂停：进度文字 + 恢复 */}
+      {isPaused && (
         <div role="status">
           <p className={styles.progressText}>
             {progress.progress ? pausedText(progress.progress) : "已暂停"}
