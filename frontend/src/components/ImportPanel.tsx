@@ -118,23 +118,25 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   return (
     <section aria-label="导入管理">
       <h3 className={styles.heading}>待导入</h3>
-      <ul className={styles.list}>
-        {files.map((path) => (
-          <li key={path} className={styles.row}>
-            <span className={styles.filename}>{path}</span>
-            {!isQueued && (
-              <button
-                className={styles.removeAction}
-                disabled={importingThisBook}
-                aria-label={`移除 ${path}`}
-                onClick={() => remove(path)}
-              >
-                {importingThisBook ? "导入中" : "移除"}
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+      {files.length > 0 && (
+        <ul className={styles.list}>
+          {files.map((path) => (
+            <li key={path} className={styles.row}>
+              <span className={styles.filename}>{path}</span>
+              {!isQueued && (
+                <button
+                  className={styles.removeAction}
+                  disabled={importingThisBook}
+                  aria-label={`移除 ${path}`}
+                  onClick={() => remove(path)}
+                >
+                  {importingThisBook ? "导入中" : "移除"}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {/* 待导入 / 正在导入：添加文件 + 开始导入 */}
       {!isQueued && !isPaused && (

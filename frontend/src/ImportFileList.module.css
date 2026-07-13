@@ -76,7 +76,9 @@
 
 .btnWhite {
   background: #fff;
-  color: var(--text-primary);
+  /* 跟 BookCard 悬浮按钮同一个原因：白底不随主题切换，所以文字色也必须固定
+     不跟着 --text-primary 变浅，否则深色模式下白底浅字完全看不见。 */
+  color: #222;
   border: 1px solid var(--input-border);
 }
 
@@ -98,6 +100,6 @@
 }
 
 .progressText {
-  font-size: var(--font-meta);
+  font-size: var(--font-body);
   color: var(--text-secondary);
 }
