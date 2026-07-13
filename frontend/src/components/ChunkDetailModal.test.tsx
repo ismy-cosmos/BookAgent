@@ -26,6 +26,19 @@ describe("ChunkDetailModal", () => {
     expect(screen.getByText(/42/)).toBeInTheDocument();
   });
 
+  it("shows a dismissible toast when the chunk fetch fails", async () => {
+    // 之前这条错误路径完全没测过——chunk 被删（比如对应文件后来被删了）
+    // 时点引用胶囊会打这个错。
+    vi.spyOn(client, "getChunk").mockRejectedValue(new Error("未找到该 chunk: c1"));
+    const user = userEvent.setup();
+
+    render(<ChunkDetailModal bookId="ostep" chunkId="c1" onClose={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("未找到该 chunk: c1");
+    await user.click(screen.getByLabelText("关闭"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("calls onClose when close button clicked", async () => {
     vi.spyOn(client, "getChunk").mockResolvedValue({
       chunk_id: "c1", content: "text", source_file: "f.pdf",

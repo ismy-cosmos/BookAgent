@@ -48,6 +48,40 @@ describe("ImportPanel", () => {
     expect(await screen.findByText("/b.epub")).toBeInTheDocument();
   });
 
+  it("shows a dismissible toast when adding a staged file is rejected by the backend", async () => {
+    // 之前这条错误路径（useStagedFiles 的 error）完全没测过——比如选了不
+    // 支持的格式，后端 400 拒绝。
+    const user = userEvent.setup();
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    vi.spyOn(client, "addStagedFile")
+      .mockRejectedValue(new Error("不支持的文件类型：.txt"));
+    vi.mocked(open).mockResolvedValue(["/notes.txt"]);
+
+    render(<ImportPanel bookId="ostep" progress={IDLE_PROGRESS} />);
+    await user.click(screen.getByText("添加文件"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("不支持的文件类型：.txt");
+    await user.click(screen.getByLabelText("关闭"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows a dismissible toast when submitting the import is rejected", async () => {
+    // actionError 路径（handleSubmit 的 catch）之前也完全没测过。
+    const user = userEvent.setup();
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    vi.spyOn(client, "submitImport")
+      .mockRejectedValue(new Error("待导入文件列表为空，没有可提交的内容"));
+
+    render(<ImportPanel bookId="ostep" progress={IDLE_PROGRESS} />);
+    await screen.findByText("/a.pdf");
+    await user.click(screen.getByText("开始导入"));
+
+    expect(await screen.findByRole("alert"))
+      .toHaveTextContent("待导入文件列表为空，没有可提交的内容");
+    await user.click(screen.getByLabelText("关闭"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("opens the picker in the last-used directory and remembers the new one", async () => {
     vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
     vi.spyOn(client, "addStagedFile").mockResolvedValue({ files: ["/data/ch01.pdf"] });

@@ -4,6 +4,7 @@ import { useImportProgress } from "../hooks/useImportProgress";
 import { BookGrid } from "../components/BookGrid";
 import { GlobalImportCapsule } from "../components/GlobalImportCapsule";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Toast } from "../components/Toast";
 import { pauseImport } from "../api/client";
 import { destroyAllWindows, installQuitConfirmation } from "../quitConfirmation";
 import type { Status } from "../api/types";
@@ -40,7 +41,7 @@ export function HomeView() {
 
   return (
     <div style={{ padding: "var(--space-5)" }}>
-      {unreachable && <div role="alert">服务未响应，重试中…</div>}
+      {unreachable && <Toast message="服务响应中" position="top-center" />}
       {!unreachable && <BookGrid />}
       <GlobalImportCapsule progress={progress} onPause={() => pauseImport().catch(() => {})} />
       {confirmingQuit && (

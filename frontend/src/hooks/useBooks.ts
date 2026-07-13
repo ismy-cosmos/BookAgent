@@ -44,5 +44,5 @@ export function useBooks() {
     [refresh],
   );
 
-  return { books, error, refresh, remove, rename };
+  return { books, error, refresh, remove, rename, setError };
 }

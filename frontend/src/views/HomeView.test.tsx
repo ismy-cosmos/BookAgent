@@ -47,7 +47,7 @@ describe("HomeView", () => {
 
     render(<HomeView />);
 
-    expect(await screen.findByText(/服务未响应/)).toBeInTheDocument();
+    expect(await screen.findByText("服务响应中")).toBeInTheDocument();
   });
 
   it("ends up with exactly one live close-confirmation listener under StrictMode's mount/cleanup/mount", async () => {

@@ -5,6 +5,7 @@ import { cancelImport, pauseImport, resumeImport, submitImport } from "../api/cl
 import { useStagedFiles } from "../hooks/useStagedFiles";
 import { stageText } from "../importProgressText";
 import { ImportCompletionToast } from "./ImportCompletionToast";
+import { Toast } from "./Toast";
 import type { LastResult, ProgressResponse } from "../api/types";
 
 // 跟后端 scripts/ingest.py 的 _ALL_EXTS 保持一致
@@ -20,7 +21,7 @@ interface ImportPanelProps {
 }
 
 export function ImportPanel({ bookId, progress }: ImportPanelProps) {
-  const { files, error, refresh, add, remove } = useStagedFiles(bookId);
+  const { files, error, refresh, add, remove, setError } = useStagedFiles(bookId);
   const [queuedTaskId, setQueuedTaskId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -144,7 +145,16 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
         <ImportCompletionToast result={toastResult} onDismiss={dismissToast} />
       )}
 
-      {(error ?? actionError) && <p role="alert">{error ?? actionError}</p>}
+      {(error ?? actionError) && (
+        <Toast
+          message={error ?? actionError ?? ""}
+          position="top-center"
+          onDismiss={() => {
+            setError(null);
+            setActionError(null);
+          }}
+        />
+      )}
     </section>
   );
 }

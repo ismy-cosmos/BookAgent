@@ -46,5 +46,5 @@ export function useStagedFiles(bookId: string) {
     [bookId],
   );
 
-  return { files, error, refresh, add, remove };
+  return { files, error, refresh, add, remove, setError };
 }
