@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, deleteFile, listFiles } from "../api/client";
+import { toErrorMessage } from "../errorMessage";
 
 export function useFiles(bookId: string) {
   const [files, setFiles] = useState<string[]>([]);
@@ -14,7 +15,7 @@ export function useFiles(bookId: string) {
         // 新建的书在首次导入成功前 Chroma collection 不存在——不算错误，按空列表处理
         setFiles([]);
       } else {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(toErrorMessage(e));
       }
     }
   }, [bookId]);
@@ -29,7 +30,7 @@ export function useFiles(bookId: string) {
         await deleteFile(bookId, sourceFile);
         await refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(toErrorMessage(e));
       }
     },
     [bookId, refresh],

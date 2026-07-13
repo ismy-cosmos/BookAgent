@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { deleteBook, listBooks, renameBook } from "../api/client";
+import { toErrorMessage } from "../errorMessage";
 
 export function useBooks() {
   const [books, setBooks] = useState<string[]>([]);
@@ -11,7 +12,7 @@ export function useBooks() {
       setBooks(result.books);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   }, []);
 
@@ -25,7 +26,7 @@ export function useBooks() {
         await deleteBook(bookId);
         await refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(toErrorMessage(e));
       }
     },
     [refresh],
@@ -37,7 +38,7 @@ export function useBooks() {
         await renameBook(bookId, newBookId);
         await refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(toErrorMessage(e));
         throw e;
       }
     },

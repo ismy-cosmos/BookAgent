@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { addStagedFile, listStagedFiles, removeStagedFile } from "../api/client";
+import { toErrorMessage } from "../errorMessage";
 
 export function useStagedFiles(bookId: string) {
   const [files, setFiles] = useState<string[]>([]);
@@ -10,7 +11,7 @@ export function useStagedFiles(bookId: string) {
       const result = await listStagedFiles(bookId);
       setFiles(result.files);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   }, [bookId]);
 
@@ -28,7 +29,7 @@ export function useStagedFiles(bookId: string) {
         }
         if (latest) setFiles(latest);
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(toErrorMessage(e));
       }
     },
     [bookId],
@@ -40,7 +41,7 @@ export function useStagedFiles(bookId: string) {
         const result = await removeStagedFile(bookId, path);
         setFiles(result.files);
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(toErrorMessage(e));
       }
     },
     [bookId],
