@@ -37,8 +37,18 @@ def list_books() -> dict:
 
 @router.delete("/books/{book_id}")
 def delete_book(book_id: str) -> dict:
-    store = _require_book_idle_and_existing(book_id, "删除")
-    store.delete_collection(book_id)
+    # 忙碌检查原因同 _require_book_idle_and_existing，但这里不能直接复用
+    # 那个 helper——它"书不存在就 404"是硬性提前返回，会跳过下面的清理。
+    # 待导入列表（staging）落盘时根本不检查书是否存在（新建书第一次导入
+    # 前就要能加文件），所以哪怕这本书从没建出真实 collection、注定要 404，
+    # 草稿态的残留也必须清掉，否则同名书重新建出来时旧的待导入文件会
+    # 原样冒出来，看起来像凭空复活。
+    if get_import_queue().book_has_pending_or_active_task(book_id):
+        raise HTTPException(status_code=409, detail=f"'{book_id}' 正在导入中，暂不可删除")
+    store = _store()
+    existed = book_id in store.list_books()
+    if existed:
+        store.delete_collection(book_id)
     # 这本书名下所有落盘记录一起删，不留孤儿文件：
     # manifest、失败清单、两个缓存、待导入列表、对话历史
     manifest_dir = Path(get_chroma_dir()) / ".manifests"
@@ -46,6 +56,8 @@ def delete_book(book_id: str) -> dict:
         (manifest_dir / f"{book_id}.{suffix}").unlink(missing_ok=True)
     staging.delete_list(get_chroma_dir(), book_id)
     shutil.rmtree(Path(get_chroma_dir()) / ".conversations" / book_id, ignore_errors=True)
+    if not existed:
+        raise HTTPException(status_code=404, detail=f"book_id '{book_id}' 不存在")
     return {"deleted": book_id}
 
 

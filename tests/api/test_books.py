@@ -31,6 +31,24 @@ def test_delete_book_not_found(tmp_path, monkeypatch):
     assert resp.status_code == 404
 
 
+def test_delete_book_never_imported_also_clears_staged_files(tmp_path, monkeypatch):
+    # 回归测试：新建书只添加了待导入文件、从没点过"开始导入"——这本书
+    # 从没建出真实 collection，DELETE /books/{id} 会 404（"书不存在"）。
+    # 但草稿态的待导入列表落盘时不检查书是否存在，之前 delete_book 在 404
+    # 分支直接 return，staging.delete_list 根本没机会跑，留下的
+    # .manifests/{book_id}.pending_files.json 永远不会被清掉——用户以为
+    # 删掉了这本书，下次重新建一本同名的书，之前残留的待导入文件会原样
+    # 冒出来，看起来像凭空复活。
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    from pipeline.api import staging
+    staging.add_file(str(tmp_path), "1", "/some/old/path.pdf")
+
+    resp = client.delete("/books/1")
+
+    assert resp.status_code == 404
+    assert staging.list_files(str(tmp_path), "1") == []
+
+
 def test_delete_book_removes_it(tmp_path, monkeypatch):
     monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
     ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
