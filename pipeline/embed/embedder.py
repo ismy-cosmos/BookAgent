@@ -62,9 +62,8 @@ def release_gpu_model() -> None:
     del model
     import gc
     gc.collect()
-    try:
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except ImportError:
-        pass
+    # torch 是 FlagEmbedding 的硬依赖——能走到这里说明模型已经加载过，
+    # torch 必然已经装了，不需要 try/except ImportError 兜底。
+    import torch
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
