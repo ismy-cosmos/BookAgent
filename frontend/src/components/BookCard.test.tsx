@@ -127,4 +127,23 @@ describe("BookCard", () => {
 
     expect(onRename).toHaveBeenCalledWith("ostep", "ostep-v2");
   });
+
+  it("reverts to the old name when the backend rejects a rename to a name that already exists", async () => {
+    // 改名不做实时查重 UI（跟"新建书"不一样）——直接交给后端判断，
+    // 冲突时改名失败，输入框回退到原名即可。
+    const onRename = vi.fn().mockRejectedValue(new Error("book_id 'civil-law' 已存在"));
+    render(
+      <BookCard bookId="ostep" busy={false} importing={false}
+                onRemove={() => {}} onRename={onRename} />,
+    );
+
+    fireEvent.doubleClick(screen.getByText("ostep"));
+    const input = screen.getByDisplayValue("ostep");
+    fireEvent.change(input, { target: { value: "civil-law" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onRename).toHaveBeenCalledWith("ostep", "civil-law");
+    expect(await screen.findByText("ostep")).toBeInTheDocument();
+    expect(screen.queryByText("civil-law")).not.toBeInTheDocument();
+  });
 });

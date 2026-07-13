@@ -71,7 +71,11 @@ export function BookGrid() {
         +
       </button>
       {creating && (
-        <NewBookDialog onCreate={handleCreate} onCancel={() => setCreating(false)} />
+        <NewBookDialog
+          existingBookIds={allBooks}
+          onCreate={handleCreate}
+          onCancel={() => setCreating(false)}
+        />
       )}
       {error && <Toast onDismiss={() => setError(null)}>{error}</Toast>}
     </div>

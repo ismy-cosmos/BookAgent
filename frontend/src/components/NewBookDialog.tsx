@@ -3,24 +3,29 @@ import { Modal } from "./Modal";
 import styles from "../Modal.module.css";
 
 interface NewBookDialogProps {
+  existingBookIds: string[];
   onCreate: (bookId: string) => void;
   onCancel: () => void;
 }
 
-export function NewBookDialog({ onCreate, onCancel }: NewBookDialogProps) {
+export function NewBookDialog({ existingBookIds, onCreate, onCancel }: NewBookDialogProps) {
   const [bookId, setBookId] = useState("");
+  const trimmedId = bookId.trim();
+  const isDuplicate = trimmedId !== "" && existingBookIds.includes(trimmedId);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const id = bookId.trim();
-    if (!id) return;
-    onCreate(id);
+    if (!trimmedId || isDuplicate) return;
+    onCreate(trimmedId);
   }
 
   return (
     <Modal onDismiss={onCancel}>
       <form onSubmit={handleSubmit}>
         <p>新建书</p>
+        <div className={styles.inputRow}>
+          {isDuplicate && <span className={styles.duplicateWarning}>书名已存在</span>}
+        </div>
         <input
           className={styles.input}
           aria-label="新书 book_id"
@@ -33,7 +38,7 @@ export function NewBookDialog({ onCreate, onCancel }: NewBookDialogProps) {
           <button type="button" className={styles.secondaryButton} onClick={onCancel}>
             取消
           </button>
-          <button type="submit" className={styles.primaryButton} disabled={!bookId.trim()}>
+          <button type="submit" className={styles.primaryButton} disabled={!trimmedId || isDuplicate}>
             确定
           </button>
         </div>
