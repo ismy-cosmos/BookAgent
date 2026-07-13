@@ -46,7 +46,7 @@ export function ChunkDetailModal({ bookId, chunkId, onClose }: ChunkDetailModalP
         </>
       )}
       {error && (
-        <Toast message={error} position="top-center" onDismiss={() => setError(null)} />
+        <Toast position="top-center" onDismiss={() => setError(null)}>{error}</Toast>
       )}
       <button onClick={onClose}>关闭</button>
     </div>

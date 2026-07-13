@@ -41,7 +41,7 @@ export function HomeView() {
 
   return (
     <div style={{ padding: "var(--space-5)" }}>
-      {unreachable && <Toast message="服务响应中" position="top-center" />}
+      {unreachable && <Toast position="top-center">服务响应中</Toast>}
       {!unreachable && <BookGrid />}
       <GlobalImportCapsule progress={progress} onPause={() => pauseImport().catch(() => {})} />
       {confirmingQuit && (

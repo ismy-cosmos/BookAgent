@@ -16,7 +16,11 @@ export function ImportCompletionToast({ result, onDismiss }: ImportCompletionToa
   }, [onDismiss]);
 
   return (
-    <Toast position="top-center" onDismiss={onDismiss}>
+    <Toast
+      position="top-center"
+      variant={result.error ? "error" : "neutral"}
+      onDismiss={onDismiss}
+    >
       {result.error ? (
         <span>导入失败：{result.error}</span>
       ) : (

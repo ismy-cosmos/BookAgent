@@ -73,7 +73,7 @@ export function BookGrid() {
       {creating && (
         <NewBookDialog onCreate={handleCreate} onCancel={() => setCreating(false)} />
       )}
-      {error && <Toast message={error} onDismiss={() => setError(null)} />}
+      {error && <Toast onDismiss={() => setError(null)}>{error}</Toast>}
     </div>
   );
 }

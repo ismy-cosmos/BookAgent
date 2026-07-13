@@ -147,13 +147,14 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
 
       {(error ?? actionError) && (
         <Toast
-          message={error ?? actionError ?? ""}
           position="top-center"
           onDismiss={() => {
             setError(null);
             setActionError(null);
           }}
-        />
+        >
+          {error ?? actionError}
+        </Toast>
       )}
     </section>
   );
