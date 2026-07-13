@@ -250,8 +250,8 @@ def test_cancel_works_on_task_held_during_pause():
     assert processor.calls == []  # 被取消的任务恢复后也不会被处理
 
 
-def test_get_status_pausing_vs_paused():
-    """pause_requested=True + busy=True 是"正在暂停中"；+ busy=False 是"已暂停"。"""
+def test_get_status_pausing_while_task_still_running():
+    """pause_requested=True + busy=True 是"正在暂停中"。"""
     started = threading.Event()
     release = threading.Event()
 
@@ -270,11 +270,66 @@ def test_get_status_pausing_vs_paused():
 
     release.set()
     q.wait_until_idle(timeout=2.0)
-    status = q.get_status()
-    assert status["busy"] is False and status["pause_requested"] is True  # 已暂停
+
+
+def test_pause_flag_auto_clears_once_queue_is_empty_after_task_ends():
+    """方案B：暂停标志的意义是"接下来还要不要继续处理"——队列空了（没有
+    下一个任务会被它拦住）就没有继续留着的意义，任务一收尾就自动清掉。
+
+    覆盖"try"那种真实场景：批次里文件/图片太少，暂停请求根本没赶上任何
+    一次边界检查（这里用一个完全不理会 should_pause、跑到底才返回的
+    processor 模拟"没被真正打断"），任务正常跑完，但标志之前会一直留着
+    true 不被清除，导致明明没有任何东西要恢复，前端却会一直显示"已暂停"。
+    """
+    started = threading.Event()
+    release = threading.Event()
+
+    def ignores_pause_processor(book_id, file_paths, should_pause, report_progress):
+        started.set()
+        release.wait(timeout=2.0)  # 模拟"正在处理中"，不检查 should_pause
+
+    q = ImportQueue(processor=ignores_pause_processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+    assert started.wait(timeout=2.0)
+
+    q.request_pause()  # 处理过程中请求暂停，但这个 processor 完全不理会它
+    release.set()      # 放行，任务正常跑完（模拟单文件/单图批次里没有
+                        # 任何边界检查能捕捉到这次暂停请求）
+    q.wait_until_idle(timeout=2.0)
+
+    assert q.get_status()["pause_requested"] is False  # 队列空了，自动清掉
+
+
+def test_pause_flag_not_cleared_while_another_task_still_queued():
+    """队列里还排着别的任务时，暂停标志不能被清掉——不然"暂停中不取下一个
+    任务"这个既有保护就失效了。"""
+    processed = []
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_first_processor(book_id, file_paths, should_pause, report_progress):
+        processed.append(book_id)
+        if len(processed) == 1:
+            started.set()
+            release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_first_processor)
+    q.start()
+    q.enqueue("book-a", ["a1.pdf"])
+    q.enqueue("book-b", ["b1.pdf"])  # 排队等着，book-a 收尾时队列不是空的
+
+    assert started.wait(timeout=2.0)
+    q.request_pause()
+    release.set()
+    time.sleep(0.3)  # 给"如果标志被清掉、book-b 会被开始处理"留出反应时间
+
+    assert processed == ["book-a"]  # book-b 依然没有被开始处理
+    assert q.get_status()["pause_requested"] is True  # 标志还在，没被清
 
     q.resume()
-    assert q.get_status()["pause_requested"] is False
+    q.wait_until_idle(timeout=2.0)
+    assert processed == ["book-a", "book-b"]
 
 
 def test_book_has_pending_or_active_task_true_for_task_held_during_pause():

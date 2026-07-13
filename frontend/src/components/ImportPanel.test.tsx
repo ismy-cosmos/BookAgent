@@ -3,13 +3,19 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
+vi.mock("@tauri-apps/api/path", () => ({
+  dirname: vi.fn(async (p: string) => p.substring(0, p.lastIndexOf("/"))),
+}));
 
 import { open } from "@tauri-apps/plugin-dialog";
 import * as client from "../api/client";
 import type { ProgressResponse } from "../api/types";
 import { ImportPanel } from "./ImportPanel";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  localStorage.clear();
+});
 
 const IDLE_PROGRESS: ProgressResponse = {
   busy: false, reason: "idle", book_id: null, pause_requested: false,
@@ -40,6 +46,57 @@ describe("ImportPanel", () => {
 
     await waitFor(() => expect(addSpy).toHaveBeenCalledTimes(2));
     expect(await screen.findByText("/b.epub")).toBeInTheDocument();
+  });
+
+  it("shows a dismissible toast when adding a staged file is rejected by the backend", async () => {
+    // 之前这条错误路径（useStagedFiles 的 error）完全没测过——比如选了不
+    // 支持的格式，后端 400 拒绝。
+    const user = userEvent.setup();
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    vi.spyOn(client, "addStagedFile")
+      .mockRejectedValue(new Error("不支持的文件类型：.txt"));
+    vi.mocked(open).mockResolvedValue(["/notes.txt"]);
+
+    render(<ImportPanel bookId="ostep" progress={IDLE_PROGRESS} />);
+    await user.click(screen.getByText("添加文件"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("不支持的文件类型：.txt");
+    await user.click(screen.getByLabelText("关闭"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows a dismissible toast when submitting the import is rejected", async () => {
+    // actionError 路径（handleSubmit 的 catch）之前也完全没测过。
+    const user = userEvent.setup();
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    vi.spyOn(client, "submitImport")
+      .mockRejectedValue(new Error("待导入文件列表为空，没有可提交的内容"));
+
+    render(<ImportPanel bookId="ostep" progress={IDLE_PROGRESS} />);
+    await screen.findByText("/a.pdf");
+    await user.click(screen.getByText("开始导入"));
+
+    expect(await screen.findByRole("alert"))
+      .toHaveTextContent("待导入文件列表为空，没有可提交的内容");
+    await user.click(screen.getByLabelText("关闭"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("opens the picker in the last-used directory and remembers the new one", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    vi.spyOn(client, "addStagedFile").mockResolvedValue({ files: ["/data/ch01.pdf"] });
+    localStorage.setItem("bookagent:lastImportDir", "/old/dir");
+    vi.mocked(open).mockResolvedValue(["/data/ch01.pdf"]);
+
+    render(<ImportPanel bookId="ostep" progress={IDLE_PROGRESS} />);
+    await userEvent.click(screen.getByText("添加文件"));
+
+    expect(open).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: "/old/dir" }),
+    );
+    await waitFor(() =>
+      expect(localStorage.getItem("bookagent:lastImportDir")).toBe("/data"),
+    );
   });
 
   it("disables submit when the staged list is empty", async () => {
@@ -172,6 +229,75 @@ describe("ImportPanel", () => {
       expect(listSpy.mock.calls.length).toBeGreaterThan(callsBeforeCompletion),
     );
     await waitFor(() => expect(screen.queryByText("/a.pdf")).toBeNull());
+  });
+
+  it("auto-dismisses the completion toast even while re-rendering from polling", async () => {
+    // 回归测试：之前 onDismiss 是每次渲染新建的内联函数，ImportCompletionToast
+    // 内部的自动消失计时器把它当 useEffect 依赖，随每次轮询重渲染反复清掉重
+    // 开，永远攒不够 6 秒。这里用 rerender 模拟轮询，验证计时器真的能跑完。
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    const done: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+      progress: null,
+      last_result: { book_id: "ostep", total_chunks: 3, aborted_early: false,
+                     failures: [], not_attempted: [] },
+    };
+
+    const { rerender } = render(<ImportPanel bookId="ostep" progress={done} />);
+    expect(await screen.findByText(/导入完成：入库 3 块/)).toBeInTheDocument();
+
+    // 模拟轮询：每 500ms 重渲染一次同样的 progress，持续 6 秒
+    for (let i = 0; i < 12; i++) {
+      await vi.advanceTimersByTimeAsync(500);
+      rerender(<ImportPanel bookId="ostep" progress={{ ...done }} />);
+    }
+
+    expect(screen.queryByText(/导入完成：入库 3 块/)).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("does not re-show a completion toast already dismissed in a previous mount of the same book", async () => {
+    // 回归测试：之前"已经弹过"的记录只存在内存 ref 里，窗口关闭重开=组件
+    // 重新 mount，内存态丢失，同一份 last_result 会再弹一次。
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    const done: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+      progress: null,
+      last_result: { book_id: "ostep", total_chunks: 3, aborted_early: false,
+                     failures: [], not_attempted: [] },
+    };
+
+    const { unmount } = render(<ImportPanel bookId="ostep" progress={done} />);
+    expect(await screen.findByText(/导入完成：入库 3 块/)).toBeInTheDocument();
+    unmount();
+
+    render(<ImportPanel bookId="ostep" progress={done} />);
+    await waitFor(() => expect(client.listStagedFiles).toHaveBeenCalled());
+    expect(screen.queryByText(/导入完成：入库 3 块/)).not.toBeInTheDocument();
+  });
+
+  it("still shows a genuinely new completion result for the same book after a remount", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    const first: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+      progress: null,
+      last_result: { book_id: "ostep", total_chunks: 3, aborted_early: false,
+                     failures: [], not_attempted: [] },
+    };
+    const second: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+      progress: null,
+      last_result: { book_id: "ostep", total_chunks: 9, aborted_early: false,
+                     failures: [], not_attempted: [] },
+    };
+
+    const { unmount } = render(<ImportPanel bookId="ostep" progress={first} />);
+    expect(await screen.findByText(/导入完成：入库 3 块/)).toBeInTheDocument();
+    unmount();
+
+    render(<ImportPanel bookId="ostep" progress={second} />);
+    expect(await screen.findByText(/导入完成：入库 9 块/)).toBeInTheDocument();
   });
 
   it("offers cancel for a task queued behind another book and cancels it", async () => {

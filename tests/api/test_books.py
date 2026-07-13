@@ -31,6 +31,24 @@ def test_delete_book_not_found(tmp_path, monkeypatch):
     assert resp.status_code == 404
 
 
+def test_delete_book_never_imported_also_clears_staged_files(tmp_path, monkeypatch):
+    # 回归测试：新建书只添加了待导入文件、从没点过"开始导入"——这本书
+    # 从没建出真实 collection，DELETE /books/{id} 会 404（"书不存在"）。
+    # 但草稿态的待导入列表落盘时不检查书是否存在，之前 delete_book 在 404
+    # 分支直接 return，staging.delete_list 根本没机会跑，留下的
+    # .manifests/{book_id}.pending_files.json 永远不会被清掉——用户以为
+    # 删掉了这本书，下次重新建一本同名的书，之前残留的待导入文件会原样
+    # 冒出来，看起来像凭空复活。
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    from pipeline.api import staging
+    staging.add_file(str(tmp_path), "1", "/some/old/path.pdf")
+
+    resp = client.delete("/books/1")
+
+    assert resp.status_code == 404
+    assert staging.list_files(str(tmp_path), "1") == []
+
+
 def test_delete_book_removes_it(tmp_path, monkeypatch):
     monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
     ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
@@ -111,6 +129,22 @@ def test_delete_book_rejected_while_book_has_pending_task(tmp_path, monkeypatch)
     fake_queue.book_has_pending_or_active_task.assert_called_once_with("ostep")
 
 
+def test_delete_book_rejected_while_busy_even_if_book_never_existed(tmp_path, monkeypatch):
+    # 回归测试：一本书第一次导入、还没跑到阶段3之前，collection 根本没建
+    # 出来，store.list_books() 查不到它——如果"存在检查"排在"忙碌检查"
+    # 前面，这里会被 404 抢跑，忙碌检查永远轮不到，导致正在导入的全新书
+    # 能被绕过保护直接删除。这里不建 collection（模拟"还没到阶段3"），
+    # 必须依然拿到 409，不是 404。
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    fake_queue = MagicMock()
+    fake_queue.book_has_pending_or_active_task.return_value = True
+    monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
+
+    resp = client.delete("/books/brand-new-book")
+    assert resp.status_code == 409
+    fake_queue.book_has_pending_or_active_task.assert_called_once_with("brand-new-book")
+
+
 def test_delete_book_allowed_for_unrelated_book(tmp_path, monkeypatch):
     monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
     ChromaStore(persist_dir=str(tmp_path))._collection("ostep")
@@ -133,6 +167,19 @@ def test_delete_file_rejected_while_book_has_pending_task(tmp_path, monkeypatch)
     monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
 
     resp = client.delete("/books/ostep/files/ch01.pdf")
+    assert resp.status_code == 409
+
+
+def test_delete_file_rejected_while_busy_even_if_book_never_existed(tmp_path, monkeypatch):
+    # 同源回归测试（见 test_delete_book_rejected_while_busy_even_if_book_never_existed
+    # 的解释）。这条目前前端摸不到（FileList 依赖 list_files，book 不存在时
+    # 文件列表本身拿不到），但后端不能靠"没有调用方"当理由跳过防护。
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    fake_queue = MagicMock()
+    fake_queue.book_has_pending_or_active_task.return_value = True
+    monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
+
+    resp = client.delete("/books/brand-new-book/files/ch01.pdf")
     assert resp.status_code == 409
 
 
@@ -210,6 +257,20 @@ def test_rename_book_rejected_while_busy(tmp_path, monkeypatch):
     monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
     resp = client.patch("/books/book-a", json={"new_book_id": "book-b"})
     assert resp.status_code == 409
+
+
+def test_rename_book_rejected_while_busy_even_if_book_never_existed(tmp_path, monkeypatch):
+    # 同源回归测试（见 test_delete_book_rejected_while_busy_even_if_book_never_existed
+    # 的解释）——前端目前双击改名不做任何忙碌检查，完全靠后端兜底，
+    # 后端自己更不能把这个漏洞留着。
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    fake_queue = MagicMock()
+    fake_queue.book_has_pending_or_active_task.return_value = True
+    monkeypatch.setattr("pipeline.api.routes_books.get_import_queue", lambda: fake_queue)
+
+    resp = client.patch("/books/brand-new-book", json={"new_book_id": "renamed"})
+    assert resp.status_code == 409
+    fake_queue.book_has_pending_or_active_task.assert_called_once_with("brand-new-book")
 
 
 def test_rename_book_renames_everything(tmp_path, monkeypatch):

@@ -44,3 +44,26 @@ class Embedder:
 
     def embed_query(self, text: str) -> list[float]:
         return self.embed([text])[0]
+
+
+def release_gpu_model() -> None:
+    """释放 GPU 常驻的 embedder（device=None 缓存键 "auto"）。
+
+    导入任务结束后调用——模型加载后没有任何自动过期机制，会一直占着显存，
+    跟 Ollama 后续加载模型抢显存，抢不到时 Ollama 会把部分层（包括多模态
+    投影层）退到 CPU，拖慢速度。device="cpu" 那份查询用的缓存不动，本来就
+    不占显存。释放后下次导入需要重新加载模型（几秒延迟），用这点延迟换
+    显存余量。
+    """
+    with _MODEL_LOCK:
+        model = _MODEL_CACHE.pop("auto", None)
+    if model is None:
+        return
+    del model
+    import gc
+    gc.collect()
+    # torch 是 FlagEmbedding 的硬依赖——能走到这里说明模型已经加载过，
+    # torch 必然已经装了，不需要 try/except ImportError 兜底。
+    import torch
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()

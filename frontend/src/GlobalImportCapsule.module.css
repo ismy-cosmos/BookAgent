@@ -1,0 +1,102 @@
+.collapsed {
+  position: fixed;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-l3);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--font-meta);
+  color: var(--text-primary);
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-blue);
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.expanded {
+  position: fixed;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  width: 200px;
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-l3);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  cursor: pointer;
+  font-size: var(--font-meta);
+  color: var(--text-primary);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.stageText {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.progressTrack {
+  display: flex;
+  gap: 3px;
+  margin-bottom: var(--space-3);
+}
+
+.progressSegment {
+  flex: 1;
+  height: 5px;
+  background: var(--track-bg);
+  border-radius: var(--radius-button);
+  overflow: hidden;
+}
+
+.progressSegmentFill {
+  height: 100%;
+  background: var(--accent-blue);
+  transition: width 0.2s ease;
+}
+
+.progressSegmentFill.indeterminate {
+  width: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--accent-blue),
+    var(--accent-blue) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  background-size: 17px 17px;
+  animation: indeterminate-slide 0.6s linear infinite;
+}
+
+@keyframes indeterminate-slide {
+  to { background-position: 17px 0; }
+}
+
+.pauseButton {
+  width: 100%;
+  padding: 5px 0;
+  background: var(--accent-red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-button);
+}

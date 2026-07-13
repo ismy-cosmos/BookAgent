@@ -45,9 +45,13 @@ class ImportQueue:
 
     def enqueue(self, book_id: str, file_paths: list[str]) -> str:
         task = ImportTask(task_id=uuid.uuid4().hex[:12], book_id=book_id, file_paths=file_paths)
+        # _queued_tasks 登记和真正入队必须是同一个原子操作：分两步的话，
+        # 中间有个缝隙——book_has_pending_or_active_task() 已经能查到这个
+        # 任务，但 worker 线程实际上还拿不到它。self._queue 是无界队列，
+        # put() 不会阻塞，锁内调用没有死锁风险。
         with self._lock:
             self._queued_tasks[task.task_id] = task
-        self._queue.put(task)
+            self._queue.put(task)
         return task.task_id
 
     def cancel(self, task_id: str) -> bool:
@@ -61,10 +65,15 @@ class ImportQueue:
     def request_pause(self) -> None:
         """按工作线程暂停：当前任务在文件/图片边界提前收尾（run_ingest 里的
         should_pause 检查点），之后不再开始处理任何任务，直到 resume()。"""
-        self._pause_event.set()
+        # Event 自身的 set/clear/is_set 线程安全，不加锁不会破坏 Event 的
+        # 内部状态；但包进 self._lock 能让它跟 busy/book_id 这些状态在
+        # get_status() 里被同一次快照读出，不会出现两个字段来自不同时刻。
+        with self._lock:
+            self._pause_event.set()
 
     def resume(self) -> None:
-        self._pause_event.clear()
+        with self._lock:
+            self._pause_event.clear()
 
     def book_has_pending_or_active_task(self, book_id: str) -> bool:
         with self._lock:
@@ -74,12 +83,13 @@ class ImportQueue:
 
     def get_status(self) -> dict:
         with self._lock:
+            pause_requested = self._pause_event.is_set()
             if self._current_task is not None:
                 return {"busy": True, "reason": "ingesting",
                         "book_id": self._current_task.book_id,
-                        "pause_requested": self._pause_event.is_set()}
-        return {"busy": False, "reason": "idle", "book_id": None,
-                "pause_requested": self._pause_event.is_set()}
+                        "pause_requested": pause_requested}
+            return {"busy": False, "reason": "idle", "book_id": None,
+                    "pause_requested": pause_requested}
 
     def get_progress(self) -> dict:
         with self._lock:
@@ -138,6 +148,14 @@ class ImportQueue:
                 self._progress = None
                 if summary is not None:
                     self._last_result = summary
+                # 暂停标志本来的意义是"接下来还要不要继续处理"——任务收尾后
+                # 如果队列已经空了，没有下一个任务要被这个标志拦住，留着就
+                # 只是个不会自动消失的死状态（比如批次里图片太少，暂停请求
+                # 根本没赶上任何一个边界检查，任务正常跑完，标志却一直留着
+                # true）。队列还有别的任务排着时不清，保留"暂停中不取下一个
+                # 任务"的既有保护。
+                if self._queue.empty():
+                    self._pause_event.clear()
             self._queue.task_done()
 
 

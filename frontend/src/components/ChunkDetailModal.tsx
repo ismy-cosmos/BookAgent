@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ChunkDetail } from "../api/types";
 import { getChunk } from "../api/client";
+import { Toast } from "./Toast";
 
 interface ChunkDetailModalProps {
   bookId: string;
@@ -44,7 +45,9 @@ export function ChunkDetailModal({ bookId, chunkId, onClose }: ChunkDetailModalP
           <blockquote>{detail.content}</blockquote>
         </>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <Toast position="top-center" onDismiss={() => setError(null)}>{error}</Toast>
+      )}
       <button onClick={onClose}>关闭</button>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { LastResult } from "../api/types";
+import { Toast } from "./Toast";
 
 const AUTO_DISMISS_MS = 6000;
 
@@ -15,17 +16,11 @@ export function ImportCompletionToast({ result, onDismiss }: ImportCompletionToa
   }, [onDismiss]);
 
   return (
-    <div
-      role="status"
-      style={{
-        position: "fixed",
-        top: "1rem",
-        left: "50%",
-        transform: "translateX(-50%)",
-        zIndex: 1000,
-      }}
+    <Toast
+      position="top-center"
+      variant={result.error ? "error" : "neutral"}
+      onDismiss={onDismiss}
     >
-      <button aria-label="关闭" onClick={onDismiss}>×</button>
       {result.error ? (
         <span>导入失败：{result.error}</span>
       ) : (
@@ -51,6 +46,6 @@ export function ImportCompletionToast({ result, onDismiss }: ImportCompletionToa
           )}
         </>
       )}
-    </div>
+    </Toast>
   );
 }
