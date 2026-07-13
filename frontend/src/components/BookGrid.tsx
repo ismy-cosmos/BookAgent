@@ -4,7 +4,7 @@ import { useStatus } from "../hooks/useStatus";
 import { BookCard } from "./BookCard";
 import { NewBookDialog } from "./NewBookDialog";
 import { Toast } from "./Toast";
-import { openOrFocusWindow } from "../windowManager";
+import { closeBookWindows, openOrFocusWindow } from "../windowManager";
 import { ApiError, deleteBook } from "../api/client";
 import styles from "../BookGrid.module.css";
 
@@ -43,6 +43,10 @@ export function BookGrid() {
           return;
         }
       }
+      // 待导入书没走过 useBooks().remove()，那条路径里关窗口的逻辑覆盖
+      // 不到这里——同名书重新建出来时，旧窗口还开着的话会直接被聚焦、
+      // 显示删除前缓存的旧状态（比如已经加过的待导入文件列表）。
+      await closeBookWindows(id);
       setPendingNewBooks((prev) => prev.filter((b) => b !== id));
       return;
     }

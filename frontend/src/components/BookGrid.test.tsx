@@ -15,8 +15,11 @@ async function createAndDeletePendingBook(user: ReturnType<typeof userEvent.setu
   await user.click(screen.getByText("确认删除"));
 }
 
-vi.mock("../windowManager", () => ({ openOrFocusWindow: vi.fn() }));
-import { openOrFocusWindow } from "../windowManager";
+vi.mock("../windowManager", () => ({
+  openOrFocusWindow: vi.fn(),
+  closeBookWindows: vi.fn().mockResolvedValue(undefined),
+}));
+import { closeBookWindows, openOrFocusWindow } from "../windowManager";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -67,6 +70,7 @@ describe("BookGrid", () => {
 
     expect(deleteBookSpy).toHaveBeenCalledWith("new-book");
     expect(screen.queryByText("new-book")).not.toBeInTheDocument();
+    expect(closeBookWindows).toHaveBeenCalledWith("new-book");
   });
 
   it("does NOT remove a pending book that the backend reports as actively importing (409), and surfaces the error", async () => {

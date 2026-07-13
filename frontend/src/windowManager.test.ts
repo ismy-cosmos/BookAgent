@@ -3,22 +3,23 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // vi.mock factories are hoisted above the whole file, so any variables they
 // reference must be declared via vi.hoisted() — a plain top-level const
 // declared below would still be undefined when the factory actually runs.
-const { mockGetByLabel, mockSetFocus, MockWebviewWindow } = vi.hoisted(() => {
+const { mockGetByLabel, mockSetFocus, mockDestroy, MockWebviewWindow } = vi.hoisted(() => {
   const mockGetByLabel = vi.fn();
   const mockSetFocus = vi.fn();
+  const mockDestroy = vi.fn();
   const MockWebviewWindow = vi.fn();
   // vi.fn() returns a real function, so `new MockWebviewWindow(...)` works
   // and records the call in MockWebviewWindow.mock.calls; static getByLabel
   // just needs to be attached as an ordinary property.
   Object.assign(MockWebviewWindow, { getByLabel: mockGetByLabel });
-  return { mockGetByLabel, mockSetFocus, MockWebviewWindow };
+  return { mockGetByLabel, mockSetFocus, mockDestroy, MockWebviewWindow };
 });
 
 vi.mock("@tauri-apps/api/webviewWindow", () => ({
   WebviewWindow: MockWebviewWindow,
 }));
 
-import { toWindowLabel, openOrFocusWindow } from "./windowManager";
+import { toWindowLabel, openOrFocusWindow, closeBookWindows, hasOpenWindows } from "./windowManager";
 
 describe("toWindowLabel", () => {
   it("produces a label using only the Tauri-safe charset for arbitrary book_id content", () => {
@@ -66,5 +67,58 @@ describe("openOrFocusWindow", () => {
     expect(options.title).toBe("OSTEP");
     expect(options.url).toContain("view=import");
     expect(options.url).toContain(`book=${encodeURIComponent("ostep")}`);
+  });
+});
+
+describe("closeBookWindows", () => {
+  beforeEach(() => {
+    mockGetByLabel.mockReset();
+    mockDestroy.mockReset();
+  });
+
+  it("destroys both the import and chat windows for a book when they're open", async () => {
+    mockGetByLabel.mockResolvedValue({ destroy: mockDestroy });
+
+    await closeBookWindows("ostep");
+
+    expect(mockGetByLabel).toHaveBeenCalledWith(toWindowLabel("import", "ostep"));
+    expect(mockGetByLabel).toHaveBeenCalledWith(toWindowLabel("chat", "ostep"));
+    expect(mockDestroy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does nothing when neither window is open", async () => {
+    mockGetByLabel.mockResolvedValue(null);
+
+    await closeBookWindows("ostep");
+
+    expect(mockDestroy).not.toHaveBeenCalled();
+  });
+});
+
+describe("hasOpenWindows", () => {
+  beforeEach(() => {
+    mockGetByLabel.mockReset();
+  });
+
+  it("returns true when the import window is open", async () => {
+    mockGetByLabel.mockImplementation(async (label: string) =>
+      label === toWindowLabel("import", "ostep") ? { setFocus: mockSetFocus } : null,
+    );
+
+    expect(await hasOpenWindows("ostep")).toBe(true);
+  });
+
+  it("returns true when the chat window is open", async () => {
+    mockGetByLabel.mockImplementation(async (label: string) =>
+      label === toWindowLabel("chat", "ostep") ? { setFocus: mockSetFocus } : null,
+    );
+
+    expect(await hasOpenWindows("ostep")).toBe(true);
+  });
+
+  it("returns false when neither window is open", async () => {
+    mockGetByLabel.mockResolvedValue(null);
+
+    expect(await hasOpenWindows("ostep")).toBe(false);
   });
 });
