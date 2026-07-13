@@ -3,10 +3,11 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { dirname } from "@tauri-apps/api/path";
 import { cancelImport, pauseImport, resumeImport, submitImport } from "../api/client";
 import { useStagedFiles } from "../hooks/useStagedFiles";
-import { stageText } from "../importProgressText";
+import { pausedText, stageText } from "../importProgressText";
 import { ImportCompletionToast } from "./ImportCompletionToast";
 import { Toast } from "./Toast";
 import type { LastResult, ProgressResponse } from "../api/types";
+import styles from "../ImportFileList.module.css";
 
 // 跟后端 scripts/ingest.py 的 _ALL_EXTS 保持一致
 const SUPPORTED_EXTENSIONS = ["pdf", "epub", "mp3", "wav", "flac", "png", "jpg", "jpeg", "svg"];
@@ -26,6 +27,9 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const importingThisBook = !!progress?.busy && progress.book_id === bookId;
+  // 已提交但还没轮到处理——这本书的批次不能再改，只能整批只读+取消排队。
+  const isQueued = !!queuedTaskId && !importingThisBook;
+  const isReadOnly = importingThisBook || isQueued;
 
   // 导入进行中每个文件成功入库会从待导入列表消失（后端行为）——
   // 随进度变化（文件边界/任务结束）重新拉取列表。单独盯 last_result 的内容
@@ -112,40 +116,69 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
 
   return (
     <section aria-label="导入管理">
-      <h3>待导入</h3>
-      <button onClick={handleAddFiles}>添加文件</button>
-      <ul>
+      <h3 className={styles.heading}>待导入</h3>
+      <button className={styles.btnWhite} disabled={isReadOnly} onClick={handleAddFiles}>
+        添加文件
+      </button>
+      <ul className={styles.list}>
         {files.map((path) => (
-          <li key={path}>
-            {path}
-            <button aria-label={`移除 ${path}`} onClick={() => remove(path)}>
-              ×
+          <li key={path} className={styles.row}>
+            <span className={styles.filename}>{path}</span>
+            <button
+              className={styles.removeAction}
+              disabled={isReadOnly}
+              aria-label={`移除 ${path}`}
+              onClick={() => remove(path)}
+            >
+              {importingThisBook ? "导入中" : "移除"}
             </button>
           </li>
         ))}
       </ul>
-      <button disabled={files.length === 0 || importingThisBook} onClick={handleSubmit}>
-        开始导入
-      </button>
-      {queuedTaskId && !importingThisBook && (
-        <button onClick={handleCancelQueued}>取消排队</button>
+      <div className={styles.btnRow}>
+        <button
+          className={styles.btnBlue}
+          disabled={files.length === 0 || isReadOnly}
+          onClick={handleSubmit}
+        >
+          开始导入
+        </button>
+      </div>
+      {isQueued && (
+        <div className={styles.btnRow}>
+          <button className={styles.btnWhite} onClick={handleCancelQueued}>
+            取消排队
+          </button>
+        </div>
       )}
 
       {importingThisBook && progress?.progress && (
         <div role="status">
-          <span>{stageText(progress.progress)}</span>
-          {progress.pause_requested ? (
-            <button disabled>正在暂停…</button>
-          ) : (
-            <button onClick={() => pauseImport().catch(() => {})}>暂停</button>
-          )}
+          <p className={styles.progressText}>{stageText(progress.progress)}</p>
+          <div className={styles.btnRow}>
+            {progress.pause_requested ? (
+              <button className={styles.btnWhite} disabled>
+                正在暂停…
+              </button>
+            ) : (
+              <button className={styles.btnRed} onClick={() => pauseImport().catch(() => {})}>
+                暂停
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {progress && !progress.busy && progress.pause_requested && (
         <div role="status">
-          <span>已暂停</span>
-          <button onClick={() => resumeImport().catch(() => {})}>恢复</button>
+          <p className={styles.progressText}>
+            {progress.progress ? pausedText(progress.progress) : "已暂停"}
+          </p>
+          <div className={styles.btnRow}>
+            <button className={styles.btnBlue} onClick={() => resumeImport().catch(() => {})}>
+              恢复
+            </button>
+          </div>
         </div>
       )}
 

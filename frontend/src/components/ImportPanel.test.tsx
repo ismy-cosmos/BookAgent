@@ -319,4 +319,66 @@ describe("ImportPanel", () => {
     await userEvent.click(await screen.findByText("取消排队"));
     expect(cancelSpy).toHaveBeenCalledWith("t-queued");
   });
+
+  it("正在导入时移除按钮变灰显示'导入中'，添加文件也被禁用", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    const importing: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "ostep", pause_requested: false,
+      progress: { stage: "parsing", current_file: 1, total_files: 1,
+                  current_image: null, total_images: null, current_filename: "a.pdf" },
+      last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={importing} />);
+
+    expect(await screen.findByText("导入中")).toBeDisabled();
+    expect(screen.getByText("添加文件")).toBeDisabled();
+  });
+
+  it("排队中整批只读，只有取消排队可点", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    vi.spyOn(client, "submitImport").mockResolvedValue({ task_id: "t-queued", file_count: 1 });
+    const busyElsewhere: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "other-book", pause_requested: false,
+      progress: { stage: "parsing", current_file: 1, total_files: 2,
+                  current_image: null, total_images: null, current_filename: "x.pdf" },
+      last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={busyElsewhere} />);
+    await screen.findByText("/a.pdf");
+    await userEvent.click(screen.getByText("开始导入"));
+    await screen.findByText("取消排队");
+
+    expect(screen.getByText("添加文件")).toBeDisabled();
+    expect(screen.getByText("移除")).toBeDisabled();
+    expect(screen.getByText("开始导入")).toBeDisabled();
+    expect(screen.getByText("取消排队")).not.toBeDisabled();
+  });
+
+  it("已暂停且有保留位置时，展示暂停前的文件名和位置", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    const pausedWithPosition: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: true,
+      progress: { stage: "parsing", current_file: 2, total_files: 3,
+                  current_image: null, total_images: null, current_filename: "ch02.pdf" },
+      last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={pausedWithPosition} />);
+
+    expect(await screen.findByText("已暂停 · ch02.pdf（2/3）")).toBeInTheDocument();
+  });
+
+  it("已暂停但没有保留位置时，退回显示纯文字'已暂停'", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+    const pausedNoPosition: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: true,
+      progress: null, last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={pausedNoPosition} />);
+
+    expect(await screen.findByText("已暂停")).toBeInTheDocument();
+  });
 });
