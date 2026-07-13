@@ -1,23 +1,28 @@
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 96px);
-  /* 最多 6 列（6*96 + 5*space-5 = 696px）：卡片区域本身在窗口里居中，
-     但区域内部还是从左往右正常排列，不会因为某一行没排满就把卡片推到
-     中间。6 列是照 tauri.conf.json 里默认窗口宽度 800px 算的——
-     800 - 2*space-5(HomeView padding) = 752px 可用宽度，7 列需要
-     816px 放不下；696 明显小于 752，保证默认窗口尺寸下也能看到居中
-     留白，而不是刚好等于可用宽度、永远撑满、看不出居中效果。窗口可
-     调整大小变宽时，留白会跟着变大，区域宽度本身不变。*/
-  max-width: 696px;
-  margin: 0 auto;
+  /* auto-fill（固定 max-width）会把每行能放的列数写死，窗口拉宽也不会
+     多排——之前 max-width:696px 就是这个问题，窗口再宽也永远卡在 6 列。
+     改用 auto-fit：每行能放多少列还是照窗口宽度实时算，跟原来一样响应
+     式；区别是没被用到的多余列会整体收缩成 0 宽，剩下的列（真正放了
+     卡片的那些）就成了一个比窗口窄的小块，justify-content:center 才有
+     东西可居中。窗口拉宽时能放的列数照样跟着变多，不会被锁死。
+     （已知局限：只对"当前这一行是网格里唯一还有空位的一行"生效——如果
+     前面已经有排满的整行，占用的列不会再收缩，最后一行会贴左而不是居中；
+     这是 CSS Grid 本身的限制，主流的文件管理器/图库类 App 对没排满的
+     最后一行也都是贴左处理，不会特地居中。）*/
+  grid-template-columns: repeat(auto-fit, 96px);
+  justify-content: center;
   gap: var(--space-5);
   overflow-y: auto;
   /* CSS 规定：overflow-x/overflow-y 只设置了一个非 visible 值时，另一个
      没写的 visible 会被隐式换算成 auto——只设 overflow-y:auto，
      overflow-x 也会跟着变成裁切态。卡片 .cover 有 box-shadow（模糊半径
      向四周溢出，包括往左），每行最左边那张卡片的阴影/边缘没有多余空间
-     可以溢出，会被这个隐式的 overflow-x 裁掉。显式声明 visible 关掉裁切。*/
+     可以溢出，会被这个隐式的 overflow-x 裁掉。显式声明 visible 关掉裁切，
+     另外留一点横向 padding 兜底——不同浏览器引擎对这条隐式规则的实现
+     细节可能有差异，物理空间比单纯指望 overflow-x 生效更可靠。*/
   overflow-x: visible;
+  padding: 0 var(--space-3);
 }
 
 .addTile {
