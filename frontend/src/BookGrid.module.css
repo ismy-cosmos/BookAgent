@@ -12,6 +12,12 @@
   margin: 0 auto;
   gap: var(--space-5);
   overflow-y: auto;
+  /* CSS 规定：overflow-x/overflow-y 只设置了一个非 visible 值时，另一个
+     没写的 visible 会被隐式换算成 auto——只设 overflow-y:auto，
+     overflow-x 也会跟着变成裁切态。卡片 .cover 有 box-shadow（模糊半径
+     向四周溢出，包括往左），每行最左边那张卡片的阴影/边缘没有多余空间
+     可以溢出，会被这个隐式的 overflow-x 裁掉。显式声明 visible 关掉裁切。*/
+  overflow-x: visible;
 }
 
 .addTile {
