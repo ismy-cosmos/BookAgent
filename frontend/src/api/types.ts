@@ -11,6 +11,10 @@ export interface ImportProgress {
   total_files: number | null;
   current_image: number | null;
   total_images: number | null;
+  // 阶段1（解析）才会有值；后端 scripts/ingest.py 的 ProgressUpdate 早就在
+  // 传了，前端类型之前漏声明。可选（而非必填）是因为仓库里已有测试用例
+  // 直接写字面量对象、没带这个字段，加成必填会让那些测试编译不过。
+  current_filename?: string | null;
 }
 
 export interface ImportFailure {
