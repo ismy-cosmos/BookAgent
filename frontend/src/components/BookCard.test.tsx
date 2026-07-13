@@ -67,6 +67,30 @@ describe("BookCard", () => {
     expect(screen.getByText("导入文件")).not.toBeDisabled();
   });
 
+  it("disables 删除丛书 when this book is importing", async () => {
+    const user = userEvent.setup();
+    render(
+      <BookCard bookId="ostep" busy={true} importing={true}
+                onRemove={() => {}} onRename={async () => {}} />,
+    );
+    await user.hover(screen.getByTestId("book-card"));
+
+    expect(screen.getByText("删除丛书")).toBeDisabled();
+  });
+
+  it("keeps 删除丛书 enabled when a different book is busy, not this one", async () => {
+    // book_has_pending_or_active_task 是按 book_id 精确判断的，不是全局
+    // busy 就该拦——只有这本书自己在导入才该拦删除，别的书忙不该连累它。
+    const user = userEvent.setup();
+    render(
+      <BookCard bookId="ostep" busy={true} importing={false}
+                onRemove={() => {}} onRename={async () => {}} />,
+    );
+    await user.hover(screen.getByTestId("book-card"));
+
+    expect(screen.getByText("删除丛书")).not.toBeDisabled();
+  });
+
   it("shows an importing badge when importing is true", () => {
     render(
       <BookCard bookId="ostep" busy={true} importing={true}

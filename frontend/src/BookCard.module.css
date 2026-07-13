@@ -83,3 +83,7 @@ input.name {
   border-radius: var(--radius-button);
   font-size: var(--font-label);
 }
+
+.btnDelete:disabled {
+  opacity: .5;
+}

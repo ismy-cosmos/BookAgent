@@ -53,7 +53,11 @@ export function BookCard({ bookId, busy, importing, onRemove, onRename }: BookCa
             >
               开始对话
             </button>
-            <button className={styles.btnDelete} onClick={() => setConfirmingDelete(true)}>
+            <button
+              className={styles.btnDelete}
+              disabled={importing}
+              onClick={() => setConfirmingDelete(true)}
+            >
               删除丛书
             </button>
           </div>
