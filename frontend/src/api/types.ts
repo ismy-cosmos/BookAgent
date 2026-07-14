@@ -59,6 +59,8 @@ export interface AskResponse {
   triggered_tool: string | null;
   total_tokens: number;
   latency_s: number;
+  used_calculate: boolean;
+  attempted_retrieve: boolean;
 }
 
 export interface ConversationSummary {
@@ -71,6 +73,10 @@ export interface ChatTurnRecord {
   question: string;
   answer: string;
   citations: Citation[];
+  // 老对话记录（这两个字段上线前存的）可能没有——历史数据不做迁移，
+  // 读取时按 false 兜底展示，不强制假设一定存在。
+  used_calculate?: boolean;
+  attempted_retrieve?: boolean;
 }
 
 export interface ConversationRecord {

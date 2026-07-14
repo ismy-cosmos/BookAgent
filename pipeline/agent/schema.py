@@ -17,3 +17,5 @@ class ChatTurn:
     question: str
     answer: str
     citations: list[Citation] = field(default_factory=list)
+    used_calculate: bool = False
+    attempted_retrieve: bool = False

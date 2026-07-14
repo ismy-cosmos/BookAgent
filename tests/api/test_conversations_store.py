@@ -1,3 +1,4 @@
+import json
 import threading
 from pathlib import Path
 
@@ -144,3 +145,40 @@ def test_rename_book_moves_directory_and_patches_book_id(tmp_path):
 def test_rename_book_noop_when_no_conversations_exist(tmp_path):
     conv.rename_book(str(tmp_path), "old-id", "new-id")  # 不报错、不建空目录
     assert not (tmp_path / ".conversations" / "new-id").exists()
+
+
+def test_turn_to_dict_includes_used_calculate_and_attempted_retrieve(tmp_path):
+    record = conv.create_conversation(str(tmp_path), "ostep")
+    turn = ChatTurn(question="Q", answer="A", citations=[], used_calculate=True, attempted_retrieve=True)
+
+    updated = conv.append_turn(str(tmp_path), "ostep", record["id"], turn)
+
+    assert updated["turns"][0]["used_calculate"] is True
+    assert updated["turns"][0]["attempted_retrieve"] is True
+
+
+def test_history_from_record_roundtrips_used_calculate_and_attempted_retrieve(tmp_path):
+    record = conv.create_conversation(str(tmp_path), "ostep")
+    turn = ChatTurn(question="Q", answer="A", citations=[], used_calculate=True, attempted_retrieve=False)
+    conv.append_turn(str(tmp_path), "ostep", record["id"], turn)
+
+    reloaded = conv.load_conversation(str(tmp_path), "ostep", record["id"])
+    history = conv.history_from_record(reloaded)
+
+    assert history[0].used_calculate is True
+    assert history[0].attempted_retrieve is False
+
+
+def test_history_from_record_defaults_false_for_legacy_turns_missing_fields(tmp_path):
+    # 模拟这两个字段上线前就存在的老对话记录——JSON 里压根没有这两个键。
+    record = conv.create_conversation(str(tmp_path), "ostep")
+    p = Path(tmp_path) / ".conversations" / "ostep" / f"{record['id']}.json"
+    legacy = json.loads(p.read_text())
+    legacy["turns"] = [{"question": "Q", "answer": "A", "citations": []}]
+    p.write_text(json.dumps(legacy, ensure_ascii=False))
+
+    reloaded = conv.load_conversation(str(tmp_path), "ostep", record["id"])
+    history = conv.history_from_record(reloaded)
+
+    assert history[0].used_calculate is False
+    assert history[0].attempted_retrieve is False

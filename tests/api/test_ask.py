@@ -9,7 +9,7 @@ client = TestClient(app)
 
 
 def _fake_turn(final_answer="答案", triggered_tool=None, retrieved_chunks=None,
-               total_tokens=42, latency_s=0.5, used_calculate=False):
+               total_tokens=42, latency_s=0.5, used_calculate=False, attempted_retrieve=False):
     turn = MagicMock()
     turn.final_answer = final_answer
     turn.triggered_tool = triggered_tool
@@ -17,6 +17,7 @@ def _fake_turn(final_answer="答案", triggered_tool=None, retrieved_chunks=None
     turn.total_tokens = total_tokens
     turn.latency_s = latency_s
     turn.used_calculate = used_calculate
+    turn.attempted_retrieve = attempted_retrieve
     return turn
 
 
@@ -123,3 +124,36 @@ def test_ask_rejected_while_any_book_is_importing(tmp_path, monkeypatch):
     )
     assert resp.status_code == 409
     assert "正在导入书籍" in resp.json()["detail"]
+
+
+def test_ask_response_includes_used_calculate_and_attempted_retrieve(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    conv_id = client.post("/books/ostep/conversations").json()["id"]
+
+    from pipeline.store.chroma_store import ChromaStore
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store.add_chunks("ostep", _make_one_chunk(), embeddings=[[0.0] * 8])
+
+    fake_client = MagicMock()
+    fake_client.run.return_value = _fake_turn(
+        final_answer="35 mg", used_calculate=True, attempted_retrieve=False,
+    )
+    monkeypatch.setattr(
+        "pipeline.api.routes_conversations.get_client",
+        lambda book_id: fake_client,
+    )
+
+    resp = client.post(
+        f"/books/ostep/conversations/{conv_id}/ask",
+        json={"question": "用药量是多少？"},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["used_calculate"] is True
+    assert body["attempted_retrieve"] is False
+
+    # 持久化的历史记录也要带上这两个字段，不只是这次响应
+    record = client.get(f"/books/ostep/conversations/{conv_id}").json()
+    assert record["turns"][0]["used_calculate"] is True
+    assert record["turns"][0]["attempted_retrieve"] is False

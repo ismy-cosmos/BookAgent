@@ -83,4 +83,6 @@ def ask(book_id: str, conversation_id: str, body: AskRequest) -> dict:
         "triggered_tool": result.triggered_tool,
         "total_tokens": result.total_tokens,
         "latency_s": result.latency_s,
+        "used_calculate": result.used_calculate,
+        "attempted_retrieve": result.attempted_retrieve,
     }
