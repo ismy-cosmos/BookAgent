@@ -150,7 +150,13 @@ class ImportQueue:
                 self._current_task = None
                 self._progress = None
                 if summary is not None:
-                    self._last_result = summary
+                    # task_id 混进结果里，供前端做"这份结果是不是已经弹过
+                    # 提示"的去重判断——不能拿结果内容本身去重：暂停发生在
+                    # 文件还没开始处理之前时，重新提交同一批文件产生的结果
+                    # 在内容上会一模一样（book_id/not_attempted 都相同），
+                    # 内容去重会把第二次真实发生的结果误判成旧结果吞掉。
+                    # task_id 每次 enqueue 都不同，没有这个问题。
+                    self._last_result = {**summary, "task_id": task.task_id}
                 # 暂停标志只服务于"让当前这个任务提前收尾"——任务一结束就
                 # 无条件清掉，跟队列里还有没有别的任务无关：排队的任务在
                 # request_pause() 那一刻已经被直接取消了，不存在"清了标志

@@ -288,8 +288,8 @@ describe("ImportPanel", () => {
     const done: ProgressResponse = {
       busy: false, reason: "idle", book_id: null, pause_requested: false,
       progress: null,
-      last_result: { book_id: "ostep", total_chunks: 3, aborted_early: false,
-                     failures: [], not_attempted: [] },
+      last_result: { book_id: "ostep", task_id: "abc001", total_chunks: 3,
+                     aborted_early: false, failures: [], not_attempted: [] },
     };
 
     const { unmount } = render(<ImportPanel bookId="ostep" progress={done} />);

@@ -6,7 +6,7 @@ import { useStagedFiles } from "../hooks/useStagedFiles";
 import { stageText } from "../importProgressText";
 import { ImportCompletionToast } from "./ImportCompletionToast";
 import { Toast } from "./Toast";
-import type { LastResult, ProgressResponse } from "../api/types";
+import type { ImportProgress, LastResult, ProgressResponse } from "../api/types";
 import styles from "../ImportFileList.module.css";
 
 // 跟后端 scripts/ingest.py 的 _ALL_EXTS 保持一致
@@ -38,6 +38,17 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   useEffect(() => {
     if (progress?.pause_requested) setQueuedTaskId(null);
   }, [progress?.pause_requested]);
+
+  // 记住这本书正在导入期间收到的最后一次真实进度快照——任务结束（不管
+  // 是正常完成还是被暂停打断）那一刻后端就把 progress 清空了，没有这份
+  // 记录的话，"已暂停"弹窗没法知道暂停生效前具体停在哪个阶段、还剩多少
+  // 没处理（阶段2 中断只知道"文件"，不知道"图片"，得从这份快照里算）。
+  const lastLiveProgressRef = useRef<ImportProgress | null>(null);
+  useEffect(() => {
+    if (importingThisBook && progress?.progress) {
+      lastLiveProgressRef.current = progress.progress;
+    }
+  }, [importingThisBook, progress?.progress]);
 
   // 导入进行中每个文件成功入库会从待导入列表消失（后端行为）——
   // 随进度变化（文件边界/任务结束）重新拉取列表。单独盯 last_result 的内容
@@ -103,17 +114,23 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   // 这份"已弹过"记录还落一份到 localStorage（按 book 分开存）：窗口关掉
   // 重开是组件重新 mount，内存态会丢，但后端 last_result 还在，不落盘的话
   // 同一份结果会在重开窗口时再弹一次。
+  //
+  // 去重键用 task_id，不能用内容本身（真实 bug）：暂停发生在文件还没
+  // 开始处理之前时，重新提交同一批文件产生的结果内容会完全相同
+  // （book_id/not_attempted 都一样），拿内容去重会把第二次真实发生的
+  // 结果误判成"已经弹过的旧结果"吞掉。task_id 每次 enqueue 都不同。
   const shownResultStorageKey = `bookagent:importToastShown:${bookId}`;
   const [toastResult, setToastResult] = useState<LastResult | null>(null);
-  const shownResultKeyRef = useRef<string | null>(
+  const [pausedAtProgress, setPausedAtProgress] = useState<ImportProgress | null>(null);
+  const shownTaskIdRef = useRef<string | null>(
     localStorage.getItem(shownResultStorageKey),
   );
   useEffect(() => {
-    const key = JSON.stringify(lastResult);
-    if (lastResult && key !== shownResultKeyRef.current) {
-      shownResultKeyRef.current = key;
-      localStorage.setItem(shownResultStorageKey, key);
+    if (lastResult && lastResult.task_id !== shownTaskIdRef.current) {
+      shownTaskIdRef.current = lastResult.task_id ?? null;
+      if (lastResult.task_id) localStorage.setItem(shownResultStorageKey, lastResult.task_id);
       setToastResult(lastResult);
+      setPausedAtProgress(lastLiveProgressRef.current);
     }
   }, [lastResult, shownResultStorageKey]);
 
@@ -189,7 +206,11 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
       )}
 
       {toastResult && (
-        <ImportCompletionToast result={toastResult} onDismiss={dismissToast} />
+        <ImportCompletionToast
+          result={toastResult}
+          pausedAtProgress={pausedAtProgress}
+          onDismiss={dismissToast}
+        />
       )}
 
       {(error ?? actionError) && (

@@ -24,9 +24,14 @@ export interface ImportFailure {
   timestamp: string;
 }
 
-// 任务正常结束是完整摘要；处理器整体异常时只有 book_id + error 两个键
+// 任务正常结束是完整摘要；处理器整体异常时只有 book_id + error 两个键。
+// task_id 由 ImportQueue 在存档时混入（不是 processor 返回值自带的），
+// 供前端区分"内容凑巧相同的两次结果"——暂停发生在文件还没开始处理之前
+// 时，重新提交同一批文件产生的结果在内容上会一模一样，不能拿内容本身
+// 去重。可选是因为仓库里已有很多测试用例直接写字面量、没带这个字段。
 export interface LastResult {
   book_id: string;
+  task_id?: string;
   total_chunks?: number;
   failures?: ImportFailure[];
   not_attempted?: string[];

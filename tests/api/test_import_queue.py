@@ -323,10 +323,40 @@ def test_last_result_stored_from_processor_return_value():
 
     q = ImportQueue(processor=returning_processor)
     q.start()
-    q.enqueue("ostep", ["f1.pdf"])
+    task_id = q.enqueue("ostep", ["f1.pdf"])
     q.wait_until_idle(timeout=2.0)
 
-    assert q.get_progress()["last_result"] == summary
+    last_result = q.get_progress()["last_result"]
+    assert last_result["task_id"] == task_id
+    assert {k: v for k, v in last_result.items() if k != "task_id"} == summary
+
+
+def test_last_result_task_id_distinguishes_two_otherwise_identical_results():
+    """真实 bug：暂停发生在文件还没开始处理之前时，两次提交同一批文件
+    产生的 summary 内容会一模一样（book_id/not_attempted/total_chunks 都
+    相同）——前端如果拿内容去重会把第二次真实发生的结果误判成"已经弹过
+    的旧结果"而吞掉。task_id 每次 enqueue 都不同，用它去重不会有这个问题。"""
+    def pausing_processor(book_id, file_paths, should_pause, report_progress):
+        return {"book_id": book_id, "total_chunks": 0, "failures": [],
+                "not_attempted": list(file_paths), "aborted_early": True}
+
+    q = ImportQueue(processor=pausing_processor)
+    q.start()
+
+    task_id_1 = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])
+    q.wait_until_idle(timeout=2.0)
+    result_1 = q.get_progress()["last_result"]
+
+    task_id_2 = q.enqueue("ostep", ["f1.pdf", "f2.pdf"])  # 同一批文件重新提交
+    q.wait_until_idle(timeout=2.0)
+    result_2 = q.get_progress()["last_result"]
+
+    assert task_id_1 != task_id_2
+    assert result_1["task_id"] == task_id_1
+    assert result_2["task_id"] == task_id_2
+    # 除了 task_id，内容确实完全相同——这正是 bug 会发生的前提条件
+    assert {k: v for k, v in result_1.items() if k != "task_id"} == \
+           {k: v for k, v in result_2.items() if k != "task_id"}
 
 
 def test_last_result_none_before_any_task():
