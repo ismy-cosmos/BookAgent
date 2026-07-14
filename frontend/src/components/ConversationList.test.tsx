@@ -1,34 +1,74 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import * as client from "../api/client";
+import { describe, expect, it, vi } from "vitest";
 import { ConversationList } from "./ConversationList";
-
-afterEach(() => vi.restoreAllMocks());
 
 describe("ConversationList", () => {
   it("renders conversation titles and selects one on click", async () => {
-    vi.spyOn(client, "listConversations").mockResolvedValue({
-      conversations: [{ id: "c1", title: "fork 是什么？", updated_at: "" }],
-    });
     const onSelect = vi.fn();
+    render(
+      <ConversationList
+        conversations={[{ id: "c1", title: "fork 是什么？", updated_at: "" }]}
+        selectedId={null}
+        onSelect={onSelect}
+        onCreate={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
 
-    render(<ConversationList bookId="ostep" selectedId={null} onSelect={onSelect} />);
-
-    const conv = await screen.findByText("fork 是什么？");
-    await userEvent.click(conv);
+    await userEvent.click(screen.getByText("fork 是什么？"));
     expect(onSelect).toHaveBeenCalledWith("c1");
   });
 
-  it("creates a new conversation on button click", async () => {
-    vi.spyOn(client, "listConversations").mockResolvedValue({ conversations: [] });
-    const createSpy = vi.spyOn(client, "createConversation").mockResolvedValue({
-      id: "c2", book_id: "ostep", title: "新对话", created_at: "", updated_at: "", turns: [],
-    });
+  it("calls onCreate when clicking 新对话", async () => {
+    const onCreate = vi.fn();
+    render(
+      <ConversationList
+        conversations={[]}
+        selectedId={null}
+        onSelect={vi.fn()}
+        onCreate={onCreate}
+        onRemove={vi.fn()}
+      />,
+    );
 
-    render(<ConversationList bookId="ostep" selectedId={null} onSelect={vi.fn()} />);
+    await userEvent.click(screen.getByText("＋ 新对话"));
+    expect(onCreate).toHaveBeenCalledOnce();
+  });
 
-    await userEvent.click(screen.getByText("新建对话"));
-    expect(createSpy).toHaveBeenCalledWith("ostep");
+  it("calls onRemove without triggering onSelect when clicking 删除", async () => {
+    const onSelect = vi.fn();
+    const onRemove = vi.fn();
+    render(
+      <ConversationList
+        conversations={[{ id: "c1", title: "t", updated_at: "" }]}
+        selectedId={null}
+        onSelect={onSelect}
+        onCreate={vi.fn()}
+        onRemove={onRemove}
+      />,
+    );
+
+    await userEvent.click(screen.getByText("删除"));
+    expect(onRemove).toHaveBeenCalledWith("c1");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("marks the selected conversation as current", () => {
+    render(
+      <ConversationList
+        conversations={[
+          { id: "c1", title: "t1", updated_at: "" },
+          { id: "c2", title: "t2", updated_at: "" },
+        ]}
+        selectedId="c2"
+        onSelect={vi.fn()}
+        onCreate={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("t2").closest("button")).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("t1").closest("button")).toHaveAttribute("aria-current", "false");
   });
 });
