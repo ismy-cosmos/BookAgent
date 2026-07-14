@@ -345,3 +345,44 @@ def test_agent_turn_has_token_split(mock_openai_cls):
     assert turn.prompt_tokens == 40
     assert turn.completion_tokens == 20
     assert turn.total_tokens == 60
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_attempted_retrieve_true_even_when_retrieve_returns_no_chunks(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import RealExecutor
+
+    class _FakeEmbedder:
+        def embed_query(self, text):
+            return [0.1] * 4
+
+    class _EmptyStore:
+        def query(self, book_id, vector, n_results=5):
+            return []
+
+    mock_openai_cls.return_value.chat.completions.create.side_effect = [
+        _make_tool_response("retrieve", '{"query": "测试", "k": 3}'),
+        _make_text_response("答案"),
+    ]
+
+    executor = RealExecutor(book_id="test-book", embedder=_FakeEmbedder(), store=_EmptyStore())
+    client = OllamaAgentClient(model="test-model", executor=executor)
+    turn = client.run("问题")
+
+    # 调用过 retrieve 但没查到内容，跟"压根没调用 retrieve"要能区分开——
+    # 前者是"书里真没有"，后者是"这轮没查"，两种在 UI 上文案不一样。
+    assert turn.attempted_retrieve is True
+    assert turn.retrieved_chunks == []
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_attempted_retrieve_false_when_no_retrieve_call(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_text_response("直接回答")
+    )
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    turn = client.run("你好")
+    assert turn.attempted_retrieve is False

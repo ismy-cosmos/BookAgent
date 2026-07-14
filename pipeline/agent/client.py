@@ -39,6 +39,7 @@ class AgentTurn:
     latency_s: float
     retrieved_chunks: list = dataclasses.field(default_factory=list)  # 本轮 retrieve 命中的记录（RealExecutor honest 形状）
     used_calculate: bool = False        # 本轮是否调用过 calculate
+    attempted_retrieve: bool = False    # 本轮是否调用过 retrieve（不管有没有查到内容）
 
 
 def _strip_known_tags(text: str) -> str:
@@ -139,6 +140,7 @@ class OllamaAgentClient:
         completion_tokens: int = 0
         retrieved_chunks: list = []
         used_calculate = False
+        attempted_retrieve = False
 
         for _ in range(_MAX_ROUNDS):
             response = self._openai.chat.completions.create(
@@ -181,6 +183,7 @@ class OllamaAgentClient:
                         latency_s=time.perf_counter() - t0,
                         retrieved_chunks=retrieved_chunks,
                         used_calculate=used_calculate,
+                        attempted_retrieve=attempted_retrieve,
                     )
 
                 triggered_tool = tool_name
@@ -190,6 +193,7 @@ class OllamaAgentClient:
                 messages.append(choice.message)
                 result = self._executor.execute(tool_name, args)
                 if tool_name == "retrieve":
+                    attempted_retrieve = True
                     try:
                         parsed = json.loads(result)
                         if isinstance(parsed, list):
@@ -220,6 +224,7 @@ class OllamaAgentClient:
                     latency_s=time.perf_counter() - t0,
                     retrieved_chunks=retrieved_chunks,
                     used_calculate=used_calculate,
+                    attempted_retrieve=attempted_retrieve,
                 )
 
         # Max rounds exceeded
@@ -236,4 +241,5 @@ class OllamaAgentClient:
             latency_s=time.perf_counter() - t0,
             retrieved_chunks=retrieved_chunks,
             used_calculate=used_calculate,
+            attempted_retrieve=attempted_retrieve,
         )
