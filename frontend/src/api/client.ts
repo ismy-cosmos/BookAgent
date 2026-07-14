@@ -166,10 +166,6 @@ export function pauseImport(): Promise<Status> {
   return request<Status>("/import/pause", { method: "POST" });
 }
 
-export function resumeImport(): Promise<Status> {
-  return request<Status>("/import/resume", { method: "POST" });
-}
-
 export function cancelImport(taskId: string): Promise<{ cancelled: string }> {
   return request(`/import/${encodeURIComponent(taskId)}/cancel`, { method: "POST" });
 }

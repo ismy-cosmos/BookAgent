@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pausedText, stageText } from "./importProgressText";
+import { stageText } from "./importProgressText";
 
 describe("stageText", () => {
   it("解析阶段：文件名+位置", () => {
@@ -28,21 +28,5 @@ describe("stageText", () => {
       stage: "storing", current_file: null, total_files: null,
       current_image: null, total_images: null,
     })).toBe("正在存储…");
-  });
-});
-
-describe("pausedText", () => {
-  it("暂停在解析阶段：保留文件名+位置，前缀换成已暂停", () => {
-    expect(pausedText({
-      stage: "parsing", current_file: 2, total_files: 3,
-      current_image: null, total_images: null, current_filename: "ch02.pdf",
-    })).toBe("已暂停 · ch02.pdf（2/3）");
-  });
-
-  it("暂停在图片描述阶段：保留聚合位置，前缀换成已暂停", () => {
-    expect(pausedText({
-      stage: "vlm", current_file: null, total_files: null,
-      current_image: 7, total_images: 40, current_filename: null,
-    })).toBe("已暂停 7/40");
   });
 });

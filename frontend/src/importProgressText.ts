@@ -14,9 +14,3 @@ export function stageText(p: ImportProgress): string {
   if (p.stage === "vlm") return `图片描述${positionText(p)}`;
   return "正在存储…";
 }
-
-// 暂停只可能打断在 parsing/vlm 阶段（阶段3 存储没有暂停检查点，一旦开始
-// 会跑到底），positionText 对这两个阶段总能算出有意义的位置文案。
-export function pausedText(p: ImportProgress): string {
-  return `已暂停${positionText(p)}`;
-}
