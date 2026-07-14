@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import type { ChunkDetail } from "../api/types";
 import { getChunk } from "../api/client";
+import { Modal } from "./Modal";
 import { Toast } from "./Toast";
+import styles from "../ChunkDetailModal.module.css";
 
 interface ChunkDetailModalProps {
   bookId: string;
@@ -9,11 +11,31 @@ interface ChunkDetailModalProps {
   onClose: () => void;
 }
 
+function formatTime(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatLocation(detail: ChunkDetail): string | null {
+  if (detail.page_start != null) {
+    return detail.page_end != null && detail.page_end !== detail.page_start
+      ? `第 ${detail.page_start}–${detail.page_end} 页`
+      : `第 ${detail.page_start} 页`;
+  }
+  if (detail.start_sec != null && detail.end_sec != null) {
+    return `${formatTime(detail.start_sec)}–${formatTime(detail.end_sec)}`;
+  }
+  return null;
+}
+
 export function ChunkDetailModal({ bookId, chunkId, onClose }: ChunkDetailModalProps) {
   const [detail, setDetail] = useState<ChunkDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setDetail(null);
+    setError(null);
     if (!chunkId) return;
     let cancelled = false;
 
@@ -34,21 +56,26 @@ export function ChunkDetailModal({ bookId, chunkId, onClose }: ChunkDetailModalP
   if (!chunkId) return null;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="引用原文">
+    <Modal onDismiss={onClose} cardClassName={styles.card}>
       {detail && (
         <>
-          <p><strong>来源文件：</strong>{detail.source_file}</p>
-          {detail.page_start != null && (
-            <p><strong>页码：</strong>{detail.page_start}{detail.page_end !== detail.page_start ? `-${detail.page_end}` : ""}</p>
-          )}
-          {detail.start_sec != null && <p><strong>时段：</strong>{detail.start_sec}s-{detail.end_sec}s</p>}
-          <blockquote>{detail.content}</blockquote>
+          <div className={styles.head}>
+            <div>
+              <div className={styles.source}>{detail.source_file}</div>
+              {formatLocation(detail) && <div className={styles.location}>{formatLocation(detail)}</div>}
+            </div>
+            <button className={styles.close} aria-label="关闭" onClick={onClose}>
+              ✕
+            </button>
+          </div>
+          <blockquote className={styles.body}>{detail.content}</blockquote>
         </>
       )}
       {error && (
-        <Toast position="top-center" onDismiss={() => setError(null)}>{error}</Toast>
+        <Toast position="top-center" onDismiss={() => setError(null)}>
+          {error}
+        </Toast>
       )}
-      <button onClick={onClose}>关闭</button>
-    </div>
+    </Modal>
   );
 }
