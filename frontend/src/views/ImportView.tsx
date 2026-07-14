@@ -9,7 +9,7 @@ interface ImportViewProps {
 export function ImportView({ bookId }: ImportViewProps) {
   const { progress } = useImportProgress();
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
       <ImportPanel bookId={bookId} progress={progress} />
       <FileList bookId={bookId} progress={progress} />
     </div>

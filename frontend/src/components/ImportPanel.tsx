@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { dirname } from "@tauri-apps/api/path";
-import { cancelImport, pauseImport, resumeImport, submitImport } from "../api/client";
+import { cancelImport, pauseImport, submitImport } from "../api/client";
 import { useStagedFiles } from "../hooks/useStagedFiles";
 import { stageText } from "../importProgressText";
 import { ImportCompletionToast } from "./ImportCompletionToast";
 import { Toast } from "./Toast";
-import type { LastResult, ProgressResponse } from "../api/types";
+import type { ImportProgress, LastResult, ProgressResponse } from "../api/types";
+import styles from "../ImportFileList.module.css";
 
 // 跟后端 scripts/ingest.py 的 _ALL_EXTS 保持一致
 const SUPPORTED_EXTENSIONS = ["pdf", "epub", "mp3", "wav", "flac", "png", "jpg", "jpeg", "svg"];
@@ -26,6 +27,28 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const importingThisBook = !!progress?.busy && progress.book_id === bookId;
+  // 已提交但还没轮到处理——这本书的批次不能再改，只能整批只读+取消排队。
+  const isQueued = !!queuedTaskId && !importingThisBook;
+  const isReadOnly = importingThisBook || isQueued;
+
+  // 全局暂停一旦被触发（不一定是这本书自己点的——任何书暂停都会顺手取消
+  // 所有排队中的任务），这本书如果排着队，它在后端的任务已经被取消了，
+  // 本地这份 queuedTaskId 要跟着清掉，UI 才不会卡在一个已经不存在的
+  // "排队中"状态里。暂停没有"恢复"，界面直接退回正常待导入态即可。
+  useEffect(() => {
+    if (progress?.pause_requested) setQueuedTaskId(null);
+  }, [progress?.pause_requested]);
+
+  // 记住这本书正在导入期间收到的最后一次真实进度快照——任务结束（不管
+  // 是正常完成还是被暂停打断）那一刻后端就把 progress 清空了，没有这份
+  // 记录的话，"已暂停"弹窗没法知道暂停生效前具体停在哪个阶段、还剩多少
+  // 没处理（阶段2 中断只知道"文件"，不知道"图片"，得从这份快照里算）。
+  const lastLiveProgressRef = useRef<ImportProgress | null>(null);
+  useEffect(() => {
+    if (importingThisBook && progress?.progress) {
+      lastLiveProgressRef.current = progress.progress;
+    }
+  }, [importingThisBook, progress?.progress]);
 
   // 导入进行中每个文件成功入库会从待导入列表消失（后端行为）——
   // 随进度变化（文件边界/任务结束）重新拉取列表。单独盯 last_result 的内容
@@ -91,17 +114,23 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   // 这份"已弹过"记录还落一份到 localStorage（按 book 分开存）：窗口关掉
   // 重开是组件重新 mount，内存态会丢，但后端 last_result 还在，不落盘的话
   // 同一份结果会在重开窗口时再弹一次。
+  //
+  // 去重键用 task_id，不能用内容本身（真实 bug）：暂停发生在文件还没
+  // 开始处理之前时，重新提交同一批文件产生的结果内容会完全相同
+  // （book_id/not_attempted 都一样），拿内容去重会把第二次真实发生的
+  // 结果误判成"已经弹过的旧结果"吞掉。task_id 每次 enqueue 都不同。
   const shownResultStorageKey = `bookagent:importToastShown:${bookId}`;
   const [toastResult, setToastResult] = useState<LastResult | null>(null);
-  const shownResultKeyRef = useRef<string | null>(
+  const [pausedAtProgress, setPausedAtProgress] = useState<ImportProgress | null>(null);
+  const shownTaskIdRef = useRef<string | null>(
     localStorage.getItem(shownResultStorageKey),
   );
   useEffect(() => {
-    const key = JSON.stringify(lastResult);
-    if (lastResult && key !== shownResultKeyRef.current) {
-      shownResultKeyRef.current = key;
-      localStorage.setItem(shownResultStorageKey, key);
+    if (lastResult && lastResult.task_id !== shownTaskIdRef.current) {
+      shownTaskIdRef.current = lastResult.task_id ?? null;
+      if (lastResult.task_id) localStorage.setItem(shownResultStorageKey, lastResult.task_id);
       setToastResult(lastResult);
+      setPausedAtProgress(lastLiveProgressRef.current);
     }
   }, [lastResult, shownResultStorageKey]);
 
@@ -112,45 +141,76 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
 
   return (
     <section aria-label="导入管理">
-      <h3>待导入</h3>
-      <button onClick={handleAddFiles}>添加文件</button>
-      <ul>
-        {files.map((path) => (
-          <li key={path}>
-            {path}
-            <button aria-label={`移除 ${path}`} onClick={() => remove(path)}>
-              ×
-            </button>
-          </li>
-        ))}
-      </ul>
-      <button disabled={files.length === 0 || importingThisBook} onClick={handleSubmit}>
-        开始导入
-      </button>
-      {queuedTaskId && !importingThisBook && (
-        <button onClick={handleCancelQueued}>取消排队</button>
+      <h3 className={styles.heading}>待导入</h3>
+      {files.length > 0 && (
+        <ul className={styles.list}>
+          {files.map((path) => (
+            <li key={path} className={styles.row}>
+              <span className={styles.filename}>{path}</span>
+              {!isQueued && (
+                <button
+                  className={styles.removeAction}
+                  disabled={importingThisBook}
+                  aria-label={`移除 ${path}`}
+                  onClick={() => remove(path)}
+                >
+                  {importingThisBook ? "导入中" : "移除"}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
 
-      {importingThisBook && progress?.progress && (
-        <div role="status">
-          <span>{stageText(progress.progress)}</span>
-          {progress.pause_requested ? (
-            <button disabled>正在暂停…</button>
-          ) : (
-            <button onClick={() => pauseImport().catch(() => {})}>暂停</button>
-          )}
+      {/* 待导入 / 正在导入：添加文件 + 开始导入 */}
+      {!isQueued && (
+        <div className={styles.btnRow}>
+          <button className={styles.btnSecondary} disabled={isReadOnly} onClick={handleAddFiles}>
+            添加文件
+          </button>
+          <button
+            className={styles.btnBlue}
+            disabled={files.length === 0 || isReadOnly}
+            onClick={handleSubmit}
+          >
+            开始导入
+          </button>
         </div>
       )}
 
-      {progress && !progress.busy && progress.pause_requested && (
+      {/* 排队中：只有取消排队 */}
+      {isQueued && (
+        <div className={styles.btnRow}>
+          <button className={styles.btnSecondary} onClick={handleCancelQueued}>
+            取消排队
+          </button>
+        </div>
+      )}
+
+      {/* 正在导入：进度 + 暂停 */}
+      {importingThisBook && progress?.progress && (
         <div role="status">
-          <span>已暂停</span>
-          <button onClick={() => resumeImport().catch(() => {})}>恢复</button>
+          <p className={styles.progressText}>{stageText(progress.progress)}</p>
+          <div className={styles.btnRow}>
+            {progress.pause_requested ? (
+              <button className={styles.btnSecondary} disabled>
+                正在暂停…
+              </button>
+            ) : (
+              <button className={styles.btnRed} onClick={() => pauseImport().catch(() => {})}>
+                暂停
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {toastResult && (
-        <ImportCompletionToast result={toastResult} onDismiss={dismissToast} />
+        <ImportCompletionToast
+          result={toastResult}
+          pausedAtProgress={pausedAtProgress}
+          onDismiss={dismissToast}
+        />
       )}
 
       {(error ?? actionError) && (

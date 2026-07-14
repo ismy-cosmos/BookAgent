@@ -2,7 +2,12 @@ import pytest
 from unittest.mock import MagicMock, patch
 from pipeline.chunk.schema import Chunk
 from pipeline.store import ChromaStore
-from pipeline.store.chroma_store import get_store, reset_store_cache
+from pipeline.store.chroma_store import (
+    get_store,
+    reset_store_cache,
+    _encode_collection_name,
+    _decode_collection_name,
+)
 
 
 def _chunk(chunk_id="b/f/p0001/0000", page_start=1, page_end=1, start_sec=None, end_sec=None):
@@ -317,4 +322,49 @@ def test_rename_collection_calls_modify(mock_chroma):
     _, mock_col, tmp = mock_chroma
     store = ChromaStore(persist_dir=str(tmp))
     store.rename_collection("old-id", "new-id")
-    mock_col.modify.assert_called_once_with(name="new-id")
+    mock_col.modify.assert_called_once_with(name=_encode_collection_name("new-id"))
+
+
+def test_encode_decode_collection_name_round_trip():
+    for book_id in ["b", "1", "ab", "红楼梦", "book id", "book_id!", "a" * 300]:
+        assert _decode_collection_name(_encode_collection_name(book_id)) == book_id
+
+
+def test_encode_collection_name_satisfies_chroma_naming_rules():
+    import re
+    for book_id in ["b", "1", "ab", "红楼梦", "book id", "book_id!", "..", "192.168.1.1"]:
+        name = _encode_collection_name(book_id)
+        assert 3 <= len(name) <= 512
+        assert re.fullmatch(r"[a-zA-Z0-9._-]+", name)
+        assert name[0].isalnum() and name[-1].isalnum()
+        assert ".." not in name
+
+
+def test_short_book_id_can_be_stored_and_queried(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    chunk = Chunk(
+        chunk_id="1/f/p0001/0000", book_id="1", source_file="f.pdf",
+        element_type="text", content="short id content", token_count=3,
+    )
+    store.add_chunks("1", [chunk], [[0.1] * 1024])
+    assert store.count("1") == 1
+    assert "1" in store.list_books()
+
+
+def test_non_ascii_book_id_can_be_stored_and_queried(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    chunk = Chunk(
+        chunk_id="红楼梦/f/p0001/0000", book_id="红楼梦", source_file="f.pdf",
+        element_type="text", content="中文书名内容", token_count=3,
+    )
+    store.add_chunks("红楼梦", [chunk], [[0.1] * 1024])
+    assert store.count("红楼梦") == 1
+    assert "红楼梦" in store.list_books()
+
+
+def test_list_books_returns_decoded_book_ids(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store._collection("ostep")
+    store._collection("1")
+    store._collection("红楼梦")
+    assert sorted(store.list_books()) == sorted(["ostep", "1", "红楼梦"])

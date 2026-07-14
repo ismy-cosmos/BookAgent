@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFiles } from "../hooks/useFiles";
 import { ConfirmDialog } from "./ConfirmDialog";
 import type { ProgressResponse } from "../api/types";
+import styles from "../ImportFileList.module.css";
 
 interface FileListProps {
   bookId: string;
@@ -35,12 +36,14 @@ export function FileList({ bookId, progress }: FileListProps) {
 
   return (
     <div>
-      <h3>已导入文件</h3>
-      <ul>
+      <h3 className={styles.heading}>已归档文件</h3>
+      <ul className={styles.list}>
         {files.map((sourceFile) => (
-          <li key={sourceFile}>
-            {sourceFile}
-            <button onClick={() => setPendingDelete(sourceFile)}>删除</button>
+          <li key={sourceFile} className={styles.row}>
+            <span className={styles.filename}>{sourceFile}</span>
+            <button className={styles.removeAction} onClick={() => setPendingDelete(sourceFile)}>
+              删除
+            </button>
           </li>
         ))}
       </ul>

@@ -134,7 +134,7 @@ describe("ImportPanel", () => {
 
     render(<ImportPanel bookId="ostep" progress={busy} />);
 
-    expect(await screen.findByText("图片描述 7/40")).toBeInTheDocument();
+    expect(await screen.findByText("图片描述 6/40")).toBeInTheDocument();
     await userEvent.click(screen.getByText("暂停"));
     expect(client.pauseImport).toHaveBeenCalled();
   });
@@ -188,11 +188,11 @@ describe("ImportPanel", () => {
     expect(screen.queryByText("暂停")).toBeNull();
   });
 
-  it("shows the paused state and resumes", async () => {
-    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
-    const resumeSpy = vi.spyOn(client, "resumeImport").mockResolvedValue({
-      busy: false, reason: "idle", book_id: null, pause_requested: false,
-    });
+  it("暂停后（不管是不是这本书自己触发的）没有'恢复'这回事，直接退回正常待导入态", async () => {
+    // 暂停是决定性动作：当前任务收尾、排队全部取消，不存在"恢复"——
+    // 界面上就应该跟这本书从来没排过队/没暂停过一样，正常显示添加文件+
+    // 开始导入，用户想继续导入自己重新点。
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
     const paused: ProgressResponse = {
       busy: false, reason: "idle", book_id: null, pause_requested: true,
       progress: null, last_result: null,
@@ -200,9 +200,33 @@ describe("ImportPanel", () => {
 
     render(<ImportPanel bookId="ostep" progress={paused} />);
 
-    expect(await screen.findByText("已暂停")).toBeInTheDocument();
-    await userEvent.click(screen.getByText("恢复"));
-    expect(resumeSpy).toHaveBeenCalled();
+    expect(await screen.findByText("开始导入")).toBeInTheDocument();
+    expect(screen.queryByText("已暂停")).not.toBeInTheDocument();
+    expect(screen.queryByText("恢复")).not.toBeInTheDocument();
+  });
+
+  it("排队中的书如果被全局暂停顺手取消了，本地状态跟着清掉，退回正常待导入态", async () => {
+    // 不一定是这本书自己点的暂停——可能是另一本正在导入的书那边点的，
+    // 但 request_pause() 会把所有排队中的任务（包括这本）一起取消。
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    vi.spyOn(client, "submitImport").mockResolvedValue({ task_id: "t-queued", file_count: 1 });
+    const busyElsewhere: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "other-book", pause_requested: false,
+      progress: { stage: "parsing", current_file: 1, total_files: 2,
+                  current_image: null, total_images: null, current_filename: "x.pdf" },
+      last_result: null,
+    };
+
+    const { rerender } = render(<ImportPanel bookId="ostep" progress={busyElsewhere} />);
+    await screen.findByText("/a.pdf");
+    await userEvent.click(screen.getByText("开始导入"));
+    await screen.findByText("取消排队");
+
+    const paused: ProgressResponse = { ...busyElsewhere, pause_requested: true };
+    rerender(<ImportPanel bookId="ostep" progress={paused} />);
+
+    expect(await screen.findByText("添加文件")).toBeInTheDocument();
+    expect(screen.queryByText("取消排队")).not.toBeInTheDocument();
   });
 
   it("refreshes staged files when an import finishes without ever observing busy:true", async () => {
@@ -264,8 +288,8 @@ describe("ImportPanel", () => {
     const done: ProgressResponse = {
       busy: false, reason: "idle", book_id: null, pause_requested: false,
       progress: null,
-      last_result: { book_id: "ostep", total_chunks: 3, aborted_early: false,
-                     failures: [], not_attempted: [] },
+      last_result: { book_id: "ostep", task_id: "abc001", total_chunks: 3,
+                     aborted_early: false, failures: [], not_attempted: [] },
     };
 
     const { unmount } = render(<ImportPanel bookId="ostep" progress={done} />);
@@ -319,4 +343,41 @@ describe("ImportPanel", () => {
     await userEvent.click(await screen.findByText("取消排队"));
     expect(cancelSpy).toHaveBeenCalledWith("t-queued");
   });
+
+  it("正在导入时移除按钮变灰显示'导入中'，添加文件也被禁用", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    const importing: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "ostep", pause_requested: false,
+      progress: { stage: "parsing", current_file: 1, total_files: 1,
+                  current_image: null, total_images: null, current_filename: "a.pdf" },
+      last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={importing} />);
+
+    expect(await screen.findByText("导入中")).toBeDisabled();
+    expect(screen.getByText("添加文件")).toBeDisabled();
+  });
+
+  it("排队中整批只读，只有取消排队可点", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    vi.spyOn(client, "submitImport").mockResolvedValue({ task_id: "t-queued", file_count: 1 });
+    const busyElsewhere: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "other-book", pause_requested: false,
+      progress: { stage: "parsing", current_file: 1, total_files: 2,
+                  current_image: null, total_images: null, current_filename: "x.pdf" },
+      last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={busyElsewhere} />);
+    await screen.findByText("/a.pdf");
+    await userEvent.click(screen.getByText("开始导入"));
+    await screen.findByText("取消排队");
+
+    expect(screen.queryByText("添加文件")).not.toBeInTheDocument();
+    expect(screen.queryByText("移除")).not.toBeInTheDocument();
+    expect(screen.queryByText("开始导入")).not.toBeInTheDocument();
+    expect(screen.getByText("取消排队")).not.toBeDisabled();
+  });
+
 });

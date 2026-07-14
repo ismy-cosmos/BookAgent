@@ -1,19 +1,26 @@
 import { useEffect } from "react";
-import type { LastResult } from "../api/types";
+import type { ImportProgress, LastResult } from "../api/types";
+import { pausedRemainingText } from "../importProgressText";
 import { Toast } from "./Toast";
 
 const AUTO_DISMISS_MS = 6000;
 
 interface ImportCompletionToastProps {
   result: LastResult;
+  pausedAtProgress?: ImportProgress | null;
   onDismiss: () => void;
 }
 
-export function ImportCompletionToast({ result, onDismiss }: ImportCompletionToastProps) {
+export function ImportCompletionToast({ result, pausedAtProgress, onDismiss }: ImportCompletionToastProps) {
+  // 暂停打断跟真失败/真成功都不一样——用户主动叫它停的，不该定时消失，
+  // 要让用户自己确认看到了再关掉。
+  const autoDismiss = !result.aborted_early;
+
   useEffect(() => {
+    if (!autoDismiss) return;
     const timer = setTimeout(onDismiss, AUTO_DISMISS_MS);
     return () => clearTimeout(timer);
-  }, [onDismiss]);
+  }, [onDismiss, autoDismiss]);
 
   return (
     <Toast
@@ -23,6 +30,8 @@ export function ImportCompletionToast({ result, onDismiss }: ImportCompletionToa
     >
       {result.error ? (
         <span>导入失败：{result.error}</span>
+      ) : result.aborted_early ? (
+        <span>已暂停{pausedRemainingText(pausedAtProgress ?? null)}</span>
       ) : (
         <>
           <span>

@@ -75,4 +75,43 @@ describe("ImportCompletionToast", () => {
 
     expect(onDismiss).toHaveBeenCalledOnce();
   });
+
+  it("暂停打断时显示'已暂停'而不是'导入完成'，且带上阶段快照算出的未处理数", () => {
+    // 暂停不是失败也不是成功——用"导入完成：入库 0 块"会跟真失败长得
+    // 一样，用户没法区分"我主动暂停的"和"这次导入啥也没干成"。
+    // 剩余数来自 pausedAtProgress 快照，不是 not_attempted.length：
+    // not_attempted 在阶段2中断时存的是"文件"，但暂停实际打断的可能是"图片"。
+    const result: LastResult = {
+      book_id: "ostep", total_chunks: 0, aborted_early: true,
+      failures: [], not_attempted: ["ch02.pdf", "ch03.pdf"],
+    };
+    // current_file=3, total_files=4 → remaining = 4 - (3-1) = 2 个文件未解析
+    const pausedAtProgress = {
+      stage: "parsing" as const,
+      current_file: 3, total_files: 4,
+      current_image: null, total_images: null,
+    };
+
+    render(<ImportCompletionToast result={result} pausedAtProgress={pausedAtProgress} onDismiss={() => {}} />);
+
+    expect(screen.getByText(/已暂停/)).toBeInTheDocument();
+    expect(screen.getByText(/还有 2 个文件未解析/)).toBeInTheDocument();
+    expect(screen.queryByText(/导入完成/)).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("暂停弹窗不自动关闭——用户必须手动点关闭才消失", () => {
+    vi.useFakeTimers();
+    const onDismiss = vi.fn();
+    const result: LastResult = {
+      book_id: "ostep", total_chunks: 0, aborted_early: true,
+      failures: [], not_attempted: ["ch02.pdf"],
+    };
+
+    render(<ImportCompletionToast result={result} onDismiss={onDismiss} />);
+    vi.advanceTimersByTime(60000);  // 远超正常的 6 秒自动消失时间
+
+    expect(onDismiss).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });

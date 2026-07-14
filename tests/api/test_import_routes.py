@@ -151,16 +151,6 @@ def test_pause_endpoint_requests_pause_and_returns_status(tmp_path, monkeypatch)
     assert resp.json()["pause_requested"] is True
 
 
-def test_resume_endpoint_resumes_and_returns_status(tmp_path, monkeypatch):
-    fake = _fake_queue(monkeypatch)
-
-    resp = client.post("/import/resume")
-
-    assert resp.status_code == 200
-    fake.resume.assert_called_once_with()
-    assert resp.json()["pause_requested"] is False
-
-
 # ── 取消排队任务 ─────────────────────────────────────────────────────────
 
 def test_cancel_queued_task_success(tmp_path, monkeypatch):
