@@ -8,6 +8,19 @@ from pipeline.chunk.schema import Chunk
 
 _CHROMA_DIR = os.environ.get("CHROMA_DIR", ".chroma")
 
+_COLLECTION_PREFIX = "b_"
+
+
+def _encode_collection_name(book_id: str) -> str:
+    """book_id 可以是任意用户输入（中文、空格、1-2 个字符……），但 Chroma
+    collection name 只认 3-512 个 [a-zA-Z0-9._-]、首尾字母数字。统一转成
+    十六进制可以绕开所有这些限制，不用为"本来就合法的名字"开例外分支。"""
+    return _COLLECTION_PREFIX + book_id.encode("utf-8").hex()
+
+
+def _decode_collection_name(name: str) -> str:
+    return bytes.fromhex(name[len(_COLLECTION_PREFIX):]).decode("utf-8")
+
 
 def _meta_val(v):
     """Chroma metadata must be str|int|float|bool. Convert None → ''."""
@@ -25,7 +38,7 @@ class ChromaStore:
 
     def _collection(self, book_id: str):
         return self._client.get_or_create_collection(
-            name=book_id,
+            name=_encode_collection_name(book_id),
             metadata={"hnsw:space": "cosine"},
         )
 
@@ -114,13 +127,13 @@ class ChromaStore:
         return self._collection(book_id).count()
 
     def list_books(self) -> list[str]:
-        return [c.name for c in self._client.list_collections()]
+        return [_decode_collection_name(c.name) for c in self._client.list_collections()]
 
     def delete_collection(self, book_id: str) -> None:
-        self._client.delete_collection(name=book_id)
+        self._client.delete_collection(name=_encode_collection_name(book_id))
 
     def rename_collection(self, book_id: str, new_book_id: str) -> None:
-        self._collection(book_id).modify(name=new_book_id)
+        self._collection(book_id).modify(name=_encode_collection_name(new_book_id))
 
 
 # 按 persist_dir 缓存：并发创建同路径的 PersistentClient 会破坏 chromadb 内部
