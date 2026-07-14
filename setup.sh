@@ -11,6 +11,7 @@ CPU_ONLY=false
 # ── 1. Checks ────────────────────────────────────────────────────────────────
 command -v $PYTHON >/dev/null || { echo "ERROR: python3.12 not found"; exit 1; }
 command -v ollama  >/dev/null || echo "WARN: ollama not found — model serving unavailable"
+command -v pnpm    >/dev/null || { echo "ERROR: pnpm not found"; exit 1; }
 
 echo "Python: $($PYTHON --version)"
 
@@ -48,6 +49,10 @@ else
 fi
 "$WHISPERX_VENV/bin/pip" install -q -r requirements-whisperx.txt
 echo "Installed whisperx (isolated venv)"
+
+# ── 4.6 Frontend (JS deps only — Rust/Tauri 系统依赖不在这一步处理) ──────────
+(cd frontend && pnpm install)
+echo "Installed frontend JS dependencies"
 
 # ── 5. Smoke test ────────────────────────────────────────────────────────────
 python -m pytest tests/ --collect-only -q 2>&1 | tail -3

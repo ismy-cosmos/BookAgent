@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useChat } from "../hooks/useChat";
 import { citationLabel } from "../citationLabel";
 import { stripAnswerTags } from "../stripAnswerTags";
@@ -54,7 +56,9 @@ export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelP
               <div className={`${styles.row} ${styles.rowAnswer}`}>
                 <div className={styles.answerWrap}>
                   <div className={`${styles.bubble} ${styles.bubbleAnswer}`}>
-                    {stripAnswerTags(turn.answer)}
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {stripAnswerTags(turn.answer)}
+                    </ReactMarkdown>
                   </div>
                   {label.kind === "pills" ? (
                     <div className={styles.pills}>

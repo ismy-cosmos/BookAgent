@@ -18,12 +18,13 @@ export function useConversations(bookId: string) {
     refresh();
   }, [refresh]);
 
-  const create = useCallback(async () => {
+  const create = useCallback(async (): Promise<string | null> => {
     try {
-      await createConversation(bookId);
+      const record = await createConversation(bookId);
       await refresh();
+      return record.id;
     } catch {
-      // noop
+      return null;
     }
   }, [bookId, refresh]);
 

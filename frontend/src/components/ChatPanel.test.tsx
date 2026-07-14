@@ -95,6 +95,26 @@ describe("ChatPanel", () => {
     await screen.findByText("chunk 原文");
   });
 
+  it("renders markdown in the answer bubble (headings/bold/tables), not raw syntax", async () => {
+    vi.spyOn(client, "getConversation").mockResolvedValue({
+      id: "c1", book_id: "ostep", title: "t", created_at: "", updated_at: "",
+      turns: [{
+        question: "程序和进程的区别？",
+        answer: "### 定义\n**进程**是运行中的程序。\n\n| 项目 | 进程 |\n|---|---|\n| 状态 | 有 |",
+        citations: [], used_calculate: false, attempted_retrieve: true,
+      }],
+    });
+
+    render(<ChatPanel bookId="ostep" conversationId="c1" status={IDLE} />);
+
+    const heading = await screen.findByText("定义");
+    expect(heading.tagName).toBe("H3");
+    expect(screen.getByText("进程", { selector: "strong" })).toBeInTheDocument();
+    const cell = screen.getByText("有");
+    expect(cell.tagName).toBe("TD");
+    expect(cell.closest("table")).not.toBeNull();
+  });
+
   it("shows '已使用计算工具' label when used_calculate is true", async () => {
     vi.spyOn(client, "getConversation").mockResolvedValue({
       id: "c1", book_id: "ostep", title: "t", created_at: "", updated_at: "",

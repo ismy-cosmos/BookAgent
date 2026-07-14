@@ -31,10 +31,12 @@ describe("useConversations", () => {
     const { result } = renderHook(() => useConversations("ostep"));
     await waitFor(() => expect(client.listConversations).toHaveBeenCalled());
 
+    let newId: string | null = null;
     await act(async () => {
-      await result.current.create();
+      newId = await result.current.create();
     });
 
+    expect(newId).toBe("c2");
     expect(result.current.conversations).toEqual([{ id: "c2", title: "新对话", updated_at: "" }]);
   });
 

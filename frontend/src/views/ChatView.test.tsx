@@ -55,4 +55,50 @@ describe("ChatView", () => {
     await userEvent.click(await screen.findByRole("button", { name: "新建对话" }));
     expect(createSpy).toHaveBeenCalledWith("ostep");
   });
+
+  it("creating a new conversation immediately switches to it, not requiring a manual click", async () => {
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+    });
+    vi.spyOn(client, "listConversations").mockResolvedValue({ conversations: [] });
+    vi.spyOn(client, "createConversation").mockResolvedValue({
+      id: "c2", book_id: "ostep", title: "新对话", created_at: "", updated_at: "", turns: [],
+    });
+    vi.spyOn(client, "getConversation").mockResolvedValue({
+      id: "c2", book_id: "ostep", title: "新对话", created_at: "", updated_at: "", turns: [],
+    });
+
+    render(<ChatView bookId="ostep" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "新建对话" }));
+
+    // ChatPanel 出现（说明右栏已经切到刚建出来的对话），不需要用户
+    // 再手动去左栏点一次。
+    await screen.findByPlaceholderText("输入问题");
+    expect(client.getConversation).toHaveBeenCalledWith("ostep", "c2");
+  });
+
+  it("deleting the currently open conversation clears the chat panel", async () => {
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+    });
+    vi.spyOn(client, "listConversations")
+      .mockResolvedValueOnce({ conversations: [{ id: "c1", title: "旧对话", updated_at: "" }] })
+      .mockResolvedValueOnce({ conversations: [] });
+    vi.spyOn(client, "getConversation").mockResolvedValue({
+      id: "c1", book_id: "ostep", title: "旧对话", created_at: "", updated_at: "", turns: [],
+    });
+    vi.spyOn(client, "deleteConversation").mockResolvedValue({ deleted: "c1" });
+
+    render(<ChatView bookId="ostep" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "旧对话" }));
+    await screen.findByPlaceholderText("输入问题");
+
+    await userEvent.click(screen.getByText("删除"));
+
+    // 删的是当前正在看的这个对话——右栏应该立刻清空，不能继续显示
+    // 已经被删掉的对话内容，让用户没法判断到底删没删成功。
+    await waitFor(() => expect(screen.queryByPlaceholderText("输入问题")).not.toBeInTheDocument());
+  });
 });

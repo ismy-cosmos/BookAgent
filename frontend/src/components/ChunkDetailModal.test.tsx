@@ -39,6 +39,21 @@ describe("ChunkDetailModal", () => {
     expect(strong.tagName).toBe("STRONG");
   });
 
+  it("renders GFM tables as real <table> elements, not raw pipe syntax", async () => {
+    vi.spyOn(client, "getChunk").mockResolvedValue({
+      chunk_id: "c1",
+      content: "| 项目 | 程序 |\n|---|---|\n| 性质 | 静态 |",
+      source_file: "ch3.pdf", element_type: "text", page_start: 1, page_end: 1,
+      start_sec: null, end_sec: null, low_confidence: false,
+    });
+
+    render(<ChunkDetailModal bookId="ostep" chunkId="c1" onClose={vi.fn()} />);
+
+    const cell = await screen.findByText("静态");
+    expect(cell.tagName).toBe("TD");
+    expect(cell.closest("table")).not.toBeNull();
+  });
+
   it("displays a time range for audio chunks instead of a page number", async () => {
     vi.spyOn(client, "getChunk").mockResolvedValue({
       chunk_id: "c1", content: "audio 转写内容", source_file: "lecture.mp3",
