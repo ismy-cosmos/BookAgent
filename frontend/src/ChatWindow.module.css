@@ -1,0 +1,299 @@
+.window {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 200px;
+  flex: none;
+  padding: var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--card-border);
+}
+
+.newConversation {
+  border: none;
+  border-radius: var(--radius-button);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-blue);
+  margin-bottom: var(--space-3);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.conversationList {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+}
+
+.conversationItem {
+  border-radius: var(--radius-button);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.conversationItem.active {
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-l1);
+  border: 1px solid var(--card-border);
+}
+
+/* 深色模式下当前对话高亮块改用 --track-bg（而不是跟浅色态一样的
+   --panel-bg）——用户对比过 mockup 手绘的 #34363D（等于 --track-bg
+   深色值）和 --panel-bg 深色值 #26282F 两版实际效果后，明确要深色态
+   照 mockup 这版做。浅色态维持 --panel-bg 不变（mockup 浅色态本来就是
+   --panel-bg 浅色值 #FFFFFF，没有分歧）。 */
+@media (prefers-color-scheme: dark) {
+  .conversationItem.active {
+    background: var(--track-bg);
+  }
+}
+
+.conversationSelect {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-body);
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+}
+
+.conversationItem.active .conversationSelect {
+  color: var(--text-primary);
+}
+
+.conversationTitle {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversationDelete {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--accent-red);
+  font-size: var(--font-meta);
+  cursor: pointer;
+  padding: 0 var(--space-3) 0 0;
+  font-family: inherit;
+}
+
+@media (max-width: 560px) {
+  .sidebar {
+    width: 44px;
+    align-items: center;
+    padding: var(--space-4) var(--space-2);
+  }
+  .newConversation {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    text-align: center;
+  }
+  .conversationList {
+    width: 100%;
+    align-items: center;
+  }
+  .conversationItem {
+    width: 28px;
+    height: 28px;
+  }
+  .conversationSelect {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+  }
+  .conversationTitle,
+  .conversationDelete {
+    display: none;
+  }
+}
+
+.chatColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.row {
+  display: flex;
+}
+
+.rowQuestion {
+  justify-content: flex-end;
+}
+
+.rowAnswer {
+  justify-content: flex-start;
+  margin-top: var(--space-2);
+}
+
+.bubble {
+  max-width: 72%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 14px;
+  font-size: var(--font-body);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubbleQuestion {
+  background: var(--accent-blue);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.bubbleAnswer {
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-l1);
+  border-bottom-left-radius: 4px;
+}
+
+.answerWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 72%;
+}
+
+.answerWrap .bubbleAnswer {
+  max-width: none;
+}
+
+.thinkingBubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-l1);
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  padding: 11px 16px;
+  width: fit-content;
+}
+
+.thinkingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  animation: thinkingBounce 1.2s infinite ease-in-out both;
+}
+
+.thinkingDot:nth-child(1) { animation-delay: -0.32s; }
+.thinkingDot:nth-child(2) { animation-delay: -0.16s; }
+.thinkingDot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes thinkingBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: .5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.pill {
+  font-size: var(--font-meta);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(44, 111, 239, .12);
+  color: var(--accent-blue);
+  border: none;
+  cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pill {
+    background: rgba(44, 111, 239, .22);
+  }
+}
+
+.tagLabel {
+  font-size: var(--font-meta);
+  color: var(--text-secondary);
+}
+
+.inputRow {
+  flex: none;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.input {
+  flex: 1;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-body);
+  border: 1px solid var(--input-border);
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.input::placeholder {
+  color: var(--text-secondary);
+}
+
+.input:disabled {
+  background: var(--track-bg);
+  color: var(--text-secondary);
+}
+
+.sendButton {
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-blue);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sendButton:disabled {
+  background: var(--track-bg);
+  color: var(--text-secondary);
+  cursor: default;
+}
