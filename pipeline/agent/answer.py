@@ -36,6 +36,8 @@ class AnswerResult:
     triggered_tool: Optional[str]
     total_tokens: int
     latency_s: float
+    used_calculate: bool
+    attempted_retrieve: bool
 
 
 def answer(
@@ -61,7 +63,10 @@ def answer(
     if final_answer not in _ERROR_SENTINELS:
         final_answer = _append_tool_tags(final_answer, citations, turn.used_calculate)
 
-    chat_turn = ChatTurn(question=question, answer=final_answer, citations=citations)
+    chat_turn = ChatTurn(
+        question=question, answer=final_answer, citations=citations,
+        used_calculate=turn.used_calculate, attempted_retrieve=turn.attempted_retrieve,
+    )
     new_history = history + [chat_turn]
 
     return AnswerResult(
@@ -71,4 +76,6 @@ def answer(
         triggered_tool=turn.triggered_tool,
         total_tokens=turn.total_tokens,
         latency_s=turn.latency_s,
+        used_calculate=turn.used_calculate,
+        attempted_retrieve=turn.attempted_retrieve,
     )

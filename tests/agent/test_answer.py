@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 
 def _fake_turn(final_answer="答案", triggered_tool=None, retrieved_chunks=None,
-               total_tokens=10, latency_s=0.1, used_calculate=False):
+               total_tokens=10, latency_s=0.1, used_calculate=False, attempted_retrieve=False):
     turn = MagicMock()
     turn.final_answer = final_answer
     turn.triggered_tool = triggered_tool
@@ -10,6 +10,7 @@ def _fake_turn(final_answer="答案", triggered_tool=None, retrieved_chunks=None
     turn.total_tokens = total_tokens
     turn.latency_s = latency_s
     turn.used_calculate = used_calculate
+    turn.attempted_retrieve = attempted_retrieve
     return turn
 
 
@@ -159,3 +160,27 @@ def test_error_sentinels_are_not_tagged():
         client.run.return_value = _fake_turn(final_answer=sentinel)
         result = answer("问题", history=[], client=client)
         assert result.answer == sentinel
+
+
+def test_answer_result_and_history_carry_used_calculate_and_attempted_retrieve():
+    from pipeline.agent.answer import answer
+    client = MagicMock()
+    client.run.return_value = _fake_turn(used_calculate=True, attempted_retrieve=True)
+
+    result = answer("问题", history=[], client=client)
+
+    assert result.used_calculate is True
+    assert result.attempted_retrieve is True
+    assert result.history[0].used_calculate is True
+    assert result.history[0].attempted_retrieve is True
+
+
+def test_answer_result_defaults_false_when_neither_tool_used():
+    from pipeline.agent.answer import answer
+    client = MagicMock()
+    client.run.return_value = _fake_turn(used_calculate=False, attempted_retrieve=False)
+
+    result = answer("问题", history=[], client=client)
+
+    assert result.used_calculate is False
+    assert result.attempted_retrieve is False
