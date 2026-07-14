@@ -188,6 +188,13 @@
   border: 1px solid var(--card-border);
   box-shadow: var(--shadow-l1);
   border-bottom-left-radius: 4px;
+  /* .bubble 基类的 white-space: pre-wrap 是给纯文本问题气泡保留换行用的。
+     答案气泡现在是 ReactMarkdown 渲出的真实 HTML 结构——block 元素之间
+     本来就有换行/缩进这类"无意义空白"文本节点，pre-wrap 会把它们也当成
+     要保留的空白渲染出来，变成肉眼可见的空行（列表项 <li> 和 <p> 之间
+     尤其明显）。改回默认的 normal，让浏览器折叠掉这些格式化空白，
+     实际的换行交给 <p>/<li> 等 block 元素自己控制。 */
+  white-space: normal;
 }
 
 /* ReactMarkdown 渲染出来的元素基础样式——最外层 <p> 自带 margin，
@@ -197,6 +204,9 @@
 .bubbleAnswer p { margin: 0.5em 0; }
 .bubbleAnswer ul, .bubbleAnswer ol { margin: 0.4em 0; padding-left: 1.4em; }
 .bubbleAnswer li { margin: 0.2em 0; }
+/* 松散列表（列表项之间有空行）会被 remark 包一层 <p>，不清零的话
+   会跟上面 .bubbleAnswer p 的 margin 叠加，列表项之间空白异常大。 */
+.bubbleAnswer li > p { margin: 0; }
 .bubbleAnswer h1, .bubbleAnswer h2, .bubbleAnswer h3,
 .bubbleAnswer h4, .bubbleAnswer h5, .bubbleAnswer h6 {
   margin: 0.6em 0 0.3em;
