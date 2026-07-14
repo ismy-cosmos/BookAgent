@@ -26,6 +26,19 @@ describe("ChunkDetailModal", () => {
     expect(screen.getByText("第 42 页")).toBeInTheDocument();
   });
 
+  it("renders **bold** markdown syntax as real emphasis, not raw asterisks", async () => {
+    vi.spyOn(client, "getChunk").mockResolvedValue({
+      chunk_id: "c1", content: "a **process** is a running program", source_file: "ch3.pdf",
+      element_type: "text", page_start: 1, page_end: 1,
+      start_sec: null, end_sec: null, low_confidence: false,
+    });
+
+    render(<ChunkDetailModal bookId="ostep" chunkId="c1" onClose={vi.fn()} />);
+
+    const strong = await screen.findByText("process");
+    expect(strong.tagName).toBe("STRONG");
+  });
+
   it("displays a time range for audio chunks instead of a page number", async () => {
     vi.spyOn(client, "getChunk").mockResolvedValue({
       chunk_id: "c1", content: "audio 转写内容", source_file: "lecture.mp3",
