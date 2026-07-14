@@ -24,8 +24,15 @@
   background: var(--accent-blue);
   margin-bottom: var(--space-3);
   cursor: pointer;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-1);
   font-family: inherit;
+}
+
+.newConversationLabel {
+  white-space: nowrap;
 }
 
 .conversationList {
@@ -106,7 +113,10 @@
     height: 28px;
     padding: 0;
     border-radius: 50%;
-    text-align: center;
+    justify-content: center;
+  }
+  .newConversationLabel {
+    display: none;
   }
   .conversationList {
     width: 100%;

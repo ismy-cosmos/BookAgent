@@ -20,7 +20,7 @@ describe("ConversationList", () => {
     expect(onSelect).toHaveBeenCalledWith("c1");
   });
 
-  it("calls onCreate when clicking 新对话", async () => {
+  it("calls onCreate when clicking 新建对话", async () => {
     const onCreate = vi.fn();
     render(
       <ConversationList
@@ -32,7 +32,7 @@ describe("ConversationList", () => {
       />,
     );
 
-    await userEvent.click(screen.getByText("＋ 新对话"));
+    await userEvent.click(screen.getByRole("button", { name: "新建对话" }));
     expect(onCreate).toHaveBeenCalledOnce();
   });
 

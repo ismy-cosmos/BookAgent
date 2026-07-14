@@ -18,8 +18,9 @@ export function ConversationList({
 }: ConversationListProps) {
   return (
     <nav className={styles.sidebar} aria-label="对话列表">
-      <button className={styles.newConversation} onClick={onCreate}>
-        ＋ 新对话
+      <button className={styles.newConversation} onClick={onCreate} aria-label="新建对话">
+        <span aria-hidden="true">＋</span>
+        <span className={styles.newConversationLabel}>新对话</span>
       </button>
       <div className={styles.conversationList}>
         {conversations.map((c) => (

@@ -24,7 +24,11 @@ describe("ChatView", () => {
 
     render(<ChatView bookId="ostep" />);
 
-    await userEvent.click(await screen.findByText("新对话"));
+    // 用 getByRole 按可访问名字查——"新建对话"按钮的可访问名字跟这个
+    // 默认标题也叫"新对话"的对话项不会撞在一起（前者 aria-label 是
+    // "新建对话"），screen.findByText 直接查裸文本反而会因为两处都有
+    // "新对话"这几个字而多元素匹配报错。
+    await userEvent.click(await screen.findByRole("button", { name: "新对话" }));
     const input = await screen.findByPlaceholderText("输入问题");
     await userEvent.type(input, "fork 是什么？");
     await userEvent.click(screen.getByText("发送"));
@@ -48,7 +52,7 @@ describe("ChatView", () => {
 
     render(<ChatView bookId="ostep" />);
 
-    await userEvent.click(await screen.findByText("＋ 新对话"));
+    await userEvent.click(await screen.findByRole("button", { name: "新建对话" }));
     expect(createSpy).toHaveBeenCalledWith("ostep");
   });
 });
