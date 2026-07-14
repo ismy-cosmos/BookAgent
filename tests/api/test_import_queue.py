@@ -190,7 +190,10 @@ def test_should_pause_reflects_request_pause():
     assert observed == [True]
 
 
-def test_pause_stops_worker_from_taking_next_queued_task():
+def test_pause_cancels_all_other_queued_tasks():
+    """暂停是决定性动作：不是"当前任务停一下、排队的书自动接着来"，而是
+    连排队里的书一起清空——用户要哪本书继续导入，自己重新点"开始导入"
+    决定顺序，不存在"恢复"这回事。"""
     processed = []
     started = threading.Event()
     release = threading.Event()
@@ -207,47 +210,30 @@ def test_pause_stops_worker_from_taking_next_queued_task():
     q.enqueue("book-b", ["b1.pdf"])  # 排队等着
 
     assert started.wait(timeout=2.0)
+    assert q.book_has_pending_or_active_task("book-b") is True
+
     q.request_pause()  # 第一个任务还在跑的时候请求暂停
+    assert q.book_has_pending_or_active_task("book-b") is False  # 排队立刻被清空
+
     release.set()      # 放行第一个任务收尾
-
-    time.sleep(0.3)    # 给"如果它会继续取任务"留出反应时间
-    assert processed == ["book-a"]  # book-b 没有被开始处理
-
-    q.resume()
     q.wait_until_idle(timeout=2.0)
-    assert processed == ["book-a", "book-b"]  # 恢复后才轮到 book-b
+    assert processed == ["book-a"]  # book-b 永远不会被处理
 
 
-def test_pause_while_idle_holds_subsequently_enqueued_task():
+def test_pause_while_idle_is_a_no_op():
+    """没有任务在跑时点暂停没有意义——"暂停"按钮本来就只在导入进行中才会
+    显示，这里保证接口本身也不会因为空闲时被误调用而留下一个永远清不掉
+    的死状态。"""
     processor = _RecordingProcessor()
     q = ImportQueue(processor=processor)
     q.start()
 
     q.request_pause()  # 空闲时请求暂停
     q.enqueue("ostep", ["f1.pdf"])
-
-    time.sleep(0.3)
-    assert processor.calls == []  # 已暂停：新入队的任务不会被开始处理
-
-    q.resume()
     q.wait_until_idle(timeout=2.0)
-    assert processor.calls == [("ostep", ["f1.pdf"])]
 
-
-def test_cancel_works_on_task_held_during_pause():
-    processor = _RecordingProcessor()
-    q = ImportQueue(processor=processor)
-    q.start()
-
-    q.request_pause()
-    task_id = q.enqueue("ostep", ["f1.pdf"])
-    time.sleep(0.2)  # 让工作线程有机会把任务从队列里取出来、进入暂停等待
-
-    assert q.cancel(task_id) is True  # 暂停期间任务仍算"排队中"，可以取消
-
-    q.resume()
-    q.wait_until_idle(timeout=2.0)
-    assert processor.calls == []  # 被取消的任务恢复后也不会被处理
+    assert processor.calls == [("ostep", ["f1.pdf"])]  # 完全不受影响，正常处理
+    assert q.get_status()["pause_requested"] is False
 
 
 def test_get_status_pausing_while_task_still_running():
@@ -272,14 +258,15 @@ def test_get_status_pausing_while_task_still_running():
     q.wait_until_idle(timeout=2.0)
 
 
-def test_pause_flag_auto_clears_once_queue_is_empty_after_task_ends():
-    """方案B：暂停标志的意义是"接下来还要不要继续处理"——队列空了（没有
-    下一个任务会被它拦住）就没有继续留着的意义，任务一收尾就自动清掉。
+def test_pause_flag_cleared_once_task_ends():
+    """暂停标志的意义只是"让当前这个任务提前收尾"——任务一结束（不管是
+    正常完成还是被暂停打断）就无条件清掉，跟队列里还有没有别的任务无关
+    （排队的任务在 request_pause() 那一刻就已经被直接取消了，见
+    test_pause_cancels_all_other_queued_tasks）。
 
-    覆盖"try"那种真实场景：批次里文件/图片太少，暂停请求根本没赶上任何
-    一次边界检查（这里用一个完全不理会 should_pause、跑到底才返回的
-    processor 模拟"没被真正打断"），任务正常跑完，但标志之前会一直留着
-    true 不被清除，导致明明没有任何东西要恢复，前端却会一直显示"已暂停"。
+    覆盖"批次里文件/图片太少，暂停请求根本没赶上任何一次边界检查"这种
+    真实场景（这里用一个完全不理会 should_pause、跑到底才返回的
+    processor 模拟"没被真正打断"），任务正常跑完，标志也要清掉。
     """
     started = threading.Event()
     release = threading.Event()
@@ -298,54 +285,7 @@ def test_pause_flag_auto_clears_once_queue_is_empty_after_task_ends():
                         # 任何边界检查能捕捉到这次暂停请求）
     q.wait_until_idle(timeout=2.0)
 
-    assert q.get_status()["pause_requested"] is False  # 队列空了，自动清掉
-
-
-def test_pause_flag_not_cleared_while_another_task_still_queued():
-    """队列里还排着别的任务时，暂停标志不能被清掉——不然"暂停中不取下一个
-    任务"这个既有保护就失效了。"""
-    processed = []
-    started = threading.Event()
-    release = threading.Event()
-
-    def slow_first_processor(book_id, file_paths, should_pause, report_progress):
-        processed.append(book_id)
-        if len(processed) == 1:
-            started.set()
-            release.wait(timeout=2.0)
-
-    q = ImportQueue(processor=slow_first_processor)
-    q.start()
-    q.enqueue("book-a", ["a1.pdf"])
-    q.enqueue("book-b", ["b1.pdf"])  # 排队等着，book-a 收尾时队列不是空的
-
-    assert started.wait(timeout=2.0)
-    q.request_pause()
-    release.set()
-    time.sleep(0.3)  # 给"如果标志被清掉、book-b 会被开始处理"留出反应时间
-
-    assert processed == ["book-a"]  # book-b 依然没有被开始处理
-    assert q.get_status()["pause_requested"] is True  # 标志还在，没被清
-
-    q.resume()
-    q.wait_until_idle(timeout=2.0)
-    assert processed == ["book-a", "book-b"]
-
-
-def test_book_has_pending_or_active_task_true_for_task_held_during_pause():
-    """暂停期间被扣住的任务仍算"排队中"——它的书必须继续被删除拦截保护。"""
-    q = ImportQueue(processor=_RecordingProcessor())
-    q.start()
-
-    q.request_pause()
-    q.enqueue("ostep", ["f1.pdf"])
-    time.sleep(0.2)
-
-    assert q.book_has_pending_or_active_task("ostep") is True
-
-    q.resume()
-    q.wait_until_idle(timeout=2.0)
-    assert q.book_has_pending_or_active_task("ostep") is False
+    assert q.get_status()["pause_requested"] is False
 
 
 # ── 进度与结果存档 ───────────────────────────────────────────────────────
@@ -542,43 +482,22 @@ def test_book_has_pending_or_active_task_false_for_unrelated_book():
     q.wait_until_idle(timeout=2.0)
 
 
-def test_progress_preserved_when_task_ends_aborted_early():
+def test_progress_cleared_after_task_aborted_early():
+    """暂停打断跟正常完成一样，progress 收尾就清空——"已暂停"现在走弹窗
+    （读 last_result.aborted_early），不再需要保留 progress 给界面展示
+    暂停前的位置。"""
     def processor(book_id, file_paths, should_pause, report_progress):
         report_progress({"stage": "parsing", "current_file": 2, "total_files": 3,
                          "current_image": None, "total_images": None,
                          "current_filename": "ch02.pdf"})
-        return {"book_id": book_id, "aborted_early": True}
+        return {"book_id": book_id, "aborted_early": True,
+                "not_attempted": ["f3.pdf"]}
 
     q = ImportQueue(processor=processor)
     q.start()
     q.enqueue("ostep", ["f1.pdf", "f2.pdf", "f3.pdf"])
     q.wait_until_idle(timeout=2.0)
 
-    assert q.get_progress()["progress"] == {
-        "stage": "parsing", "current_file": 2, "total_files": 3,
-        "current_image": None, "total_images": None, "current_filename": "ch02.pdf",
-    }
-
-
-def test_progress_cleared_once_next_task_starts_after_aborted_early():
-    call_count = 0
-
-    def processor(book_id, file_paths, should_pause, report_progress):
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            report_progress({"stage": "parsing", "current_file": 1, "total_files": 1,
-                             "current_image": None, "total_images": None,
-                             "current_filename": "f1.pdf"})
-            return {"book_id": book_id, "aborted_early": True}
-        return {"book_id": book_id, "aborted_early": False}
-
-    q = ImportQueue(processor=processor)
-    q.start()
-    q.enqueue("ostep", ["f1.pdf"])
-    q.wait_until_idle(timeout=2.0)
-    assert q.get_progress()["progress"] is not None  # 暂停打断，保留
-
-    q.enqueue("ostep", ["f1.pdf"])  # 模拟用户点"恢复"后重新提交
-    q.wait_until_idle(timeout=2.0)
-    assert q.get_progress()["progress"] is None  # 下一个任务开始时被 worker loop 清掉
+    assert q.get_progress()["progress"] is None
+    assert q.get_progress()["last_result"]["aborted_early"] is True
+    assert q.get_progress()["last_result"]["not_attempted"] == ["f3.pdf"]

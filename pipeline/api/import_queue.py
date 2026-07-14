@@ -21,8 +21,6 @@ ProcessorFn = Callable[
     Optional[dict],
 ]
 
-_PAUSE_POLL_INTERVAL_S = 0.05
-
 
 class ImportQueue:
     def __init__(self, processor: ProcessorFn) -> None:
@@ -63,17 +61,23 @@ class ImportQueue:
             return False
 
     def request_pause(self) -> None:
-        """按工作线程暂停：当前任务在文件/图片边界提前收尾（run_ingest 里的
-        should_pause 检查点），之后不再开始处理任何任务，直到 resume()。"""
-        # Event 自身的 set/clear/is_set 线程安全，不加锁不会破坏 Event 的
-        # 内部状态；但包进 self._lock 能让它跟 busy/book_id 这些状态在
-        # get_status() 里被同一次快照读出，不会出现两个字段来自不同时刻。
-        with self._lock:
-            self._pause_event.set()
+        """暂停当前任务：在文件/图片边界提前收尾（run_ingest 里的
+        should_pause 检查点）。同时把队列里排着的其他任务全部取消——暂停是
+        "停下来，用户自己决定后续导入顺序"的决定性动作，不是"当前任务停一下，
+        排队的书自动接着处理"；要哪本书继续导入，用户自己重新点"开始导入"，
+        不存在"恢复"这个概念。
 
-    def resume(self) -> None:
+        只在真的有任务正在处理时才有意义——前端"暂停"按钮本来就只在这时候
+        才会显示；空闲时调用是无操作，避免留下一个没有对应任务、永远不会
+        被清掉的暂停标志。
+        """
         with self._lock:
-            self._pause_event.clear()
+            if self._current_task is None:
+                return
+            self._pause_event.set()
+            for task_id in list(self._queued_tasks.keys()):
+                del self._queued_tasks[task_id]
+                self._cancelled_ids.add(task_id)
 
     def book_has_pending_or_active_task(self, book_id: str) -> bool:
         with self._lock:
@@ -119,11 +123,10 @@ class ImportQueue:
     def _worker_loop(self) -> None:
         while True:
             task = self._queue.get()
-            # 取到任务后先确认暂停状态——暂停可能是上一个任务收尾时请求的，
-            # 也可能是空闲期间请求的。等待期间任务仍留在 _queued_tasks 里
-            # （算"排队中"：删除拦截继续生效、cancel 依然可用）。
-            while self._pause_event.is_set():
-                time.sleep(_PAUSE_POLL_INTERVAL_S)
+            # 排队中的任务如果在这之前被 request_pause()（或手动"取消排队"）
+            # 取消了，这里直接丢掉、不进 processor——不需要再等暂停标志清掉
+            # 才能往下走，request_pause() 已经把它从 _queued_tasks 里摘掉了，
+            # 这里只是把它从 self._queue 本身也清空。
             with self._lock:
                 if task.task_id in self._cancelled_ids:
                     self._cancelled_ids.discard(task.task_id)
@@ -145,23 +148,14 @@ class ImportQueue:
                 summary = {"book_id": task.book_id, "error": f"{type(e).__name__}: {e}"}
             with self._lock:
                 self._current_task = None
-                # 暂停打断的任务不清空 progress——前端"已暂停"状态要展示
-                # 暂停前最后位置（如"已暂停 · ch02.pdf（2/3）"），这份数据
-                # 只存在 self._progress 里。正常完成/失败清空跟以前一样；
-                # 下一个任务开始处理时的 :134 行会自然覆盖清掉，不需要
-                # 额外的清理时机。
-                if summary is None or not summary.get("aborted_early"):
-                    self._progress = None
+                self._progress = None
                 if summary is not None:
                     self._last_result = summary
-                # 暂停标志本来的意义是"接下来还要不要继续处理"——任务收尾后
-                # 如果队列已经空了，没有下一个任务要被这个标志拦住，留着就
-                # 只是个不会自动消失的死状态（比如批次里图片太少，暂停请求
-                # 根本没赶上任何一个边界检查，任务正常跑完，标志却一直留着
-                # true）。队列还有别的任务排着时不清，保留"暂停中不取下一个
-                # 任务"的既有保护。
-                if self._queue.empty():
-                    self._pause_event.clear()
+                # 暂停标志只服务于"让当前这个任务提前收尾"——任务一结束就
+                # 无条件清掉，跟队列里还有没有别的任务无关：排队的任务在
+                # request_pause() 那一刻已经被直接取消了，不存在"清了标志
+                # 就会误放行下一个任务"这回事。
+                self._pause_event.clear()
             self._queue.task_done()
 
 

@@ -67,13 +67,6 @@ def pause_import() -> dict:
     return q.get_status()
 
 
-@router.post("/import/resume")
-def resume_import() -> dict:
-    q = get_import_queue()
-    q.resume()
-    return q.get_status()
-
-
 @router.post("/import/{task_id}/cancel")
 def cancel_import(task_id: str) -> dict:
     if not get_import_queue().cancel(task_id):
