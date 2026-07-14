@@ -190,6 +190,60 @@
   border-bottom-left-radius: 4px;
 }
 
+/* ReactMarkdown 渲染出来的元素基础样式——最外层 <p> 自带 margin，
+   不加这层 reset 的话气泡顶部/底部会多出一段跟内边距不对称的空白。 */
+.bubbleAnswer p:first-child { margin-top: 0; }
+.bubbleAnswer p:last-child { margin-bottom: 0; }
+.bubbleAnswer p { margin: 0.5em 0; }
+.bubbleAnswer ul, .bubbleAnswer ol { margin: 0.4em 0; padding-left: 1.4em; }
+.bubbleAnswer li { margin: 0.2em 0; }
+.bubbleAnswer h1, .bubbleAnswer h2, .bubbleAnswer h3,
+.bubbleAnswer h4, .bubbleAnswer h5, .bubbleAnswer h6 {
+  margin: 0.6em 0 0.3em;
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+.bubbleAnswer code {
+  font-size: 0.92em;
+  background: var(--track-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.bubbleAnswer pre {
+  margin: 0.4em 0;
+  background: var(--track-bg);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-button);
+  overflow-x: auto;
+  font-size: 0.92em;
+}
+.bubbleAnswer pre code {
+  background: none;
+  padding: 0;
+}
+.bubbleAnswer table {
+  margin: 0.4em 0;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+.bubbleAnswer th, .bubbleAnswer td {
+  border: 1px solid var(--input-border);
+  padding: 4px 8px;
+  text-align: left;
+}
+.bubbleAnswer th {
+  background: var(--track-bg);
+  font-weight: 600;
+}
+.bubbleAnswer blockquote {
+  margin: 0.4em 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--input-border);
+  color: var(--text-secondary);
+}
+.bubbleAnswer hr { margin: 0.6em 0; border: none; border-top: 1px solid var(--card-border); }
+.bubbleAnswer a { color: var(--accent-blue); }
+
 .answerWrap {
   display: flex;
   flex-direction: column;

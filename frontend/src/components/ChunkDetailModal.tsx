@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ChunkDetail } from "../api/types";
 import { getChunk } from "../api/client";
 import { Modal } from "./Modal";
 import { Toast } from "./Toast";
-import { renderInlineMarkdown } from "../renderInlineMarkdown";
 import styles from "../ChunkDetailModal.module.css";
 
 interface ChunkDetailModalProps {
@@ -69,7 +70,9 @@ export function ChunkDetailModal({ bookId, chunkId, onClose }: ChunkDetailModalP
               ✕
             </button>
           </div>
-          <blockquote className={styles.body}>{renderInlineMarkdown(detail.content)}</blockquote>
+          <blockquote className={styles.body}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{detail.content}</ReactMarkdown>
+          </blockquote>
         </>
       )}
       {error && (
