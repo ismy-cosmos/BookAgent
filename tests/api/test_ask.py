@@ -9,7 +9,7 @@ client = TestClient(app)
 
 
 def _fake_turn(final_answer="答案", triggered_tool=None, retrieved_chunks=None,
-               total_tokens=42, latency_s=0.5, used_calculate=False):
+               total_tokens=42, latency_s=0.5, used_calculate=False, attempted_retrieve=False):
     turn = MagicMock()
     turn.final_answer = final_answer
     turn.triggered_tool = triggered_tool
@@ -17,6 +17,7 @@ def _fake_turn(final_answer="答案", triggered_tool=None, retrieved_chunks=None
     turn.total_tokens = total_tokens
     turn.latency_s = latency_s
     turn.used_calculate = used_calculate
+    turn.attempted_retrieve = attempted_retrieve
     return turn
 
 

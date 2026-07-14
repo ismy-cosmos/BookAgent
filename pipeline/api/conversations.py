@@ -82,6 +82,8 @@ def _turn_to_dict(turn: ChatTurn) -> dict:
             }
             for c in turn.citations
         ],
+        "used_calculate": turn.used_calculate,
+        "attempted_retrieve": turn.attempted_retrieve,
     }
 
 
@@ -102,6 +104,8 @@ def history_from_record(record: dict) -> list[ChatTurn]:
             question=t["question"],
             answer=t["answer"],
             citations=[Citation(**c) for c in t.get("citations", [])],
+            used_calculate=t.get("used_calculate", False),
+            attempted_retrieve=t.get("attempted_retrieve", False),
         )
         for t in record.get("turns", [])
     ]
