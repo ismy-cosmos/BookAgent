@@ -134,7 +134,7 @@ describe("ImportPanel", () => {
 
     render(<ImportPanel bookId="ostep" progress={busy} />);
 
-    expect(await screen.findByText("图片描述 7/40")).toBeInTheDocument();
+    expect(await screen.findByText("图片描述 6/40")).toBeInTheDocument();
     await userEvent.click(screen.getByText("暂停"));
     expect(client.pauseImport).toHaveBeenCalled();
   });

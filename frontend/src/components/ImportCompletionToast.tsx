@@ -33,7 +33,6 @@ export function ImportCompletionToast({ result, onDismiss }: ImportCompletionToa
           已暂停
           {(result.not_attempted?.length ?? 0) > 0 &&
             `，还有 ${result.not_attempted!.length} 个文件未处理`}
-          ，重新点击"开始导入"即可继续
         </span>
       ) : (
         <>
