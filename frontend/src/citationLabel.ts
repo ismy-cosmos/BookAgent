@@ -15,5 +15,5 @@ export function citationLabel(
 ): CitationLabelState {
   if (citations.length > 0) return { kind: "pills", citations };
   if (attemptedRetrieve) return { kind: "text", text: "书中未检索到相关内容" };
-  return { kind: "text", text: "本轮未重新检索原文" };
+  return { kind: "text", text: "本轮未检索书籍" };
 }

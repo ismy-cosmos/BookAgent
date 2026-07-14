@@ -17,7 +17,7 @@ describe("citationLabel", () => {
     expect(citationLabel([], true)).toEqual({ kind: "text", text: "书中未检索到相关内容" });
   });
 
-  it("无引用且没有重新检索：本轮未重新检索原文", () => {
-    expect(citationLabel([], false)).toEqual({ kind: "text", text: "本轮未重新检索原文" });
+  it("无引用且没有重新检索：本轮未检索书籍", () => {
+    expect(citationLabel([], false)).toEqual({ kind: "text", text: "本轮未检索书籍" });
   });
 });

@@ -67,7 +67,7 @@ describe("ChatPanel", () => {
       answer: "fork() 创建新进程", citations: [], triggered_tool: null,
       total_tokens: 10, latency_s: 0.5, used_calculate: false, attempted_retrieve: false,
     });
-    await screen.findByText("本轮未重新检索原文");
+    await screen.findByText("本轮未检索书籍");
   });
 
   it("renders citation pills, strips known tags from display text, and opens ChunkDetailModal on click", async () => {
