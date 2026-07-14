@@ -148,7 +148,7 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
       {/* 待导入 / 正在导入：添加文件 + 开始导入 */}
       {!isQueued && (
         <div className={styles.btnRow}>
-          <button className={styles.btnWhite} disabled={isReadOnly} onClick={handleAddFiles}>
+          <button className={styles.btnSecondary} disabled={isReadOnly} onClick={handleAddFiles}>
             添加文件
           </button>
           <button
@@ -164,7 +164,7 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
       {/* 排队中：只有取消排队 */}
       {isQueued && (
         <div className={styles.btnRow}>
-          <button className={styles.btnWhite} onClick={handleCancelQueued}>
+          <button className={styles.btnSecondary} onClick={handleCancelQueued}>
             取消排队
           </button>
         </div>
@@ -176,7 +176,7 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
           <p className={styles.progressText}>{stageText(progress.progress)}</p>
           <div className={styles.btnRow}>
             {progress.pause_requested ? (
-              <button className={styles.btnWhite} disabled>
+              <button className={styles.btnSecondary} disabled>
                 正在暂停…
               </button>
             ) : (

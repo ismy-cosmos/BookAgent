@@ -62,7 +62,7 @@
   margin-top: var(--space-3);
 }
 
-.btnWhite,
+.btnSecondary,
 .btnBlue,
 .btnRed {
   flex: 1;
@@ -74,11 +74,13 @@
   cursor: pointer;
 }
 
-.btnWhite {
-  background: #fff;
-  /* 跟 BookCard 悬浮按钮同一个原因：白底不随主题切换，所以文字色也必须固定
-     不跟着 --text-primary 变浅，否则深色模式下白底浅字完全看不见。 */
-  color: #222;
+/* 这几个按钮（添加文件/取消排队/正在暂停…）在普通面板背景上，不像
+   BookCard 悬浮在封面图片上那样需要固定白底保对比度——用 Modal.module.css
+   的 .secondaryButton 同款做法，transparent + 跟随主题的文字色，深色模式
+   下自然是深底浅字，不会出现白底白字。 */
+.btnSecondary {
+  background: transparent;
+  color: var(--text-primary);
   border: 1px solid var(--input-border);
 }
 
@@ -92,7 +94,7 @@
   color: #fff;
 }
 
-.btnWhite:disabled,
+.btnSecondary:disabled,
 .btnBlue:disabled,
 .btnRed:disabled {
   opacity: .4;
