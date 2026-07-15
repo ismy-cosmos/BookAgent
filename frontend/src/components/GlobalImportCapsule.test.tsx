@@ -138,4 +138,13 @@ describe("GlobalImportCapsule", () => {
 
     expect(onPause).toHaveBeenCalledOnce();
   });
+
+  it("renders nothing when busy because a book is being answered, not imported", () => {
+    const answeringProgress: ProgressResponse = {
+      busy: true, reason: "answering", book_id: "ostep", pause_requested: false,
+      progress: null, last_result: null,
+    };
+    render(<GlobalImportCapsule progress={answeringProgress} onPause={() => {}} />);
+    expect(screen.queryByTestId("import-capsule")).not.toBeInTheDocument();
+  });
 });

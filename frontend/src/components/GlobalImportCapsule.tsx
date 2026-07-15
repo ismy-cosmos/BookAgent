@@ -44,7 +44,7 @@ function stagePercent(stage: (typeof STAGES)[number], p: ImportProgress): number
 export function GlobalImportCapsule({ progress, onPause }: GlobalImportCapsuleProps) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!progress?.busy) return null;
+  if (!progress?.busy || progress.reason !== "ingesting") return null;
   const p = progress.progress;
 
   if (!expanded) {
