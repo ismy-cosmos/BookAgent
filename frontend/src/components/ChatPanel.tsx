@@ -106,7 +106,13 @@ export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelP
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={disabled ? "正在导入书籍，请稍后…" : "输入问题"}
+          placeholder={
+            !disabled
+              ? "输入问题"
+              : status.reason === "answering"
+                ? "有对话正在处理中，请稍后…"
+                : "正在导入书籍，请稍后…"
+          }
           disabled={disabled}
         />
         <button

@@ -8,6 +8,7 @@ afterEach(() => vi.restoreAllMocks());
 
 const IDLE = { busy: false, reason: "idle", book_id: null, pause_requested: false } as const;
 const BUSY = { busy: true, reason: "ingesting", book_id: "other-book", pause_requested: false } as const;
+const ANSWERING = { busy: true, reason: "answering", book_id: "other-book", pause_requested: false } as const;
 
 describe("ChatPanel", () => {
   it("loads history and sends a question", async () => {
@@ -42,6 +43,18 @@ describe("ChatPanel", () => {
 
     expect(screen.getByPlaceholderText("正在导入书籍，请稍后…")).toBeDisabled();
     expect(screen.getByText("发送")).toBeDisabled();
+  });
+
+  it("shows the answering-specific placeholder when busy because of a conversation elsewhere", async () => {
+    vi.spyOn(client, "getConversation").mockResolvedValue({
+      id: "c1", book_id: "ostep", title: "t", created_at: "", updated_at: "", turns: [],
+    });
+
+    render(<ChatPanel bookId="ostep" conversationId="c1" status={ANSWERING} />);
+
+    await waitFor(() => expect(client.getConversation).toHaveBeenCalled());
+
+    expect(screen.getByPlaceholderText("有对话正在处理中，请稍后…")).toBeDisabled();
   });
 
   it("shows the question immediately with a thinking indicator before the answer arrives", async () => {
