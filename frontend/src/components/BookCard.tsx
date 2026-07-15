@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { openOrFocusWindow } from "../windowManager";
 import { ConfirmDialog } from "./ConfirmDialog";
+import type { BookActivity } from "../bookActivity";
 import styles from "../BookCard.module.css";
 
 interface BookCardProps {
   bookId: string;
   busy: boolean;
-  importing: boolean;
+  activity: BookActivity;
   onRemove: (bookId: string) => void;
   onRename: (bookId: string, newBookId: string) => Promise<void>;
 }
 
-export function BookCard({ bookId, busy, importing, onRemove, onRename }: BookCardProps) {
+export function BookCard({ bookId, busy, activity, onRemove, onRename }: BookCardProps) {
   const [hovered, setHovered] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -55,7 +56,7 @@ export function BookCard({ bookId, busy, importing, onRemove, onRename }: BookCa
             </button>
             <button
               className={styles.btnDelete}
-              disabled={importing}
+              disabled={activity !== "idle"}
               onClick={() => setConfirmingDelete(true)}
             >
               删除丛书
@@ -90,7 +91,8 @@ export function BookCard({ bookId, busy, importing, onRemove, onRename }: BookCa
           {bookId}
         </span>
       )}
-      {importing && <span className={styles.badge}>导入中…</span>}
+      {activity === "ingesting" && <span className={styles.badge}>导入中…</span>}
+      {activity === "answering" && <span className={styles.badge}>对话中…</span>}
       {confirmingDelete && (
         <ConfirmDialog
           message={`确定要删除 '${bookId}' 吗？此操作不可恢复。`}

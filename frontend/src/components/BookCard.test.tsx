@@ -12,7 +12,7 @@ describe("BookCard", () => {
   it("shows book name always, action buttons only on hover", async () => {
     const user = userEvent.setup();
     render(
-      <BookCard bookId="ostep" busy={false} importing={false}
+      <BookCard bookId="ostep" busy={false} activity="idle"
                 onRemove={() => {}} onRename={async () => {}} />,
     );
 
@@ -29,7 +29,7 @@ describe("BookCard", () => {
   it("clicking 导入文件 opens the import window for this book", async () => {
     const user = userEvent.setup();
     render(
-      <BookCard bookId="ostep" busy={false} importing={false}
+      <BookCard bookId="ostep" busy={false} activity="idle"
                 onRemove={() => {}} onRename={async () => {}} />,
     );
     await user.hover(screen.getByTestId("book-card"));
@@ -46,7 +46,7 @@ describe("BookCard", () => {
   it("clicking 开始对话 opens the chat window for this book", async () => {
     const user = userEvent.setup();
     render(
-      <BookCard bookId="ostep" busy={false} importing={false}
+      <BookCard bookId="ostep" busy={false} activity="idle"
                 onRemove={() => {}} onRename={async () => {}} />,
     );
     await user.hover(screen.getByTestId("book-card"));
@@ -58,7 +58,7 @@ describe("BookCard", () => {
   it("disables 开始对话 when busy is true, even for a different book", async () => {
     const user = userEvent.setup();
     render(
-      <BookCard bookId="ostep" busy={true} importing={false}
+      <BookCard bookId="ostep" busy={true} activity="idle"
                 onRemove={() => {}} onRename={async () => {}} />,
     );
     await user.hover(screen.getByTestId("book-card"));
@@ -70,7 +70,7 @@ describe("BookCard", () => {
   it("disables 删除丛书 when this book is importing", async () => {
     const user = userEvent.setup();
     render(
-      <BookCard bookId="ostep" busy={true} importing={true}
+      <BookCard bookId="ostep" busy={true} activity="ingesting"
                 onRemove={() => {}} onRename={async () => {}} />,
     );
     await user.hover(screen.getByTestId("book-card"));
@@ -83,7 +83,7 @@ describe("BookCard", () => {
     // busy 就该拦——只有这本书自己在导入才该拦删除，别的书忙不该连累它。
     const user = userEvent.setup();
     render(
-      <BookCard bookId="ostep" busy={true} importing={false}
+      <BookCard bookId="ostep" busy={true} activity="idle"
                 onRemove={() => {}} onRename={async () => {}} />,
     );
     await user.hover(screen.getByTestId("book-card"));
@@ -93,7 +93,7 @@ describe("BookCard", () => {
 
   it("shows an importing badge when importing is true", () => {
     render(
-      <BookCard bookId="ostep" busy={true} importing={true}
+      <BookCard bookId="ostep" busy={true} activity="ingesting"
                 onRemove={() => {}} onRename={async () => {}} />,
     );
     expect(screen.getByText("导入中…")).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe("BookCard", () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
     render(
-      <BookCard bookId="ostep" busy={false} importing={false}
+      <BookCard bookId="ostep" busy={false} activity="idle"
                 onRemove={onRemove} onRename={async () => {}} />,
     );
     await user.hover(screen.getByTestId("book-card"));
@@ -116,7 +116,7 @@ describe("BookCard", () => {
   it("double-clicking the name enters edit mode and Enter saves", async () => {
     const onRename = vi.fn().mockResolvedValue(undefined);
     render(
-      <BookCard bookId="ostep" busy={false} importing={false}
+      <BookCard bookId="ostep" busy={false} activity="idle"
                 onRemove={() => {}} onRename={onRename} />,
     );
 
@@ -133,7 +133,7 @@ describe("BookCard", () => {
     // 冲突时改名失败，输入框回退到原名即可。
     const onRename = vi.fn().mockRejectedValue(new Error("book_id 'civil-law' 已存在"));
     render(
-      <BookCard bookId="ostep" busy={false} importing={false}
+      <BookCard bookId="ostep" busy={false} activity="idle"
                 onRemove={() => {}} onRename={onRename} />,
     );
 
@@ -145,5 +145,40 @@ describe("BookCard", () => {
     expect(onRename).toHaveBeenCalledWith("ostep", "civil-law");
     expect(await screen.findByText("ostep")).toBeInTheDocument();
     expect(screen.queryByText("civil-law")).not.toBeInTheDocument();
+  });
+
+  it("shows 导入中… badge when activity is ingesting", () => {
+    render(
+      <BookCard bookId="ostep" busy={true} activity="ingesting"
+                onRemove={() => {}} onRename={async () => {}} />,
+    );
+    expect(screen.getByText("导入中…")).toBeInTheDocument();
+  });
+
+  it("shows 对话中… badge when activity is answering", () => {
+    render(
+      <BookCard bookId="ostep" busy={true} activity="answering"
+                onRemove={() => {}} onRename={async () => {}} />,
+    );
+    expect(screen.getByText("对话中…")).toBeInTheDocument();
+  });
+
+  it("shows no badge when activity is idle", () => {
+    render(
+      <BookCard bookId="ostep" busy={false} activity="idle"
+                onRemove={() => {}} onRename={async () => {}} />,
+    );
+    expect(screen.queryByText("导入中…")).not.toBeInTheDocument();
+    expect(screen.queryByText("对话中…")).not.toBeInTheDocument();
+  });
+
+  it("disables 删除丛书 when activity is answering, not just ingesting", async () => {
+    const user = userEvent.setup();
+    render(
+      <BookCard bookId="ostep" busy={true} activity="answering"
+                onRemove={() => {}} onRename={async () => {}} />,
+    );
+    await user.hover(screen.getByTestId("book-card"));
+    expect(screen.getByText("删除丛书")).toBeDisabled();
   });
 });
