@@ -13,6 +13,10 @@ _embedder: Embedder | None = None
 _clients: dict[str, OllamaAgentClient] = {}
 
 
+def get_model_name() -> str:
+    return _MODEL
+
+
 def _get_embedder() -> Embedder:
     global _embedder
     if _embedder is None:
