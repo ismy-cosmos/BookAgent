@@ -125,4 +125,28 @@ describe("HomeView", () => {
     await waitFor(() => expect(destroy).toHaveBeenCalledOnce());
     expect(screen.queryByText("导入正在进行，确定要退出吗？")).not.toBeInTheDocument();
   });
+
+  it("shows the answering-specific confirm message when busy because of a conversation, not an import", async () => {
+    let closeHandler: (event: { preventDefault: () => void }) => void = () => {};
+    vi.mocked(getCurrentWindow).mockReturnValue({
+      onCloseRequested: vi.fn(async (handler) => {
+        closeHandler = handler;
+        return () => {};
+      }),
+    } as unknown as ReturnType<typeof getCurrentWindow>);
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: true, reason: "answering", book_id: "ostep", pause_requested: false,
+    });
+    vi.spyOn(client, "listBooks").mockResolvedValue({ books: [] });
+    vi.spyOn(client, "getProgress").mockResolvedValue({
+      busy: true, reason: "answering", book_id: "ostep", pause_requested: false,
+      progress: null, last_result: null,
+    });
+
+    render(<HomeView />);
+    await waitFor(() => expect(client.getStatus).toHaveBeenCalled());
+
+    closeHandler({ preventDefault: vi.fn() });
+    expect(await screen.findByText("有对话正在处理中，确定要退出吗？")).toBeInTheDocument();
+  });
 });

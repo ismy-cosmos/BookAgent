@@ -46,7 +46,11 @@ export function HomeView() {
       <GlobalImportCapsule progress={progress} onPause={() => pauseImport().catch(() => {})} />
       {confirmingQuit && (
         <ConfirmDialog
-          message="导入正在进行，确定要退出吗？"
+          message={
+            status.reason === "answering"
+              ? "有对话正在处理中，确定要退出吗？"
+              : "导入正在进行，确定要退出吗？"
+          }
           confirmLabel="确定退出"
           onConfirm={() => {
             setConfirmingQuit(false);
