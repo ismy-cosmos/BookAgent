@@ -103,13 +103,11 @@ class OllamaAgentClient:
         base_url: str = "http://localhost:11434/v1",
         num_ctx: Optional[int] = None,  # None = 走模型默认（Modelfile num_ctx）；仅诊断时显式覆盖
         temperature: float = 0.0,
-        keep_alive: int = 1200,
     ) -> None:
         self._model = model
         self._executor = executor
         self._num_ctx = num_ctx
         self._temperature = temperature
-        self._keep_alive = keep_alive
         # trust_env=False 防止系统代理（如 socks://）干扰本地 Ollama 连接
         self._openai = OpenAI(
             base_url=base_url,
@@ -148,9 +146,11 @@ class OllamaAgentClient:
                 messages=messages,
                 tools=get_tools_param(),
                 temperature=self._temperature,
+                # keep_alive 故意不传：Ollama /v1/chat/completions（OpenAI 兼容接口）
+                # 不支持这个 Ollama 私有扩展字段，实测无论传什么值都静默回退到服务端
+                # 默认 5 分钟（只有原生 /api/chat 才认）。
                 extra_body={
                     "options": {} if self._num_ctx is None else {"num_ctx": self._num_ctx},
-                    "keep_alive": self._keep_alive,
                 },
             )
 

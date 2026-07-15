@@ -159,25 +159,17 @@ def test_latency_and_tokens_are_recorded(mock_openai_cls):
 
 
 @patch("pipeline.agent.client.OpenAI")
-def test_keep_alive_default_is_1200(mock_openai_cls):
-    from pipeline.agent.client import OllamaAgentClient
-    from pipeline.agent.executor import StubExecutor
-    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
-    assert client._keep_alive == 1200
-
-
-@patch("pipeline.agent.client.OpenAI")
-def test_extra_body_passes_num_ctx_and_keep_alive(mock_openai_cls):
+def test_extra_body_passes_num_ctx(mock_openai_cls):
     from pipeline.agent.client import OllamaAgentClient
     from pipeline.agent.executor import StubExecutor
     mock_create = mock_openai_cls.return_value.chat.completions.create
     mock_create.return_value = _make_text_response("ok")
     client = OllamaAgentClient(model="test-model", executor=StubExecutor(),
-                               num_ctx=4096, keep_alive=600)
+                               num_ctx=4096)
     client.run("question")
     kwargs = mock_create.call_args[1]
     assert kwargs["extra_body"]["options"]["num_ctx"] == 4096
-    assert kwargs["extra_body"]["keep_alive"] == 600
+    assert "keep_alive" not in kwargs["extra_body"]
 
 
 @patch("pipeline.agent.client.OpenAI")
