@@ -12,8 +12,10 @@ from dataclasses import asdict
 from typing import Callable
 
 from pipeline.api import staging
+from pipeline.api.agent_registry import get_model_name
 from pipeline.api.config import get_chroma_dir
 from pipeline.embed.embedder import release_gpu_model
+from pipeline.ollama_utils import OLLAMA_BASE_URL, release_model
 from pipeline.parse import parse_cache, vlm_cache
 from pipeline.store.chroma_store import get_store
 
@@ -50,6 +52,8 @@ def ingest_processor(
         except OSError:
             pass  # 文件已不在磁盘上——阶段1会把它记为失败，这里只影响清理范围
     _purge_excluded_cache_entries(chroma_dir, book_id, keep_shas)
+
+    release_model(OLLAMA_BASE_URL, get_model_name())
 
     def _on_committed(file_path: str) -> None:
         # 回调在 run_ingest 阶段3的 try 块内被调用（接口契约：不许抛异常）。

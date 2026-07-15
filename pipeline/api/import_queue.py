@@ -7,6 +7,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from pipeline.api import busy_state
+
 
 @dataclass
 class ImportTask:
@@ -127,18 +129,32 @@ class ImportQueue:
     def _worker_loop(self) -> None:
         while True:
             task = self._queue.get()
-            # 排队中的任务如果在这之前被 request_pause()（或手动"取消排队"）
-            # 取消了，这里直接丢掉、不进 processor——不需要再等暂停标志清掉
-            # 才能往下走，request_pause() 已经把它从 _queued_tasks 里摘掉了，
-            # 这里只是把它从 self._queue 本身也清空。
-            with self._lock:
-                if task.task_id in self._cancelled_ids:
-                    self._cancelled_ids.discard(task.task_id)
-                    self._queue.task_done()
-                    continue
-                self._queued_tasks.pop(task.task_id, None)
-                self._current_task = task
-                self._progress = None
+            # 真正开始处理前，先抢共享忙碌状态（issue #36）——不能占着
+            # self._lock 死等，那样会把 cancel()/get_status() 这些也要
+            # 抢 self._lock 的方法全部卡住；等待发生在 self._lock 之外，
+            # 用短间隔轮询。每轮重新进 self._lock 检查一次"这个任务是不是
+            # 已经被取消了"，保证等待期间点"取消排队"能立刻生效，不用
+            # 等到真正抢到锁那一刻。task 在被 pop 出 _queued_tasks 之前
+            # 全程保持可见，book_has_pending_or_active_task() 在等待期间
+            # 也能正确查到它。
+            while True:
+                with self._lock:
+                    if task.task_id in self._cancelled_ids:
+                        self._cancelled_ids.discard(task.task_id)
+                        self._queued_tasks.pop(task.task_id, None)
+                        task = None
+                        break
+                    if busy_state.try_acquire("ingesting", task.book_id) is None:
+                        self._queued_tasks.pop(task.task_id, None)
+                        self._current_task = task
+                        self._progress = None
+                        break
+                time.sleep(0.1)
+
+            if task is None:
+                self._queue.task_done()
+                continue
+
             try:
                 summary = self._processor(task.book_id, task.file_paths,
                                           self._pause_event.is_set, self._report_progress)
@@ -150,6 +166,9 @@ class ImportQueue:
                       f"{type(e).__name__}: {e}")
                 traceback.print_exc()
                 summary = {"book_id": task.book_id, "error": f"{type(e).__name__}: {e}"}
+            finally:
+                busy_state.release()
+
             with self._lock:
                 self._current_task = None
                 self._progress = None
