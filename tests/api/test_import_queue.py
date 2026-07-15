@@ -531,3 +531,30 @@ def test_progress_cleared_after_task_aborted_early():
     assert q.get_progress()["progress"] is None
     assert q.get_progress()["last_result"]["aborted_early"] is True
     assert q.get_progress()["last_result"]["not_attempted"] == ["f3.pdf"]
+
+
+def test_is_pause_requested_false_by_default():
+    q = ImportQueue(processor=_RecordingProcessor())
+    q.start()
+    assert q.is_pause_requested() is False
+
+
+def test_is_pause_requested_true_after_request_pause_while_processing():
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
+        started.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+    assert started.wait(timeout=2.0)
+
+    q.request_pause()
+    assert q.is_pause_requested() is True
+
+    release.set()
+    q.wait_until_idle(timeout=2.0)
+    assert q.is_pause_requested() is False

@@ -95,6 +95,10 @@ class ImportQueue:
             return {"busy": False, "reason": "idle", "book_id": None,
                     "pause_requested": pause_requested}
 
+    def is_pause_requested(self) -> bool:
+        with self._lock:
+            return self._pause_event.is_set()
+
     def get_progress(self) -> dict:
         with self._lock:
             return {
