@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { bookActivity } from "../bookActivity";
 import { useFiles } from "../hooks/useFiles";
 import { ConfirmDialog } from "./ConfirmDialog";
 import type { ProgressResponse } from "../api/types";
@@ -22,6 +23,7 @@ export function FileList({ bookId, progress }: FileListProps) {
   //
   // 挂载那一刻 useFiles 自己已经拉过一次了（它内部的 mount effect），这里
   // 跳过第一次运行，避免挂载瞬间重复打两次 listFiles。
+  const activity = bookActivity(progress, bookId);
   const lastResultKey = JSON.stringify(progress?.last_result);
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -30,7 +32,7 @@ export function FileList({ bookId, progress }: FileListProps) {
       return;
     }
     refresh();
-  }, [refresh, progress?.busy, progress?.progress?.current_file, lastResultKey]);
+  }, [refresh, activity, progress?.progress?.current_file, lastResultKey]);
 
   if (files.length === 0) return <p>暂无已导入文件</p>;
 

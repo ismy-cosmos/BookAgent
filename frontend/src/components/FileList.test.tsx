@@ -70,4 +70,27 @@ describe("FileList", () => {
       expect(listFilesSpy.mock.calls.length).toBeGreaterThan(callsAfterMount));
     expect(await screen.findByText("ch02.pdf")).toBeInTheDocument();
   });
+
+  it("does not refresh when a different book's busy state changes", async () => {
+    const listFilesSpy = vi.spyOn(client, "listFiles").mockResolvedValue({ files: ["ch01.pdf"] });
+
+    const otherBookAnswering: ProgressResponse = {
+      busy: true, reason: "answering", book_id: "other-book", pause_requested: false,
+      progress: null, last_result: null,
+    };
+    const { rerender } = render(<FileList bookId="ostep" progress={otherBookAnswering} />);
+    await screen.findByText("ch01.pdf");
+    const callsAfterMount = listFilesSpy.mock.calls.length;
+
+    const otherBookIdle: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+      progress: null, last_result: null,
+    };
+    rerender(<FileList bookId="ostep" progress={otherBookIdle} />);
+
+    // 没有"会发生"的信号可以 waitFor，这里等一小段时间确认真的没有发生
+    // 多余的调用——比现有测试断言"发生"更弱的负面断言只能这样写。
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(listFilesSpy.mock.calls.length).toBe(callsAfterMount);
+  });
 });
