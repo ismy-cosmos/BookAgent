@@ -115,25 +115,48 @@ def test_submit_import_empty_staging_list_rejected(tmp_path, monkeypatch):
 # ── 进度轮询 ─────────────────────────────────────────────────────────────
 
 def test_progress_merges_status_and_progress(tmp_path, monkeypatch):
+    from pipeline.api import busy_state
+
     fake = _fake_queue(monkeypatch)
-    fake.get_status.return_value = {
-        "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": False,
-    }
     fake.get_progress.return_value = {
         "progress": {"stage": "vlm", "current_file": 3, "total_files": 3,
                      "current_image": 7, "total_images": 40},
         "last_result": None,
     }
 
-    resp = client.get("/progress")
+    busy_state.try_acquire("ingesting", "ostep")
+    try:
+        resp = client.get("/progress")
 
-    assert resp.status_code == 200
-    assert resp.json() == {
-        "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": False,
-        "progress": {"stage": "vlm", "current_file": 3, "total_files": 3,
-                     "current_image": 7, "total_images": 40},
-        "last_result": None,
-    }
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": False,
+            "progress": {"stage": "vlm", "current_file": 3, "total_files": 3,
+                         "current_image": 7, "total_images": 40},
+            "last_result": None,
+        }
+    finally:
+        busy_state.release()
+
+
+def test_progress_reflects_answering_busy_state(tmp_path, monkeypatch):
+    """issue #36：/progress 之前直接问 ImportQueue.get_status()，看不到
+    "回答中"这个忙碌原因——ImportPanel/FileList/GlobalImportCapsule 走的
+    都是这个接口，不修的话这三个组件会完全看不到新状态。这个场景下
+    ImportQueue 本身完全空闲，不需要 _fake_queue()。"""
+    from pipeline.api import busy_state
+    busy_state.try_acquire("answering", "ostep")
+    try:
+        resp = client.get("/progress")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["busy"] is True
+        assert body["reason"] == "answering"
+        assert body["book_id"] == "ostep"
+        assert body["progress"] is None
+        assert body["last_result"] is None
+    finally:
+        busy_state.release()
 
 
 # ── 暂停/恢复 ────────────────────────────────────────────────────────────
