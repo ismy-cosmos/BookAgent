@@ -1,6 +1,6 @@
 export interface Status {
   busy: boolean;
-  reason: "idle" | "ingesting";
+  reason: "idle" | "ingesting" | "answering";
   book_id: string | null;
   pause_requested: boolean;
 }
