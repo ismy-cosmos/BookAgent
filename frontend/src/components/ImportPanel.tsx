@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { dirname } from "@tauri-apps/api/path";
 import { cancelImport, pauseImport, submitImport } from "../api/client";
+import { bookActivity } from "../bookActivity";
 import { useStagedFiles } from "../hooks/useStagedFiles";
 import { stageText } from "../importProgressText";
 import { ImportCompletionToast } from "./ImportCompletionToast";
@@ -26,7 +27,8 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   const [queuedTaskId, setQueuedTaskId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const importingThisBook = !!progress?.busy && progress.book_id === bookId;
+  const activity = bookActivity(progress, bookId);
+  const importingThisBook = activity === "ingesting";
   // 已提交但还没轮到处理——这本书的批次不能再改，只能整批只读+取消排队。
   const isQueued = !!queuedTaskId && !importingThisBook;
   const isReadOnly = importingThisBook || isQueued;
@@ -86,9 +88,9 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
 
   async function handleSubmit() {
     try {
-      const wasBusyElsewhere = !!progress?.busy && progress.book_id !== bookId;
+      const wasBusy = !!progress?.busy;
       const result = await submitImport(bookId);
-      if (wasBusyElsewhere) setQueuedTaskId(result.task_id);
+      if (wasBusy) setQueuedTaskId(result.task_id);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -105,7 +107,7 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   }
 
   const lastResult =
-    progress && !progress.busy && progress.last_result?.book_id === bookId
+    progress && activity !== "ingesting" && progress.last_result?.book_id === bookId
       ? progress.last_result
       : null;
 

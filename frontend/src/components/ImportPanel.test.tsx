@@ -380,4 +380,65 @@ describe("ImportPanel", () => {
     expect(screen.getByText("取消排队")).not.toBeDisabled();
   });
 
+  it("shows queued state when submitting while this book is being answered (not just when another book is busy)", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+    const submitSpy = vi.spyOn(client, "submitImport").mockResolvedValue({
+      task_id: "t1", file_count: 1,
+    });
+
+    const answeringProgress: ProgressResponse = {
+      busy: true, reason: "answering", book_id: "ostep", pause_requested: false,
+      progress: null, last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={answeringProgress} />);
+    await screen.findByText("/a.pdf");
+
+    await userEvent.click(screen.getByText("开始导入"));
+    expect(submitSpy).toHaveBeenCalledWith("ostep");
+    expect(await screen.findByText("取消排队")).toBeInTheDocument();
+  });
+
+  it("does not disable the submit button while this book is only being answered (not imported)", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: ["/a.pdf"] });
+
+    const answeringProgress: ProgressResponse = {
+      busy: true, reason: "answering", book_id: "ostep", pause_requested: false,
+      progress: null, last_result: null,
+    };
+
+    render(<ImportPanel bookId="ostep" progress={answeringProgress} />);
+    await screen.findByText("/a.pdf");
+
+    expect(screen.getByText("开始导入")).not.toBeDisabled();
+    expect(screen.getByText("添加文件")).not.toBeDisabled();
+  });
+
+  it("shows the completion toast for this book even while another book is being answered", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+
+    const progress: ProgressResponse = {
+      busy: true, reason: "answering", book_id: "other-book", pause_requested: false,
+      progress: null,
+      last_result: { book_id: "ostep", task_id: "t1", total_chunks: 3 },
+    };
+
+    render(<ImportPanel bookId="ostep" progress={progress} />);
+    expect(await screen.findByText(/完成/)).toBeInTheDocument();
+  });
+
+  it("does not show the completion toast for this book while this book is starting a new import", async () => {
+    vi.spyOn(client, "listStagedFiles").mockResolvedValue({ files: [] });
+
+    const progress: ProgressResponse = {
+      busy: true, reason: "ingesting", book_id: "ostep", pause_requested: false,
+      progress: { stage: "parsing", current_file: 1, total_files: 2,
+                  current_image: null, total_images: null },
+      last_result: { book_id: "ostep", task_id: "t1", total_chunks: 3 },
+    };
+
+    render(<ImportPanel bookId="ostep" progress={progress} />);
+    expect(screen.queryByText(/完成/)).not.toBeInTheDocument();
+  });
+
 });
