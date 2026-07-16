@@ -32,10 +32,7 @@ describe("installQuitConfirmation", () => {
     } as unknown as ReturnType<typeof getCurrentWindow>);
     const onConfirmNeeded = vi.fn();
 
-    await installQuitConfirmation(
-      () => ({ busy: true, reason: "ingesting", book_id: "ostep", pause_requested: false }),
-      onConfirmNeeded,
-    );
+    await installQuitConfirmation(() => true, onConfirmNeeded);
     const preventDefault = vi.fn();
     closeHandler({ preventDefault });
 
@@ -53,10 +50,7 @@ describe("installQuitConfirmation", () => {
     } as unknown as ReturnType<typeof getCurrentWindow>);
     const onConfirmNeeded = vi.fn();
 
-    await installQuitConfirmation(
-      () => ({ busy: false, reason: "idle", book_id: null, pause_requested: false }),
-      onConfirmNeeded,
-    );
+    await installQuitConfirmation(() => false, onConfirmNeeded);
     const preventDefault = vi.fn();
     closeHandler({ preventDefault });
 

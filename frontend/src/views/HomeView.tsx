@@ -6,7 +6,7 @@ import { GlobalImportCapsule } from "../components/GlobalImportCapsule";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Toast } from "../components/Toast";
 import { pauseImport } from "../api/client";
-import { destroyAllWindows, installQuitConfirmation } from "../quitConfirmation";
+import { destroyAllWindows, installQuitConfirmation, shouldConfirmQuit } from "../quitConfirmation";
 import type { Status } from "../api/types";
 
 export function HomeView() {
@@ -26,7 +26,7 @@ export function HomeView() {
     // 反注册这次的监听器，不存进 unlisten。
     let cancelled = false;
     let unlisten: (() => void) | undefined;
-    installQuitConfirmation(() => statusRef.current, () => setConfirmingQuit(true)).then((fn) => {
+    installQuitConfirmation(() => shouldConfirmQuit(statusRef.current), () => setConfirmingQuit(true)).then((fn) => {
       if (cancelled) {
         fn();
       } else {
