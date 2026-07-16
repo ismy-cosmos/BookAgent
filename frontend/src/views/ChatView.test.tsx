@@ -114,7 +114,10 @@ describe("ChatView", () => {
     await waitFor(() => expect(screen.queryByPlaceholderText("输入问题")).not.toBeInTheDocument());
   });
 
-  it("shows a close confirmation when this window's own conversation has a pending question, and closes just this window on confirm", async () => {
+  it("shows a close confirmation when this book has an outstanding question per the shared busy state, and closes just this window on confirm", async () => {
+    // 关闭确认看的是共享 busy_state（跟别的组件同一个权威来源），不是
+    // ChatPanel/useChat 内部那份本地 pendingQuestion——所以这里直接靠
+    // getStatus 驱动，不需要真的提交问题、等 ask() 挂起。
     let closeHandler: (event: { preventDefault: () => void }) => void = () => {};
     const destroy = vi.fn();
     vi.mocked(getCurrentWindow).mockReturnValue({
@@ -125,7 +128,7 @@ describe("ChatView", () => {
       destroy,
     } as unknown as ReturnType<typeof getCurrentWindow>);
     vi.spyOn(client, "getStatus").mockResolvedValue({
-      busy: false, reason: "idle", book_id: null, pause_requested: false,
+      busy: true, reason: "answering", book_id: "ostep", pause_requested: false,
     });
     vi.spyOn(client, "listConversations").mockResolvedValue({
       conversations: [{ id: "c1", title: "旧对话", updated_at: "" }],
@@ -133,21 +136,10 @@ describe("ChatView", () => {
     vi.spyOn(client, "getConversation").mockResolvedValue({
       id: "c1", book_id: "ostep", title: "旧对话", created_at: "", updated_at: "", turns: [],
     });
-    let resolveAsk: (v: Awaited<ReturnType<typeof client.ask>>) => void;
-    vi.spyOn(client, "ask").mockReturnValue(
-      new Promise((resolve) => { resolveAsk = resolve; }),
-    );
 
     const user = userEvent.setup();
     render(<ChatView bookId="ostep" />);
-
-    await user.click(await screen.findByRole("button", { name: "旧对话" }));
-    const input = await screen.findByPlaceholderText("输入问题");
-    await user.type(input, "fork 是什么？");
-    await user.click(screen.getByText("发送"));
-    // 思考中气泡出现，说明 pendingQuestion 已经落地、onPendingChange(true)
-    // 这一轮 effect 也已经跟着同一次渲染跑过了。
-    await screen.findByRole("status", { name: "思考中" });
+    await waitFor(() => expect(client.getStatus).toHaveBeenCalled());
 
     const preventDefault = vi.fn();
     closeHandler({ preventDefault });
@@ -156,11 +148,48 @@ describe("ChatView", () => {
 
     await user.click(screen.getByText("确定关闭"));
     expect(destroy).toHaveBeenCalledOnce();
+  });
 
-    resolveAsk!({
-      answer: "fork() 创建新进程", citations: [], triggered_tool: null,
-      total_tokens: 10, latency_s: 0.5, used_calculate: false, attempted_retrieve: false,
+  it("still shows the close confirmation after switching to a different conversation, since it reads the shared busy state rather than local pendingQuestion", async () => {
+    // 回归测试：旧实现里"是否有问题在等"是 ChatPanel 通过 onPendingChange
+    // 上报的本地 pendingQuestion——useChat 一检测到 conversationId 变化就
+    // 会把它清空，导致切到另一个对话之后，即使上一个对话的 ask() 请求
+    // 其实还在后台跑着，关闭确认也会被静默跳过。现在改成直接读共享
+    // busy_state，不受"当前选中哪个对话"这个本地 UI 状态影响。
+    let closeHandler: (event: { preventDefault: () => void }) => void = () => {};
+    vi.mocked(getCurrentWindow).mockReturnValue({
+      onCloseRequested: vi.fn(async (handler) => {
+        closeHandler = handler;
+        return () => {};
+      }),
+      destroy: vi.fn(),
+    } as unknown as ReturnType<typeof getCurrentWindow>);
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: true, reason: "answering", book_id: "ostep", pause_requested: false,
     });
+    vi.spyOn(client, "listConversations").mockResolvedValue({
+      conversations: [
+        { id: "c1", title: "对话一", updated_at: "" },
+        { id: "c2", title: "对话二", updated_at: "" },
+      ],
+    });
+    vi.spyOn(client, "getConversation").mockResolvedValue({
+      id: "c1", book_id: "ostep", title: "对话一", created_at: "", updated_at: "", turns: [],
+    });
+
+    const user = userEvent.setup();
+    render(<ChatView bookId="ostep" />);
+
+    await user.click(await screen.findByRole("button", { name: "对话一" }));
+    await screen.findByPlaceholderText("输入问题");
+
+    await user.click(screen.getByRole("button", { name: "对话二" }));
+    await screen.findByPlaceholderText("输入问题");
+
+    const preventDefault = vi.fn();
+    closeHandler({ preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(await screen.findByText("有对话正在处理中，确定要关闭吗？")).toBeInTheDocument();
   });
 
   it("does not show a close confirmation when idle", async () => {

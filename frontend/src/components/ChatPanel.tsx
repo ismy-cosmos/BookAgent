@@ -14,10 +14,9 @@ interface ChatPanelProps {
   conversationId: string;
   status: Status;
   onSent?: () => void;
-  onPendingChange?: (pending: boolean) => void;
 }
 
-export function ChatPanel({ bookId, conversationId, status, onSent, onPendingChange }: ChatPanelProps) {
+export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelProps) {
   const { history, pendingQuestion, error, send, clearError } = useChat(bookId, conversationId);
   const [input, setInput] = useState("");
   const [selectedChunkId, setSelectedChunkId] = useState<string | null>(null);
@@ -29,15 +28,6 @@ export function ChatPanel({ bookId, conversationId, status, onSent, onPendingCha
     // 总是存在，只在测试环境需要这层判断。
     messagesEndRef.current?.scrollIntoView?.({ block: "end" });
   }, [history.length, pendingQuestion]);
-
-  // 让父级（ChatView）知道"这个窗口自己的对话是不是在等回复"——关闭
-  // 确认弹窗只该看这个，不该看全局 status.busy（别的书忙不该拦这本书
-  // 窗口的关闭）。卸载时补一次 false，避免切换对话/关闭面板后这个信号
-  // 停留在过期的 true 上。
-  useEffect(() => {
-    onPendingChange?.(pendingQuestion !== null);
-    return () => onPendingChange?.(false);
-  }, [pendingQuestion, onPendingChange]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
