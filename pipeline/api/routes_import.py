@@ -62,9 +62,8 @@ def progress() -> dict:
 
 @router.post("/import/pause")
 def pause_import() -> dict:
-    q = get_import_queue()
-    q.request_pause()
-    return q.get_status()
+    get_import_queue().request_pause()
+    return get_status()
 
 
 @router.post("/import/{task_id}/cancel")

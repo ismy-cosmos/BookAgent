@@ -87,16 +87,6 @@ class ImportQueue:
                 return True
             return any(t.book_id == book_id for t in self._queued_tasks.values())
 
-    def get_status(self) -> dict:
-        with self._lock:
-            pause_requested = self._pause_event.is_set()
-            if self._current_task is not None:
-                return {"busy": True, "reason": "ingesting",
-                        "book_id": self._current_task.book_id,
-                        "pause_requested": pause_requested}
-            return {"busy": False, "reason": "idle", "book_id": None,
-                    "pause_requested": pause_requested}
-
     def is_pause_requested(self) -> bool:
         with self._lock:
             return self._pause_event.is_set()
