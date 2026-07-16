@@ -130,6 +130,7 @@ def resolve_figures(
             try:
                 desc = describe_image(
                     client, model, b64, prompt=_build_prompt(caption),
+                    options={"temperature": 0},
                     on_usage=lambda u: usage_holder.append(u.prompt_tokens),
                 )
             except (OpenAIError, ValueError) as e:
