@@ -55,7 +55,9 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
   // 导入进行中每个文件成功入库会从待导入列表消失（后端行为）——
   // 随进度变化（文件边界/任务结束）重新拉取列表。单独盯 last_result 的内容
   // （而非 busy）是因为导入耗时可能短于轮询间隔，busy 从未被前端观察到变
-  // true 过，此时只有 last_result 的内容会变化。
+  // true 过，此时只有 last_result 的内容会变化。盯的是 activity 而不是
+  // 全局 progress?.busy——跟 FileList.tsx 同一个模式，别的书忙不忙、这本书
+  // 自己有没有被问问题，都不该触发这本书待导入列表的多余刷新。
   //
   // 挂载那一刻 useStagedFiles 自己已经拉过一次了，这里跳过第一次运行，
   // 避免挂载瞬间重复打两次 listStagedFiles。
@@ -67,7 +69,7 @@ export function ImportPanel({ bookId, progress }: ImportPanelProps) {
       return;
     }
     refresh();
-  }, [refresh, progress?.busy, progress?.progress?.current_file, lastResultKey]);
+  }, [refresh, activity, progress?.progress?.current_file, lastResultKey]);
 
   // 自己排队的任务开始处理后，"取消排队"不再适用
   useEffect(() => {

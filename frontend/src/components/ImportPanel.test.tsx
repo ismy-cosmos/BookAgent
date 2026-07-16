@@ -441,4 +441,30 @@ describe("ImportPanel", () => {
     expect(screen.queryByText(/完成/)).not.toBeInTheDocument();
   });
 
+  it("does not refresh the staged file list when a different book's busy state changes", async () => {
+    // 跟 FileList.test.tsx 的同名测试是同一个模式（这两个组件的刷新
+    // effect 结构几乎是双胞胎）——之前只改了 FileList，这里漏改了。
+    const listStagedFilesSpy = vi.spyOn(client, "listStagedFiles")
+      .mockResolvedValue({ files: ["/data/ch01.pdf"] });
+
+    const otherBookAnswering: ProgressResponse = {
+      busy: true, reason: "answering", book_id: "other-book", pause_requested: false,
+      progress: null, last_result: null,
+    };
+    const { rerender } = render(<ImportPanel bookId="ostep" progress={otherBookAnswering} />);
+    await screen.findByText("/data/ch01.pdf");
+    const callsAfterMount = listStagedFilesSpy.mock.calls.length;
+
+    const otherBookIdle: ProgressResponse = {
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+      progress: null, last_result: null,
+    };
+    rerender(<ImportPanel bookId="ostep" progress={otherBookIdle} />);
+
+    // 没有"会发生"的信号可以 waitFor，这里等一小段时间确认真的没有发生
+    // 多余的调用——比现有测试断言"发生"更弱的负面断言只能这样写。
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(listStagedFilesSpy.mock.calls.length).toBe(callsAfterMount);
+  });
+
 });
