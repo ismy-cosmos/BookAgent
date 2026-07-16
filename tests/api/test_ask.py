@@ -109,21 +109,103 @@ def test_ask_returns_answer_and_citations(tmp_path, monkeypatch):
     assert record["turns"][0]["question"] == "fork() 是什么？"
 
 
-def test_ask_rejected_while_any_book_is_importing(tmp_path, monkeypatch):
+def test_ask_rejected_while_another_book_is_importing(tmp_path, monkeypatch):
     monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
     conv_id = client.post("/books/ostep/conversations").json()["id"]
 
+    from pipeline.api import busy_state
+    busy_state.try_acquire("ingesting", "other-book")
+    try:
+        resp = client.post(
+            f"/books/ostep/conversations/{conv_id}/ask",
+            json={"question": "Q"},
+        )
+        assert resp.status_code == 409
+        assert "正在导入书籍" in resp.json()["detail"]
+    finally:
+        busy_state.release()
+
+
+def test_ask_rejected_while_another_book_is_being_answered(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    conv_id = client.post("/books/ostep/conversations").json()["id"]
+
+    from pipeline.api import busy_state
+    busy_state.try_acquire("answering", "other-book")
+    try:
+        resp = client.post(
+            f"/books/ostep/conversations/{conv_id}/ask",
+            json={"question": "Q"},
+        )
+        assert resp.status_code == 409
+        assert "其他对话正在处理中" in resp.json()["detail"]
+    finally:
+        busy_state.release()
+
+
+def test_ask_releases_busy_state_after_success(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    conv_id = client.post("/books/ostep/conversations").json()["id"]
+
+    from pipeline.store.chroma_store import ChromaStore
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store.add_chunks("ostep", _make_one_chunk(), embeddings=[[0.0] * 8])
+
+    fake_client = MagicMock()
+    fake_client.run.return_value = _fake_turn(final_answer="ok")
     monkeypatch.setattr(
-        "pipeline.api.routes_conversations.get_status",
-        lambda: {"busy": True, "reason": "ingesting", "book_id": "other-book"},
+        "pipeline.api.routes_conversations.get_client",
+        lambda book_id: fake_client,
     )
 
+    from pipeline.api import busy_state
     resp = client.post(
         f"/books/ostep/conversations/{conv_id}/ask",
         json={"question": "Q"},
     )
-    assert resp.status_code == 409
-    assert "正在导入书籍" in resp.json()["detail"]
+    assert resp.status_code == 200
+    assert busy_state.get_state() is None
+
+
+def test_ask_releases_busy_state_when_answer_raises(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    conv_id = client.post("/books/ostep/conversations").json()["id"]
+
+    from pipeline.store.chroma_store import ChromaStore
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store.add_chunks("ostep", _make_one_chunk(), embeddings=[[0.0] * 8])
+
+    fake_client = MagicMock()
+    fake_client.run.side_effect = ConnectionError("Ollama 没起来")
+    monkeypatch.setattr(
+        "pipeline.api.routes_conversations.get_client",
+        lambda book_id: fake_client,
+    )
+
+    from pipeline.api import busy_state
+    resp = client.post(
+        f"/books/ostep/conversations/{conv_id}/ask",
+        json={"question": "Q"},
+    )
+    assert resp.status_code == 503
+    assert busy_state.get_state() is None
+
+
+def test_two_concurrent_asks_second_one_rejected(tmp_path, monkeypatch):
+    """两个不同书的问答请求撞在一起，后到的直接 409（issue #36 缺口2）。"""
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    conv_id = client.post("/books/other-book/conversations").json()["id"]
+
+    from pipeline.api import busy_state
+    busy_state.try_acquire("answering", "ostep")  # 模拟另一本书正在被回答
+    try:
+        resp = client.post(
+            f"/books/other-book/conversations/{conv_id}/ask",
+            json={"question": "Q"},
+        )
+        assert resp.status_code == 409
+    finally:
+        busy_state.release()
 
 
 def test_ask_response_includes_used_calculate_and_attempted_retrieve(tmp_path, monkeypatch):

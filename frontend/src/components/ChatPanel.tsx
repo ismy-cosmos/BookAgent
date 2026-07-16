@@ -20,7 +20,6 @@ export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelP
   const { history, pendingQuestion, error, send, clearError } = useChat(bookId, conversationId);
   const [input, setInput] = useState("");
   const [selectedChunkId, setSelectedChunkId] = useState<string | null>(null);
-  const disabled = status.busy;
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,7 +32,7 @@ export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelP
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
-    if (!q || pendingQuestion) return;
+    if (!q || pendingQuestion || status.busy) return;
     setInput("");
     const ok = await send(q);
     if (ok) {
@@ -106,13 +105,12 @@ export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelP
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={disabled ? "正在导入书籍，请稍后…" : "输入问题"}
-          disabled={disabled}
+          placeholder="输入问题"
         />
         <button
           className={styles.sendButton}
           type="submit"
-          disabled={disabled || !input.trim() || !!pendingQuestion}
+          disabled={status.busy || !input.trim() || !!pendingQuestion}
         >
           发送
         </button>

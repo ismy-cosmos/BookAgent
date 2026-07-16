@@ -17,7 +17,7 @@ def _run(files_elements, describe_side_effect):
     with patch("pipeline.parse.figure_batch.OpenAI"), \
          patch("pipeline.parse.figure_batch.describe_image",
                side_effect=describe_side_effect) as mock_desc, \
-         patch("pipeline.parse.figure_batch._release_model") as mock_release:
+         patch("pipeline.parse.figure_batch.release_model") as mock_release:
         stats = resolve_figures(files_elements, model="m", ollama_base="http://fake")
     return stats, mock_desc, mock_release
 
@@ -103,7 +103,7 @@ def test_release_called_exactly_once_even_on_failures():
 
 def test_no_targets_no_client_no_release():
     with patch("pipeline.parse.figure_batch.OpenAI") as mock_cls, \
-         patch("pipeline.parse.figure_batch._release_model") as mock_release:
+         patch("pipeline.parse.figure_batch.release_model") as mock_release:
         stats = resolve_figures([[Element(type="text", content="t", page_num=1)]])
     mock_cls.assert_not_called()
     mock_release.assert_not_called()
@@ -127,7 +127,7 @@ def test_resolve_figures_records_per_image_tokens_on_success():
     with patch("pipeline.parse.figure_batch.OpenAI"), \
          patch("pipeline.parse.figure_batch.describe_image",
                side_effect=_fake_describe_with_usage(2772)), \
-         patch("pipeline.parse.figure_batch._release_model"):
+         patch("pipeline.parse.figure_batch.release_model"):
         stats = resolve_figures([[fig]], model="m", ollama_base="http://fake")
 
     assert stats.per_image_tokens == [2772]
@@ -151,7 +151,7 @@ def _run_with_cache(files_elements, describe_side_effect, chroma_dir, book_id):
     with patch("pipeline.parse.figure_batch.OpenAI"), \
          patch("pipeline.parse.figure_batch.describe_image",
                side_effect=describe_side_effect) as mock_desc, \
-         patch("pipeline.parse.figure_batch._release_model") as mock_release:
+         patch("pipeline.parse.figure_batch.release_model") as mock_release:
         stats = resolve_figures(files_elements, chroma_dir=chroma_dir, book_id=book_id)
     return stats, mock_desc, mock_release
 
@@ -166,7 +166,7 @@ def test_cache_hit_skips_describe_call(tmp_path):
 
     with patch("pipeline.parse.figure_batch.OpenAI"), \
          patch("pipeline.parse.figure_batch.describe_image") as mock_desc, \
-         patch("pipeline.parse.figure_batch._release_model"):
+         patch("pipeline.parse.figure_batch.release_model"):
         stats = resolve_figures([[fig]], chroma_dir=str(tmp_path), book_id="b")
 
     mock_desc.assert_not_called()
@@ -213,7 +213,7 @@ def test_should_pause_stops_loop_without_marking_remaining_degraded():
 
     with patch("pipeline.parse.figure_batch.OpenAI"), \
          patch("pipeline.parse.figure_batch.describe_image", return_value="d"), \
-         patch("pipeline.parse.figure_batch._release_model"):
+         patch("pipeline.parse.figure_batch.release_model"):
         stats = resolve_figures([figs], should_pause=fake_should_pause)
 
     assert stats.described == 1
@@ -230,7 +230,7 @@ def test_on_progress_called_per_image_with_current_and_total():
 
     with patch("pipeline.parse.figure_batch.OpenAI"), \
          patch("pipeline.parse.figure_batch.describe_image", return_value="d"), \
-         patch("pipeline.parse.figure_batch._release_model"):
+         patch("pipeline.parse.figure_batch.release_model"):
         resolve_figures([figs], on_progress=lambda c, t: updates.append((c, t)))
 
     assert updates == [(1, 3), (2, 3), (3, 3)]
@@ -243,7 +243,7 @@ def test_on_progress_still_called_for_degraded_images():
     with patch("pipeline.parse.figure_batch.OpenAI"), \
          patch("pipeline.parse.figure_batch.describe_image",
                side_effect=[ValueError("x"), "ok"]), \
-         patch("pipeline.parse.figure_batch._release_model"):
+         patch("pipeline.parse.figure_batch.release_model"):
         resolve_figures([figs], on_progress=lambda c, t: updates.append((c, t)))
 
     assert updates == [(1, 2), (2, 2)]

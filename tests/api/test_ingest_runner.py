@@ -157,3 +157,24 @@ def test_audio_chunks_cache_entry_purged_without_error(tmp_path, monkeypatch):
     _run(tmp_path, monkeypatch, [str(included)], lambda *a, **k: _ok_result())
 
     assert parse_cache.get(str(tmp_path), "b", sha_drop) is None
+
+
+def test_releases_chat_model_before_run_ingest(tmp_path, monkeypatch):
+    """导入开始前要先把 Ollama 驻留的对话模型踢掉，顺序上必须在
+    run_ingest()（真正的解析/入库逻辑）之前——不然还是有可能撞上刚开始
+    解析就 OOM 的老问题（issue #36）。"""
+    f = tmp_path / "ch01.pdf"; f.write_bytes(b"one")
+    call_order = []
+
+    release_spy = MagicMock(side_effect=lambda *a, **k: call_order.append("release"))
+    monkeypatch.setattr("pipeline.api.ingest_runner.release_model", release_spy)
+    monkeypatch.setattr("pipeline.api.ingest_runner.get_model_name", lambda: "qwen3:q4km")
+
+    def fake_run(*a, **k):
+        call_order.append("run_ingest")
+        return _ok_result()
+
+    _run(tmp_path, monkeypatch, [str(f)], fake_run)
+
+    assert call_order == ["release", "run_ingest"]
+    release_spy.assert_called_once_with("http://localhost:11434", "qwen3:q4km")

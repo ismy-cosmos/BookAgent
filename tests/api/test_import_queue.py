@@ -81,15 +81,16 @@ def test_get_import_queue_concurrent_first_access_constructs_only_once():
     iq_module.reset_import_queue()
 
 
-def test_get_status_idle_before_anything_enqueued():
+def test_book_has_no_pending_or_active_task_before_anything_enqueued():
+    # 对外"忙不忙"这个问题现在只有 busy_state 一个权威来源（见
+    # pipeline/api/status.py）——ImportQueue 自己不再暴露等价的 get_status()，
+    # 这里改成断言它仍然正确的内部记账：book_has_pending_or_active_task()。
     q = ImportQueue(processor=_RecordingProcessor())
     q.start()
-    assert q.get_status() == {
-        "busy": False, "reason": "idle", "book_id": None, "pause_requested": False,
-    }
+    assert q.book_has_pending_or_active_task("ostep") is False
 
 
-def test_get_status_busy_while_processing():
+def test_book_has_pending_or_active_task_while_processing():
     started = threading.Event()
     release = threading.Event()
 
@@ -102,15 +103,11 @@ def test_get_status_busy_while_processing():
     q.enqueue("ostep", ["ch1.pdf"])
 
     assert started.wait(timeout=2.0)
-    assert q.get_status() == {
-        "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": False,
-    }
+    assert q.book_has_pending_or_active_task("ostep") is True
 
     release.set()
     q.wait_until_idle(timeout=2.0)
-    assert q.get_status() == {
-        "busy": False, "reason": "idle", "book_id": None, "pause_requested": False,
-    }
+    assert q.book_has_pending_or_active_task("ostep") is False
 
 
 def test_cancel_queued_task_succeeds_and_it_never_runs():
@@ -233,11 +230,11 @@ def test_pause_while_idle_is_a_no_op():
     q.wait_until_idle(timeout=2.0)
 
     assert processor.calls == [("ostep", ["f1.pdf"])]  # 完全不受影响，正常处理
-    assert q.get_status()["pause_requested"] is False
+    assert q.is_pause_requested() is False
 
 
-def test_get_status_pausing_while_task_still_running():
-    """pause_requested=True + busy=True 是"正在暂停中"。"""
+def test_is_pause_requested_true_while_task_still_running():
+    """pause_requested=True + 这本书仍有在跑的任务 是"正在暂停中"。"""
     started = threading.Event()
     release = threading.Event()
 
@@ -251,8 +248,8 @@ def test_get_status_pausing_while_task_still_running():
     assert started.wait(timeout=2.0)
 
     q.request_pause()
-    status = q.get_status()
-    assert status["busy"] is True and status["pause_requested"] is True  # 正在暂停中
+    assert q.book_has_pending_or_active_task("ostep") is True
+    assert q.is_pause_requested() is True  # 正在暂停中
 
     release.set()
     q.wait_until_idle(timeout=2.0)
@@ -285,7 +282,7 @@ def test_pause_flag_cleared_once_task_ends():
                         # 任何边界检查能捕捉到这次暂停请求）
     q.wait_until_idle(timeout=2.0)
 
-    assert q.get_status()["pause_requested"] is False
+    assert q.is_pause_requested() is False
 
 
 # ── 进度与结果存档 ───────────────────────────────────────────────────────
@@ -403,7 +400,7 @@ def test_worker_survives_processor_exception():
     q.wait_until_idle(timeout=2.0)
 
     assert calls == ["bad-book", "good-book"]  # 第二个任务照常被处理
-    assert q.get_status()["busy"] is False     # 状态没有卡死
+    assert q.book_has_pending_or_active_task("bad-book") is False  # 状态没有卡死
     assert q.get_progress()["last_result"]["book_id"] == "good-book"  # 后续任务正常存档
 
 
@@ -531,3 +528,137 @@ def test_progress_cleared_after_task_aborted_early():
     assert q.get_progress()["progress"] is None
     assert q.get_progress()["last_result"]["aborted_early"] is True
     assert q.get_progress()["last_result"]["not_attempted"] == ["f3.pdf"]
+
+
+def test_is_pause_requested_false_by_default():
+    q = ImportQueue(processor=_RecordingProcessor())
+    q.start()
+    assert q.is_pause_requested() is False
+
+
+def test_is_pause_requested_true_after_request_pause_while_processing():
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
+        started.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+    assert started.wait(timeout=2.0)
+
+    q.request_pause()
+    assert q.is_pause_requested() is True
+
+    release.set()
+    q.wait_until_idle(timeout=2.0)
+    assert q.is_pause_requested() is False
+
+
+# ── 与共享忙碌状态原语的交互（issue #36）─────────────────────────────────
+
+from pipeline.api import busy_state
+
+
+def teardown_function():
+    busy_state.release()
+
+
+def test_worker_waits_for_shared_busy_state_before_processing():
+    """共享忙碌状态被别的活动（比如正在回答问题）占着时，worker 不应该
+    立刻处理排队里的任务，要等对方释放。"""
+    processed = []
+
+    def processor(book_id, file_paths, should_pause, report_progress):
+        processed.append(book_id)
+
+    busy_state.try_acquire("answering", "other-book")  # 模拟"正在回答问题"
+
+    q = ImportQueue(processor=processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+
+    time.sleep(0.3)
+    assert processed == []  # 还没处理，因为共享状态被占着
+
+    busy_state.release()  # 回答结束
+    q.wait_until_idle(timeout=2.0)
+    assert processed == ["ostep"]
+
+
+def test_worker_acquires_shared_busy_state_with_ingesting_reason():
+    started = threading.Event()
+    release = threading.Event()
+    observed_state = []
+
+    def slow_processor(book_id, file_paths, should_pause, report_progress):
+        observed_state.append(busy_state.get_state())
+        started.set()
+        release.wait(timeout=2.0)
+
+    q = ImportQueue(processor=slow_processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+    assert started.wait(timeout=2.0)
+
+    assert observed_state == [busy_state.BusyState(reason="ingesting", book_id="ostep")]
+
+    release.set()
+    q.wait_until_idle(timeout=2.0)
+    assert busy_state.get_state() is None  # 任务结束，共享状态被释放
+
+
+def test_worker_releases_shared_busy_state_even_if_processor_raises():
+    def exploding_processor(book_id, file_paths, should_pause, report_progress):
+        raise RuntimeError("boom")
+
+    q = ImportQueue(processor=exploding_processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+    q.wait_until_idle(timeout=2.0)
+
+    assert busy_state.get_state() is None
+
+
+def test_cancel_queued_task_works_while_worker_waits_for_shared_busy_state():
+    """任务排上号、但还没真正抢到共享锁的等待期间，取消排队要立刻生效，
+    不能拖到真正抢到锁那一刻。"""
+    processed = []
+
+    def processor(book_id, file_paths, should_pause, report_progress):
+        processed.append(book_id)
+
+    busy_state.try_acquire("answering", "other-book")
+
+    q = ImportQueue(processor=processor)
+    q.start()
+    task_id = q.enqueue("ostep", ["f1.pdf"])
+
+    time.sleep(0.3)  # 让 worker 进入等待循环
+    assert q.cancel(task_id) is True
+
+    busy_state.release()
+    time.sleep(0.3)  # 给 worker 一点时间处理这个已取消的任务（应该跳过）
+    assert processed == []
+
+
+def test_book_has_pending_or_active_task_true_while_worker_waits_for_shared_busy_state():
+    """任务排上号、还没真正抢到共享锁的等待期间，删书检查依赖的这个判断
+    必须仍然认为这本书"有待处理任务"，不能因为它还没被 worker 正式接管
+    就误判成"没有"。"""
+    def processor(book_id, file_paths, should_pause, report_progress):
+        pass
+
+    busy_state.try_acquire("answering", "other-book")
+
+    q = ImportQueue(processor=processor)
+    q.start()
+    q.enqueue("ostep", ["f1.pdf"])
+
+    time.sleep(0.3)
+    assert q.book_has_pending_or_active_task("ostep") is True
+
+    busy_state.release()
+    q.wait_until_idle(timeout=2.0)

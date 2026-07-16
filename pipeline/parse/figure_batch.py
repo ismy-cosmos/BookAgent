@@ -21,13 +21,12 @@ from typing import Callable
 import httpx
 from openai import OpenAI, OpenAIError
 
+from pipeline.ollama_utils import OLLAMA_BASE_URL as _OLLAMA_BASE, release_model
 from pipeline.parse import vlm_cache
 from pipeline.parse.base import CAPTION_RE, Element
 from pipeline.parse.image import (
     _DESCRIBE_PROMPT,
-    _OLLAMA_BASE,
     _VLM_MODEL,
-    _release_model,
     describe_image,
 )
 
@@ -170,5 +169,5 @@ def resolve_figures(
               + (f"，avg {stats.elapsed_s/len(targets):.1f}s/图"
                  if targets else "")
               + tok_summary)
-        _release_model(base, model)
+        release_model(base, model)
     return stats

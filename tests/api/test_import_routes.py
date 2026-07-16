@@ -9,9 +9,6 @@ client = TestClient(app)
 
 def _fake_queue(monkeypatch, **attrs):
     fake = MagicMock()
-    fake.get_status.return_value = {
-        "busy": False, "reason": "idle", "book_id": None, "pause_requested": False,
-    }
     fake.get_progress.return_value = {"progress": None, "last_result": None}
     for k, v in attrs.items():
         setattr(fake, k, v)
@@ -115,40 +112,96 @@ def test_submit_import_empty_staging_list_rejected(tmp_path, monkeypatch):
 # ── 进度轮询 ─────────────────────────────────────────────────────────────
 
 def test_progress_merges_status_and_progress(tmp_path, monkeypatch):
+    from pipeline.api import busy_state
+
     fake = _fake_queue(monkeypatch)
-    fake.get_status.return_value = {
-        "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": False,
-    }
     fake.get_progress.return_value = {
         "progress": {"stage": "vlm", "current_file": 3, "total_files": 3,
                      "current_image": 7, "total_images": 40},
         "last_result": None,
     }
 
-    resp = client.get("/progress")
+    busy_state.try_acquire("ingesting", "ostep")
+    try:
+        resp = client.get("/progress")
 
-    assert resp.status_code == 200
-    assert resp.json() == {
-        "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": False,
-        "progress": {"stage": "vlm", "current_file": 3, "total_files": 3,
-                     "current_image": 7, "total_images": 40},
-        "last_result": None,
-    }
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": False,
+            "progress": {"stage": "vlm", "current_file": 3, "total_files": 3,
+                         "current_image": 7, "total_images": 40},
+            "last_result": None,
+        }
+    finally:
+        busy_state.release()
+
+
+def test_progress_reflects_answering_busy_state(tmp_path, monkeypatch):
+    """issue #36：/progress 之前直接问 ImportQueue.get_status()，看不到
+    "回答中"这个忙碌原因——ImportPanel/FileList/GlobalImportCapsule 走的
+    都是这个接口，不修的话这三个组件会完全看不到新状态。这个场景下
+    ImportQueue 本身完全空闲，不需要 _fake_queue()。"""
+    from pipeline.api import busy_state
+    busy_state.try_acquire("answering", "ostep")
+    try:
+        resp = client.get("/progress")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["busy"] is True
+        assert body["reason"] == "answering"
+        assert body["book_id"] == "ostep"
+        assert body["progress"] is None
+        assert body["last_result"] is None
+    finally:
+        busy_state.release()
 
 
 # ── 暂停/恢复 ────────────────────────────────────────────────────────────
 
-def test_pause_endpoint_requests_pause_and_returns_status(tmp_path, monkeypatch):
+def test_pause_endpoint_requests_pause_and_returns_shared_status(tmp_path, monkeypatch):
+    from pipeline.api import busy_state
+
     fake = _fake_queue(monkeypatch)
-    fake.get_status.return_value = {
-        "busy": True, "reason": "ingesting", "book_id": "ostep", "pause_requested": True,
-    }
 
-    resp = client.post("/import/pause")
+    busy_state.try_acquire("ingesting", "ostep")
+    try:
+        resp = client.post("/import/pause")
 
-    assert resp.status_code == 200
-    fake.request_pause.assert_called_once_with()
-    assert resp.json()["pause_requested"] is True
+        assert resp.status_code == 200
+        fake.request_pause.assert_called_once_with()
+        body = resp.json()
+        assert body["busy"] is True
+        assert body["reason"] == "ingesting"
+        assert body["book_id"] == "ostep"
+        # pause_requested 来自真实的 ImportQueue 单例（status.py 里的
+        # get_status() 自己 import 的 get_import_queue，跟这里 _fake_queue()
+        # 打桩的 routes_import.get_import_queue 是两个不同的引用，前者不会
+        # 被这个 mock 拦到）——这里只确认它是个真布尔值，不断言具体
+        # True/False，避免测试跟"真实单例这次会话里没被弄脏"这种隐含假设
+        # 绑死。
+        assert isinstance(body["pause_requested"], bool)
+    finally:
+        busy_state.release()
+
+
+def test_pause_endpoint_reflects_answering_busy_state(tmp_path, monkeypatch):
+    """issue #36 回归：/import/pause 之前直接问 ImportQueue.get_status()，
+    看不到"回答中"这个忙碌原因——跟 /progress 当时漏改是同一类 bug，只是
+    这一个调用点被漏掉了。这个场景下 ImportQueue 本身完全空闲，不需要
+    _fake_queue()（跟 test_progress_reflects_answering_busy_state 是同一个
+    写法）。"""
+    from pipeline.api import busy_state
+
+    busy_state.try_acquire("answering", "ostep")
+    try:
+        resp = client.post("/import/pause")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["busy"] is True
+        assert body["reason"] == "answering"
+        assert body["book_id"] == "ostep"
+    finally:
+        busy_state.release()
 
 
 # ── 取消排队任务 ─────────────────────────────────────────────────────────

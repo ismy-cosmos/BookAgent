@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from pipeline.api import staging
 from pipeline.api.config import get_chroma_dir
 from pipeline.api.import_queue import get_import_queue
+from pipeline.api.status import get_status
 from scripts.ingest import _ALL_EXTS
 
 router = APIRouter()
@@ -56,15 +57,13 @@ def submit_import(req: SubmitImportRequest) -> dict:
 
 @router.get("/progress")
 def progress() -> dict:
-    q = get_import_queue()
-    return {**q.get_status(), **q.get_progress()}
+    return {**get_status(), **get_import_queue().get_progress()}
 
 
 @router.post("/import/pause")
 def pause_import() -> dict:
-    q = get_import_queue()
-    q.request_pause()
-    return q.get_status()
+    get_import_queue().request_pause()
+    return get_status()
 
 
 @router.post("/import/{task_id}/cancel")

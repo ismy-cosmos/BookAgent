@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { bookActivity } from "../bookActivity";
 import { useBooks } from "../hooks/useBooks";
 import { useStatus } from "../hooks/useStatus";
 import { BookCard } from "./BookCard";
@@ -66,7 +67,7 @@ export function BookGrid() {
           key={bookId}
           bookId={bookId}
           busy={status.busy}
-          importing={status.busy && status.book_id === bookId}
+          activity={bookActivity(status, bookId)}
           onRemove={handleRemove}
           onRename={rename}
         />

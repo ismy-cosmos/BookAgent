@@ -7,9 +7,9 @@ from typing import Callable, Optional
 import httpx
 from openai import OpenAI, OpenAIError
 
+from pipeline.ollama_utils import OLLAMA_BASE_URL as _OLLAMA_BASE, release_model
 from pipeline.parse.base import Element
 
-_OLLAMA_BASE = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 _VLM_MODEL = os.environ.get("VLM_MODEL", "qwen3:q4km")
 _DESCRIBE_PROMPT = (
     "Describe all content visible in this image in detail. "
@@ -104,18 +104,6 @@ def describe_image(
     return content.strip()
 
 
-def _release_model(base_url: str, model: str) -> None:
-    """Best-effort: tell Ollama to unload `model` immediately. Native-only
-    operation (no OpenAI-compatible equivalent) — frees VRAM for the
-    embedding step that follows VLM parsing in the ingest pipeline."""
-    try:
-        # trust_env=False 防止系统代理（如 SOCKS）干扰本地 Ollama 连接
-        with httpx.Client(trust_env=False) as c:
-            c.post(f"{base_url}/api/generate", json={"model": model, "keep_alive": 0}, timeout=30.0)
-    except Exception:
-        pass
-
-
 class VLMImageParser:
     """Describe images using a local Ollama vision model via the openai SDK."""
 
@@ -144,5 +132,5 @@ class VLMImageParser:
         except OpenAIError as e:
             raise ValueError(f"Ollama vision call failed: {e}") from e
         finally:
-            _release_model(self._base, self._model)
+            release_model(self._base, self._model)
         return [Element(type="figure", content=description, page_num=0)]

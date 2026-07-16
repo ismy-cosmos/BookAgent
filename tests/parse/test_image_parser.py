@@ -12,10 +12,10 @@ from pipeline.parse.image import VLMImageParser, _resize_to_limit, describe_imag
 
 @pytest.fixture(autouse=True)
 def mock_release_call():
-    """Autouse: every parse() call hits _release_model() in a finally block.
+    """Autouse: every parse() call hits release_model() in a finally block.
     Mock it globally so no test makes a real network call regardless of
     which path it exercises."""
-    with patch("pipeline.parse.image._release_model") as mock_release:
+    with patch("pipeline.parse.image.release_model") as mock_release:
         yield mock_release
 
 

@@ -125,4 +125,15 @@ describe("BookGrid", () => {
     expect(screen.getByText("ostep")).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent("正在导入中，暂不可删除");
   });
+
+  it("shows 对话中… badge on the card when this book is being asked a question", async () => {
+    vi.spyOn(client, "listBooks").mockResolvedValue({ books: ["ostep"] });
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: true, reason: "answering", book_id: "ostep", pause_requested: false,
+    });
+
+    render(<BookGrid />);
+
+    expect(await screen.findByText("对话中…")).toBeInTheDocument();
+  });
 });
