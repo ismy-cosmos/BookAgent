@@ -4,6 +4,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as client from "../api/client";
 import { ChatView } from "./ChatView";
 
+// ChatView 会装一个关闭确认监听器（跟 HomeView 同一套 installQuitConfirmation），
+// 触碰 @tauri-apps/api/window 的 getCurrentWindow()——jsdom 里没有真实的 Tauri
+// IPC 桥，不 mock 会在 mount 时抛出未处理的异常。
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: vi.fn(() => ({
+    onCloseRequested: vi.fn().mockResolvedValue(() => {}),
+    destroy: vi.fn(),
+  })),
+}));
+
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("ChatView", () => {
@@ -100,5 +112,100 @@ describe("ChatView", () => {
     // 删的是当前正在看的这个对话——右栏应该立刻清空，不能继续显示
     // 已经被删掉的对话内容，让用户没法判断到底删没删成功。
     await waitFor(() => expect(screen.queryByPlaceholderText("输入问题")).not.toBeInTheDocument());
+  });
+
+  it("shows a close confirmation when this window's own conversation has a pending question, and closes just this window on confirm", async () => {
+    let closeHandler: (event: { preventDefault: () => void }) => void = () => {};
+    const destroy = vi.fn();
+    vi.mocked(getCurrentWindow).mockReturnValue({
+      onCloseRequested: vi.fn(async (handler) => {
+        closeHandler = handler;
+        return () => {};
+      }),
+      destroy,
+    } as unknown as ReturnType<typeof getCurrentWindow>);
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+    });
+    vi.spyOn(client, "listConversations").mockResolvedValue({
+      conversations: [{ id: "c1", title: "旧对话", updated_at: "" }],
+    });
+    vi.spyOn(client, "getConversation").mockResolvedValue({
+      id: "c1", book_id: "ostep", title: "旧对话", created_at: "", updated_at: "", turns: [],
+    });
+    let resolveAsk: (v: Awaited<ReturnType<typeof client.ask>>) => void;
+    vi.spyOn(client, "ask").mockReturnValue(
+      new Promise((resolve) => { resolveAsk = resolve; }),
+    );
+
+    const user = userEvent.setup();
+    render(<ChatView bookId="ostep" />);
+
+    await user.click(await screen.findByRole("button", { name: "旧对话" }));
+    const input = await screen.findByPlaceholderText("输入问题");
+    await user.type(input, "fork 是什么？");
+    await user.click(screen.getByText("发送"));
+    // 思考中气泡出现，说明 pendingQuestion 已经落地、onPendingChange(true)
+    // 这一轮 effect 也已经跟着同一次渲染跑过了。
+    await screen.findByRole("status", { name: "思考中" });
+
+    const preventDefault = vi.fn();
+    closeHandler({ preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(await screen.findByText("有对话正在处理中，确定要关闭吗？")).toBeInTheDocument();
+
+    await user.click(screen.getByText("确定关闭"));
+    expect(destroy).toHaveBeenCalledOnce();
+
+    resolveAsk!({
+      answer: "fork() 创建新进程", citations: [], triggered_tool: null,
+      total_tokens: 10, latency_s: 0.5, used_calculate: false, attempted_retrieve: false,
+    });
+  });
+
+  it("does not show a close confirmation when idle", async () => {
+    let closeHandler: (event: { preventDefault: () => void }) => void = () => {};
+    vi.mocked(getCurrentWindow).mockReturnValue({
+      onCloseRequested: vi.fn(async (handler) => {
+        closeHandler = handler;
+        return () => {};
+      }),
+      destroy: vi.fn(),
+    } as unknown as ReturnType<typeof getCurrentWindow>);
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: false, reason: "idle", book_id: null, pause_requested: false,
+    });
+    vi.spyOn(client, "listConversations").mockResolvedValue({ conversations: [] });
+
+    render(<ChatView bookId="ostep" />);
+    await screen.findByRole("button", { name: "新建对话" });
+
+    const preventDefault = vi.fn();
+    closeHandler({ preventDefault });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("does not show a close confirmation just because a different book is busy elsewhere — only this window's own pending question matters", async () => {
+    let closeHandler: (event: { preventDefault: () => void }) => void = () => {};
+    vi.mocked(getCurrentWindow).mockReturnValue({
+      onCloseRequested: vi.fn(async (handler) => {
+        closeHandler = handler;
+        return () => {};
+      }),
+      destroy: vi.fn(),
+    } as unknown as ReturnType<typeof getCurrentWindow>);
+    vi.spyOn(client, "getStatus").mockResolvedValue({
+      busy: true, reason: "ingesting", book_id: "other-book", pause_requested: false,
+    });
+    vi.spyOn(client, "listConversations").mockResolvedValue({ conversations: [] });
+
+    render(<ChatView bookId="ostep" />);
+    await screen.findByRole("button", { name: "新建对话" });
+
+    const preventDefault = vi.fn();
+    closeHandler({ preventDefault });
+
+    expect(preventDefault).not.toHaveBeenCalled();
   });
 });
