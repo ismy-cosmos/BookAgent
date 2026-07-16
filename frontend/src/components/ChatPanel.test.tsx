@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as client from "../api/client";
@@ -32,7 +32,7 @@ describe("ChatPanel", () => {
     expect(screen.getByText("fork 是什么？")).toBeInTheDocument();
   });
 
-  it("disables input and send when busy", async () => {
+  it("keeps the input typable but disables send while busy importing elsewhere", async () => {
     vi.spyOn(client, "getConversation").mockResolvedValue({
       id: "c1", book_id: "ostep", title: "t", created_at: "", updated_at: "", turns: [],
     });
@@ -41,11 +41,18 @@ describe("ChatPanel", () => {
 
     await waitFor(() => expect(client.getConversation).toHaveBeenCalled());
 
-    expect(screen.getByPlaceholderText("正在导入书籍，请稍后…")).toBeDisabled();
+    const input = screen.getByPlaceholderText("输入问题");
+    expect(input).not.toBeDisabled();
+    await userEvent.type(input, "fork 是什么？");
+    expect(input).toHaveValue("fork 是什么？");
     expect(screen.getByText("发送")).toBeDisabled();
   });
 
-  it("shows the answering-specific placeholder when busy because of a conversation elsewhere", async () => {
+  it("also disables send (but keeps input typable) when busy because of a conversation elsewhere — same treatment regardless of reason", async () => {
+    // 回归测试：之前按 busy 原因（导入/回答）区分输入框占位符文案，这套
+    // 分支本身就是"文案对不上"这类 bug 唯一可能存在的土壤。现在不管忙碌
+    // 原因是什么，聊天面板的行为必须完全一致——输入框永远能打字，只有
+    // 发送按钮跟着 busy 状态灰掉。
     vi.spyOn(client, "getConversation").mockResolvedValue({
       id: "c1", book_id: "ostep", title: "t", created_at: "", updated_at: "", turns: [],
     });
@@ -54,7 +61,27 @@ describe("ChatPanel", () => {
 
     await waitFor(() => expect(client.getConversation).toHaveBeenCalled());
 
-    expect(screen.getByPlaceholderText("有对话正在处理中，请稍后…")).toBeDisabled();
+    expect(screen.getByPlaceholderText("输入问题")).not.toBeDisabled();
+    expect(screen.getByText("发送")).toBeDisabled();
+  });
+
+  it("does not submit when the form is submitted directly while busy, even though the input stays typable", async () => {
+    // 发送按钮被禁用之后，原生表单在多数浏览器里回车也不会隐式提交——
+    // 但这里不依赖这条浏览器行为兜底，直接绕开按钮触发表单 submit 事件，
+    // 验证 handleSubmit 自己也挡住了忙碌状态下的提交。
+    vi.spyOn(client, "getConversation").mockResolvedValue({
+      id: "c1", book_id: "ostep", title: "t", created_at: "", updated_at: "", turns: [],
+    });
+    const askSpy = vi.spyOn(client, "ask");
+
+    render(<ChatPanel bookId="ostep" conversationId="c1" status={BUSY} />);
+    await waitFor(() => expect(client.getConversation).toHaveBeenCalled());
+
+    const input = screen.getByPlaceholderText("输入问题");
+    await userEvent.type(input, "fork 是什么？");
+    fireEvent.submit(input.closest("form")!);
+
+    expect(askSpy).not.toHaveBeenCalled();
   });
 
   it("shows the question immediately with a thinking indicator before the answer arrives", async () => {
@@ -180,5 +207,35 @@ describe("ChatPanel", () => {
     await userEvent.click(screen.getByText("发送"));
 
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce());
+  });
+
+  it("reports pending state changes via onPendingChange while a question is in flight", async () => {
+    vi.spyOn(client, "getConversation").mockResolvedValue({
+      id: "c1", book_id: "ostep", title: "t", created_at: "", updated_at: "", turns: [],
+    });
+    let resolveAsk: (v: Awaited<ReturnType<typeof client.ask>>) => void;
+    vi.spyOn(client, "ask").mockReturnValue(
+      new Promise((resolve) => { resolveAsk = resolve; }),
+    );
+    const onPendingChange = vi.fn();
+
+    render(
+      <ChatPanel bookId="ostep" conversationId="c1" status={IDLE} onPendingChange={onPendingChange} />,
+    );
+    await waitFor(() => expect(client.getConversation).toHaveBeenCalled());
+    expect(onPendingChange).toHaveBeenLastCalledWith(false);
+
+    const input = screen.getByPlaceholderText("输入问题");
+    await userEvent.type(input, "fork 是什么？");
+    await userEvent.click(screen.getByText("发送"));
+
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(true));
+
+    resolveAsk!({
+      answer: "fork() 创建新进程", citations: [], triggered_tool: null,
+      total_tokens: 10, latency_s: 0.5, used_calculate: false, attempted_retrieve: false,
+    });
+
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(false));
   });
 });

@@ -14,13 +14,13 @@ interface ChatPanelProps {
   conversationId: string;
   status: Status;
   onSent?: () => void;
+  onPendingChange?: (pending: boolean) => void;
 }
 
-export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelProps) {
+export function ChatPanel({ bookId, conversationId, status, onSent, onPendingChange }: ChatPanelProps) {
   const { history, pendingQuestion, error, send, clearError } = useChat(bookId, conversationId);
   const [input, setInput] = useState("");
   const [selectedChunkId, setSelectedChunkId] = useState<string | null>(null);
-  const disabled = status.busy;
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,10 +30,19 @@ export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelP
     messagesEndRef.current?.scrollIntoView?.({ block: "end" });
   }, [history.length, pendingQuestion]);
 
+  // 让父级（ChatView）知道"这个窗口自己的对话是不是在等回复"——关闭
+  // 确认弹窗只该看这个，不该看全局 status.busy（别的书忙不该拦这本书
+  // 窗口的关闭）。卸载时补一次 false，避免切换对话/关闭面板后这个信号
+  // 停留在过期的 true 上。
+  useEffect(() => {
+    onPendingChange?.(pendingQuestion !== null);
+    return () => onPendingChange?.(false);
+  }, [pendingQuestion, onPendingChange]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
-    if (!q || pendingQuestion) return;
+    if (!q || pendingQuestion || status.busy) return;
     setInput("");
     const ok = await send(q);
     if (ok) {
@@ -106,19 +115,12 @@ export function ChatPanel({ bookId, conversationId, status, onSent }: ChatPanelP
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            !disabled
-              ? "输入问题"
-              : status.reason === "answering"
-                ? "有对话正在处理中，请稍后…"
-                : "正在导入书籍，请稍后…"
-          }
-          disabled={disabled}
+          placeholder="输入问题"
         />
         <button
           className={styles.sendButton}
           type="submit"
-          disabled={disabled || !input.trim() || !!pendingQuestion}
+          disabled={status.busy || !input.trim() || !!pendingQuestion}
         >
           发送
         </button>
