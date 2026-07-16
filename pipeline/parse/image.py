@@ -12,8 +12,11 @@ from pipeline.parse.base import Element
 
 _VLM_MODEL = os.environ.get("VLM_MODEL", "qwen3:q4km")
 _DESCRIBE_PROMPT = (
-    "Describe all content visible in this image in detail. "
-    "Include any text, formulas, diagrams, tables, and figures. "
+    "Briefly describe the key content visible in this image (text, formulas, "
+    "diagrams, tables, figures). Cover every distinct element without "
+    "omission, but do not elaborate beyond what's necessary to convey it — "
+    "no decorative or illustrative detail. Let the length follow naturally "
+    "from how much content the image actually contains. "
     "Respond in the same language as the text in the image."
 )
 
@@ -128,7 +131,10 @@ class VLMImageParser:
         img_bytes = _resize_to_limit(_load_as_png_bytes(image_path))
         b64 = base64.b64encode(img_bytes).decode()
         try:
-            description = describe_image(self._openai, self._model, b64)
+            # temperature=0：描述任务要忠实提取，不要创意多样性；qwen3:q4km 这个
+            # 模型 tag 的 Modelfile 默认温度=1 是给对话/工具调用鲁棒性测试用的，
+            # 图片描述场景下按次请求覆盖，不改共享 Modelfile，不影响对话链路。
+            description = describe_image(self._openai, self._model, b64, options={"temperature": 0})
         except OpenAIError as e:
             raise ValueError(f"Ollama vision call failed: {e}") from e
         finally:
