@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 from typing import Callable, Optional
 
-from pipeline.chunk.chunker import pack_audio_segments
 from pipeline.chunk.schema import Chunk
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -92,4 +91,8 @@ class AudioParser:
                 "end": float(seg["end"]),
                 "score": avg_score,
             })
+        # 延迟到调用时才导入：chunker.py 顶部 import 了 pipeline.parse.base，
+        # 而 pipeline/parse/__init__.py 又预加载了本模块（audio.py）——放在
+        # 模块顶层会形成循环导入，函数体内导入这时 chunker 模块已经加载完毕。
+        from pipeline.chunk.chunker import pack_audio_segments
         return pack_audio_segments(raw_segments, book_id, resolved_name)
