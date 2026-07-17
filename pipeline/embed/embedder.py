@@ -1,17 +1,15 @@
 from __future__ import annotations
-import os
 import threading
 from typing import Optional
 
-# 强制离线：BGEM3FlagModel 底层走 huggingface_hub/transformers，默认会在加载时
-# 联网检查模型版本/配置。这本来就该是纯本地的一步（模型权重靠部署脚本预先缓存
-# 好），但代码里原来没有任何离线兜底或超时——一旦这次联网检查连不上（代理故障、
-# 断网，或是 2026-07-16 这次 huggingface.co 官方服务出故障导致 504），请求会
-# 无限期挂起，整个入库流程卡死在这一步，没有任何超时保护。
-# 用 setdefault 而不是硬覆盖：如果调用方已经显式设过这两个变量（比如部署脚本
-# 首次下载模型时需要临时联网），不会被这里覆盖掉。
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+from pipeline.offline_mode import force_offline
+
+# 理由见 pipeline/offline_mode.py——BGEM3FlagModel 底层走 huggingface_hub/
+# transformers，默认会在加载时联网检查模型版本/配置，没有任何离线兜底或超时。
+# 这里的调用只保护 Embedder 自己；marker/whisperx 各自有独立的联网检查，靠
+# 这一处覆盖不到，两个真正入口（scripts/run_api.py、scripts/ingest.py）在
+# 更早的时机各自调用了同一个函数。
+force_offline()
 
 _MODEL_CACHE: dict[str, object] = {}
 _MODEL_LOCK = threading.Lock()
