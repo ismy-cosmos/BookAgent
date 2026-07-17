@@ -13,7 +13,7 @@ def _fake_popen(segments, returncode=0, stderr=""):
     return mock_proc
 
 
-def test_audio_parser_returns_chunks(tmp_path):
+def test_audio_parser_merges_small_segments_into_one_chunk(tmp_path):
     audio = tmp_path / "segment-01.mp3"
     audio.write_bytes(b"fake")
 
@@ -26,19 +26,43 @@ def test_audio_parser_returns_chunks(tmp_path):
         parser = AudioParser()
         chunks = parser.parse_to_chunks(str(audio), book_id="ostep")
 
-    assert len(chunks) == 2
+    # 两个短segment远低于256 token目标，会被打包合并成一个chunk
+    assert len(chunks) == 1
     assert chunks[0].start_sec == 74.0
-    assert chunks[0].end_sec == 101.0
+    assert chunks[0].end_sec == 218.0
     assert "340 processes" in chunks[0].content
+    assert "getTime" in chunks[0].content
 
 
-def test_audio_parser_chunk_ids(tmp_path):
+def test_audio_parser_splits_into_multiple_chunks_past_token_limit(tmp_path):
+    audio = tmp_path / "long-lecture.mp3"
+    audio.write_bytes(b"fake")
+
+    long_text = "This is a segment about operating system scheduling policies. " * 20
+    segments = [
+        {"start": 0.0, "end": 30.0, "text": long_text},
+        {"start": 30.0, "end": 60.0, "text": long_text},
+    ]
+
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
+        parser = AudioParser()
+        chunks = parser.parse_to_chunks(str(audio), book_id="ostep")
+
+    assert len(chunks) == 2
+    assert chunks[0].start_sec == 0.0
+    assert chunks[0].end_sec == 30.0
+    assert chunks[1].start_sec == 30.0
+    assert chunks[1].end_sec == 60.0
+
+
+def test_audio_parser_chunk_ids_sequential_by_output_not_input_index(tmp_path):
     audio = tmp_path / "segment-01.mp3"
     audio.write_bytes(b"fake")
 
+    long_text = "This is a segment about operating system scheduling policies. " * 20
     segments = [
-        {"start": 74.0, "end": 101.0, "text": "There are 340 processes."},
-        {"start": 196.0, "end": 218.0, "text": "The spin function calls getTime."},
+        {"start": 0.0, "end": 30.0, "text": long_text},
+        {"start": 30.0, "end": 60.0, "text": long_text},
     ]
 
     with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
@@ -185,7 +209,7 @@ def test_audio_parser_no_word_scores_defaults_not_low_confidence(tmp_path):
     assert chunks[0].low_confidence is False
 
 
-def test_audio_parser_seq_skips_blank_segments(tmp_path):
+def test_audio_parser_blank_segment_skipped_time_span_still_correct(tmp_path):
     audio = tmp_path / "mixed.mp3"
     audio.write_bytes(b"fake")
 
@@ -198,13 +222,14 @@ def test_audio_parser_seq_skips_blank_segments(tmp_path):
     with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
         chunks = AudioParser().parse_to_chunks(str(audio), book_id="b")
 
-    assert len(chunks) == 2
+    # "Hello."和"World."远低于256 token目标，会合并成一个chunk；
+    # 中间的空白segment被跳过，不出现在content里，也不打断合并
+    assert len(chunks) == 1
     assert chunks[0].chunk_id == "b/mixed.mp3/0000"
-    # seq 使用 WhisperX 原始 segment index，空 segment 被跳过时出现跳号
-    assert chunks[1].chunk_id.endswith("/0002")
-    assert not chunks[1].chunk_id.endswith("/0001")
+    assert chunks[0].start_sec == 0.0
+    assert chunks[0].end_sec == 12.0
     assert "Hello" in chunks[0].content
-    assert "World" in chunks[1].content
+    assert "World" in chunks[0].content
 
 
 def test_audio_parser_wrapper_bad_json_raises_clear_error(tmp_path):

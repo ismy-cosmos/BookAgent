@@ -5,8 +5,6 @@ import subprocess
 from pathlib import Path
 from typing import Callable, Optional
 
-import tiktoken
-
 from pipeline.chunk.schema import Chunk
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -16,18 +14,10 @@ _WHISPERX_VENV_PYTHON = os.environ.get(
 )
 _WHISPERX_WRAPPER = str(Path(__file__).resolve().parent / "whisperx_transcribe.py")
 _DEFAULT_POLL_INTERVAL_S = 2.0
-_ENC = None
 
 
 def _always_false() -> bool:
     return False
-
-
-def _enc():
-    global _ENC
-    if _ENC is None:
-        _ENC = tiktoken.get_encoding("cl100k_base")
-    return _ENC
 
 
 class AudioParsePaused(RuntimeError):
@@ -90,25 +80,19 @@ class AudioParser:
                 f"WhisperX wrapper 输出不是合法 JSON: {stdout[:500]!r}"
             ) from e
 
-        chunks: list[Chunk] = []
-        for seq, seg in enumerate(data.get("segments", [])):
-            text = seg["text"].strip()
-            if not text:
-                continue
-            chunk_id = f"{book_id}/{Path(resolved_name).name}/{seq:04d}"
+        raw_segments = []
+        for seg in data.get("segments", []):
             words = seg.get("words", [])
             scores = [w["score"] for w in words if "score" in w]
             avg_score = sum(scores) / len(scores) if scores else 1.0
-            chunks.append(Chunk(
-                chunk_id=chunk_id,
-                book_id=book_id,
-                source_file=resolved_name,
-                element_type="audio",
-                content=text,
-                token_count=len(_enc().encode(text)),
-                page_start=None,
-                start_sec=float(seg["start"]),
-                end_sec=float(seg["end"]),
-                low_confidence=avg_score < 0.6,
-            ))
-        return chunks
+            raw_segments.append({
+                "text": seg["text"],
+                "start": float(seg["start"]),
+                "end": float(seg["end"]),
+                "score": avg_score,
+            })
+        # 延迟到调用时才导入：chunker.py 顶部 import 了 pipeline.parse.base，
+        # 而 pipeline/parse/__init__.py 又预加载了本模块（audio.py）——放在
+        # 模块顶层会形成循环导入，函数体内导入这时 chunker 模块已经加载完毕。
+        from pipeline.chunk.chunker import pack_audio_segments
+        return pack_audio_segments(raw_segments, book_id, resolved_name)
