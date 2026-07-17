@@ -308,6 +308,33 @@ def test_atomic_caption_consumed_not_emitted_separately():
     assert "Figure 3.2: Process lifecycle diagram." in chunks[0].content
 
 
+def test_atomic_caption_consumed_when_chinese_caption():
+    """中文书籍的"图 N-M　说明文字"格式（真实语料：java-ch1-e2e.epub，用全角空格
+    做分隔，不带冒号）同样要被识别为caption并消费掉，不能只认英文Figure/Table。"""
+    c = Chunker()
+    elems = [
+        _el("![fig](_page_1_Figure_1.jpeg)", "figure"),
+        _el("图 1-5　两个线程对共享变量的访问顺序"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.epub")
+    assert len(chunks) == 1
+    assert "图 1-5　两个线程对共享变量的访问顺序" in chunks[0].content
+
+
+def test_atomic_no_caption_for_inline_figure_reference():
+    """"图1-5就展示了……"是正文里提到图号的引用句，不是caption行（真实语料区别：
+    caption是"图 1-5"带空格，正文引用是"图1-5"紧挨着数字），不能被误吸收。"""
+    c = Chunker()
+    elems = [
+        _el("![fig](_page_1_Figure_1.jpeg)", "figure"),
+        _el("图1-5就展示了如果没有同步好，两个线程同时向共享变量写入的情况。"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.epub")
+    assert len(chunks) == 2
+    text_chunk = next(ch for ch in chunks if ch.element_type == "text")
+    assert "图1-5就展示了" in text_chunk.content
+
+
 def test_atomic_caption_page_end_extended_to_caption_page():
     """When caption is on the following page, page_end of atomic chunk reflects
     the caption's page number."""
