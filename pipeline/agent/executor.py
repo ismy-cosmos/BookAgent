@@ -297,9 +297,11 @@ class StubExecutor:
 
 # ── RealExecutor ──────────────────────────────────────────────────────────────
 
-def _format_mmss(seconds: float) -> str:
+def _format_timestamp(seconds: float) -> str:
     total = int(seconds)
-    return f"{total // 60:02d}:{total % 60:02d}"
+    hours, rem = divmod(total, 3600)
+    minutes, secs = divmod(rem, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}"
 
 
 def _format_citation(
@@ -314,7 +316,7 @@ def _format_citation(
             return f"{source_file} p.{page_start}-{page_end}"
         return f"{source_file} p.{page_start}"
     if start_sec is not None and end_sec is not None:
-        return f"{source_file} {_format_mmss(start_sec)}-{_format_mmss(end_sec)}"
+        return f"{source_file} {_format_timestamp(start_sec)}-{_format_timestamp(end_sec)}"
     return source_file
 
 
