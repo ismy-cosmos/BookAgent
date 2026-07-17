@@ -15,6 +15,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# 理由见 pipeline/offline_mode.py。这是独立脚本入口（不经过 run_api.py/
+# ingest.py），MarkerParser 在这里直接实例化，之前完全没有离线保护——真撞上
+# HuggingFace 服务故障会原样卡死。
+from pipeline.offline_mode import force_offline
+force_offline()
+
 from pipeline.chunk import Chunker
 from pipeline.parse.marker import MarkerParser
 

@@ -18,11 +18,10 @@ from pathlib import Path
 # Ensure repo root is on path when run as a script
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# 强制离线，理由同 scripts/run_api.py：marker/embedder/whisperx 子进程底层都
-# 可能触发 HuggingFace 联网检查，卡住时原来没有超时兜底。这是脚本直连入口
-# （不经过 run_api.py），单独设一遍，不能指望走 API 那条路径。
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+# 理由见 pipeline/offline_mode.py。这是脚本直连入口（不经过 run_api.py），
+# 单独调一遍，不能指望走 API 那条路径。
+from pipeline.offline_mode import force_offline
+force_offline()
 
 from dataclasses import dataclass, field
 from typing import Callable
