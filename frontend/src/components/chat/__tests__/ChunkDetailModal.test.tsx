@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as client from "../api/client";
-import { ChunkDetailModal } from "./ChunkDetailModal";
+import * as client from "@/api/client";
+import { ChunkDetailModal } from "@/components/chat/ChunkDetailModal";
 
 afterEach(() => vi.restoreAllMocks());
 

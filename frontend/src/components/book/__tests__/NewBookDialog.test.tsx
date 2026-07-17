@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { NewBookDialog } from "./NewBookDialog";
+import { NewBookDialog } from "@/components/book/NewBookDialog";
 
 describe("NewBookDialog", () => {
   it("disables 确定 and shows a red warning when the id collides with an existing book", async () => {

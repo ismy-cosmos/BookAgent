@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { Toast } from "./Toast";
+import { Toast } from "@/components/shared/Toast";
 
 describe("Toast", () => {
   it("shows the message with an alert role by default (error variant)", () => {

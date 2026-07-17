@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import type { ImportProgress, LastResult } from "../api/types";
-import { pausedRemainingText } from "../importProgressText";
-import { Toast } from "./Toast";
+import type { ImportProgress, LastResult } from "@/api/types";
+import { pausedRemainingText } from "@/importProgressText";
+import { Toast } from "@/components/shared/Toast";
 
 const AUTO_DISMISS_MS = 6000;
 

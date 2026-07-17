@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useChat } from "../hooks/useChat";
-import { citationLabel } from "../citationLabel";
-import { stripAnswerTags } from "../stripAnswerTags";
+import { useChat } from "@/hooks/useChat";
+import { citationLabel } from "@/citationLabel";
+import { stripAnswerTags } from "@/stripAnswerTags";
 import { ChunkDetailModal } from "./ChunkDetailModal";
-import { Toast } from "./Toast";
-import type { Status } from "../api/types";
-import styles from "../ChatWindow.module.css";
+import { Toast } from "@/components/shared/Toast";
+import type { Status } from "@/api/types";
+import styles from "./ChatWindow.module.css";
 
 interface ChatPanelProps {
   bookId: string;

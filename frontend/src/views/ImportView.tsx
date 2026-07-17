@@ -1,5 +1,5 @@
-import { ImportPanel } from "../components/ImportPanel";
-import { FileList } from "../components/FileList";
+import { ImportPanel } from "@/components/import/ImportPanel";
+import { FileList } from "@/components/import/FileList";
 import { useImportProgress } from "../hooks/useImportProgress";
 
 interface ImportViewProps {

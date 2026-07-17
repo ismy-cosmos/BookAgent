@@ -1,9 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as client from "../api/client";
-import type { ProgressResponse } from "../api/types";
-import { FileList } from "./FileList";
+import * as client from "@/api/client";
+import type { ProgressResponse } from "@/api/types";
+import { FileList } from "@/components/import/FileList";
 
 afterEach(() => vi.restoreAllMocks());
 

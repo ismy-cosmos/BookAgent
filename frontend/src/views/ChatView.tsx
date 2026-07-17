@@ -1,14 +1,14 @@
 import { useCallback, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ConversationList } from "../components/ConversationList";
-import { ChatPanel } from "../components/ChatPanel";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConversationList } from "@/components/chat/ConversationList";
+import { ChatPanel } from "@/components/chat/ChatPanel";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { bookActivity } from "../bookActivity";
 import { useStatus } from "../hooks/useStatus";
 import { useConversations } from "../hooks/useConversations";
 import { useCloseConfirmation } from "../hooks/useCloseConfirmation";
 import type { Status } from "../api/types";
-import styles from "../ChatWindow.module.css";
+import styles from "@/components/chat/ChatWindow.module.css";
 
 interface ChatViewProps {
   bookId: string;

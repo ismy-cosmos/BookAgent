@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { LastResult } from "../api/types";
-import { ImportCompletionToast } from "./ImportCompletionToast";
+import type { LastResult } from "@/api/types";
+import { ImportCompletionToast } from "@/components/import/ImportCompletionToast";
 
 describe("ImportCompletionToast", () => {
   it("shows result summary with expandable failure details", async () => {

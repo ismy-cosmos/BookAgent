@@ -1,12 +1,12 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { BookCard } from "./BookCard";
+import { BookCard } from "@/components/book/BookCard";
 
-vi.mock("../windowManager", () => ({
+vi.mock("@/windowManager", () => ({
   openOrFocusWindow: vi.fn(),
 }));
-import { openOrFocusWindow } from "../windowManager";
+import { openOrFocusWindow } from "@/windowManager";
 
 describe("BookCard", () => {
   it("shows book name always, action buttons only on hover", async () => {
