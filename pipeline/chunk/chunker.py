@@ -13,6 +13,17 @@ _OVERLAP_TOKENS = 50
 _ATOMIC_TYPES = {"table", "formula", "code", "figure"}
 _ENC = None
 
+# marker对PDF按视觉样式（字体大小/加粗）猜测标题，会把这些侧边栏框/警示框
+# 误判成真实的markdown标题（issue #49）。清单基于8本真实教材人工审查
+# （TIP/CRUX/ASIDE）+ 风险不对称原则（WARNING/CAUTION/SIDEBAR：误排除真标题
+# 只会降低chunk内容聚焦度，代价远低于漏判导致的句子截断）。以后遇到新的
+# 真实案例，往这个列表里加一个词即可，不用碰下面的正则。
+_CALLOUT_BOX_PREFIXES = ("TIP", "CRUX", "ASIDE", "WARNING", "CAUTION", "SIDEBAR")
+_CALLOUT_BOX_RE = re.compile(
+    r"#{1,6}\s(?!(?:" + "|".join(_CALLOUT_BOX_PREFIXES) + r")\b)",
+    re.IGNORECASE,
+)
+
 
 def _get_enc():
     global _ENC
@@ -196,7 +207,7 @@ class Chunker:
             elem = elements[i]
             is_heading = (
                 elem.type == "text"
-                and bool(re.match(r"#{1,6}\s", elem.content.strip()))
+                and bool(_CALLOUT_BOX_RE.match(elem.content.strip()))
             )
             is_boundary = is_heading or elem.type == "section_break"
             is_atomic = elem.type in _ATOMIC_TYPES
