@@ -1,9 +1,9 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, afterEach } from "vitest";
-import * as client from "../api/client";
-import { ApiError } from "../api/client";
-import { BookGrid } from "./BookGrid";
+import * as client from "@/api/client";
+import { ApiError } from "@/api/client";
+import { BookGrid } from "@/components/book/BookGrid";
 
 async function createAndDeletePendingBook(user: ReturnType<typeof userEvent.setup>, id: string) {
   await user.click(screen.getByLabelText("新建书"));
@@ -15,11 +15,11 @@ async function createAndDeletePendingBook(user: ReturnType<typeof userEvent.setu
   await user.click(screen.getByText("确认删除"));
 }
 
-vi.mock("../windowManager", () => ({
+vi.mock("@/windowManager", () => ({
   openOrFocusWindow: vi.fn(),
   closeBookWindows: vi.fn().mockResolvedValue(undefined),
 }));
-import { closeBookWindows, openOrFocusWindow } from "../windowManager";
+import { closeBookWindows, openOrFocusWindow } from "@/windowManager";
 
 afterEach(() => vi.restoreAllMocks());
 

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { openOrFocusWindow } from "../windowManager";
+import { openOrFocusWindow } from "@/windowManager";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import type { BookActivity } from "../bookActivity";
-import styles from "../BookCard.module.css";
+import type { BookActivity } from "@/bookActivity";
+import styles from "./BookCard.module.css";
 
 interface BookCardProps {
   bookId: string;
