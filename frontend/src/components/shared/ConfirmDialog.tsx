@@ -1,5 +1,5 @@
 import { Modal } from "./Modal";
-import styles from "../Modal.module.css";
+import styles from "./Modal.module.css";
 
 interface ConfirmDialogProps {
   message: string;

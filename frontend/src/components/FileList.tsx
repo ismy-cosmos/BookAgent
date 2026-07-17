@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { bookActivity } from "../bookActivity";
 import { useFiles } from "../hooks/useFiles";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import type { ProgressResponse } from "../api/types";
 import styles from "../ImportFileList.module.css";
 

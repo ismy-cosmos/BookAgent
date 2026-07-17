@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ConversationList } from "../components/ConversationList";
 import { ChatPanel } from "../components/ChatPanel";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { bookActivity } from "../bookActivity";
 import { useStatus } from "../hooks/useStatus";
 import { useConversations } from "../hooks/useConversations";

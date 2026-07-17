@@ -3,8 +3,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChunkDetail } from "../api/types";
 import { getChunk } from "../api/client";
-import { Modal } from "./Modal";
-import { Toast } from "./Toast";
+import { Modal } from "@/components/shared/Modal";
+import { Toast } from "@/components/shared/Toast";
 import styles from "../ChunkDetailModal.module.css";
 
 interface ChunkDetailModalProps {

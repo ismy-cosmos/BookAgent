@@ -5,7 +5,7 @@ import { useChat } from "../hooks/useChat";
 import { citationLabel } from "../citationLabel";
 import { stripAnswerTags } from "../stripAnswerTags";
 import { ChunkDetailModal } from "./ChunkDetailModal";
-import { Toast } from "./Toast";
+import { Toast } from "@/components/shared/Toast";
 import type { Status } from "../api/types";
 import styles from "../ChatWindow.module.css";
 

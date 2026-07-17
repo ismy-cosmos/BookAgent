@@ -4,7 +4,7 @@ import { useBooks } from "../hooks/useBooks";
 import { useStatus } from "../hooks/useStatus";
 import { BookCard } from "./BookCard";
 import { NewBookDialog } from "./NewBookDialog";
-import { Toast } from "./Toast";
+import { Toast } from "@/components/shared/Toast";
 import { closeBookWindows, openOrFocusWindow } from "../windowManager";
 import { ApiError, deleteBook } from "../api/client";
 import styles from "../BookGrid.module.css";

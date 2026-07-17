@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Modal } from "./Modal";
-import styles from "../Modal.module.css";
+import { Modal } from "@/components/shared/Modal";
+import styles from "@/components/shared/Modal.module.css";
 
 interface NewBookDialogProps {
   existingBookIds: string[];

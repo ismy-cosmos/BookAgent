@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import styles from "../Toast.module.css";
+import styles from "./Toast.module.css";
 
 interface ToastProps {
   children: ReactNode;

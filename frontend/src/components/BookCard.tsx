@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { openOrFocusWindow } from "../windowManager";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import type { BookActivity } from "../bookActivity";
 import styles from "../BookCard.module.css";
 

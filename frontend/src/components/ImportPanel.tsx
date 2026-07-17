@@ -6,7 +6,7 @@ import { bookActivity } from "../bookActivity";
 import { useStagedFiles } from "../hooks/useStagedFiles";
 import { stageText } from "../importProgressText";
 import { ImportCompletionToast } from "./ImportCompletionToast";
-import { Toast } from "./Toast";
+import { Toast } from "@/components/shared/Toast";
 import type { ImportProgress, LastResult, ProgressResponse } from "../api/types";
 import styles from "../ImportFileList.module.css";
 
