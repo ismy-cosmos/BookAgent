@@ -8,9 +8,9 @@ vi.mock("@tauri-apps/api/path", () => ({
 }));
 
 import { open } from "@tauri-apps/plugin-dialog";
-import * as client from "../api/client";
-import type { ProgressResponse } from "../api/types";
-import { ImportPanel } from "./ImportPanel";
+import * as client from "@/api/client";
+import type { ProgressResponse } from "@/api/types";
+import { ImportPanel } from "@/components/import/ImportPanel";
 
 afterEach(() => {
   vi.restoreAllMocks();

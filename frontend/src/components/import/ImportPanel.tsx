@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { dirname } from "@tauri-apps/api/path";
-import { cancelImport, pauseImport, submitImport } from "../api/client";
-import { bookActivity } from "../bookActivity";
-import { useStagedFiles } from "../hooks/useStagedFiles";
-import { stageText } from "../importProgressText";
+import { cancelImport, pauseImport, submitImport } from "@/api/client";
+import { bookActivity } from "@/bookActivity";
+import { useStagedFiles } from "@/hooks/useStagedFiles";
+import { stageText } from "@/importProgressText";
 import { ImportCompletionToast } from "./ImportCompletionToast";
 import { Toast } from "@/components/shared/Toast";
-import type { ImportProgress, LastResult, ProgressResponse } from "../api/types";
-import styles from "../ImportFileList.module.css";
+import type { ImportProgress, LastResult, ProgressResponse } from "@/api/types";
+import styles from "./ImportFileList.module.css";
 
 // 跟后端 scripts/ingest.py 的 _ALL_EXTS 保持一致
 const SUPPORTED_EXTENSIONS = ["pdf", "epub", "mp3", "wav", "flac", "png", "jpg", "jpeg", "svg"];

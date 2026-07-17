@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { ImportProgress, ProgressResponse } from "../api/types";
-import { stageText } from "../importProgressText";
-import styles from "../GlobalImportCapsule.module.css";
+import type { ImportProgress, ProgressResponse } from "@/api/types";
+import { stageText } from "@/importProgressText";
+import styles from "./GlobalImportCapsule.module.css";
 
 interface GlobalImportCapsuleProps {
   progress: ProgressResponse | null;

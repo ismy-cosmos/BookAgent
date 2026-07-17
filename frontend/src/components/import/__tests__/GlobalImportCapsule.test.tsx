@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { ProgressResponse } from "../api/types";
-import { GlobalImportCapsule } from "./GlobalImportCapsule";
+import type { ProgressResponse } from "@/api/types";
+import { GlobalImportCapsule } from "@/components/import/GlobalImportCapsule";
 
 function busyProgress(): ProgressResponse {
   return {

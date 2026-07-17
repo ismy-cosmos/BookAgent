@@ -3,7 +3,7 @@ import { useStatus } from "../hooks/useStatus";
 import { useImportProgress } from "../hooks/useImportProgress";
 import { useCloseConfirmation } from "../hooks/useCloseConfirmation";
 import { BookGrid } from "@/components/book/BookGrid";
-import { GlobalImportCapsule } from "../components/GlobalImportCapsule";
+import { GlobalImportCapsule } from "@/components/import/GlobalImportCapsule";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Toast } from "@/components/shared/Toast";
 import { pauseImport } from "../api/client";
