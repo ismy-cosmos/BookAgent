@@ -214,6 +214,15 @@ class Chunker:
                     last_sent = _last_sentence(chunks[-1].content)
                     if last_sent.endswith((':', '：')):
                         prefix_sentence = last_sent
+                        # 拉到 atomic 上的这句话不能继续留在原 chunk 里，否则同一句话
+                        # 会在语料库里重复出现两次（真实数据审计发现的 bug）。
+                        idx = chunks[-1].content.rfind(last_sent)
+                        remaining = chunks[-1].content[:idx].strip()
+                        if remaining:
+                            chunks[-1].content = remaining
+                            chunks[-1].token_count = _token_count(remaining)
+                        else:
+                            chunks.pop()
 
                 # Cross-page table split: merge header-only first half with body second half
                 cont_elem = None

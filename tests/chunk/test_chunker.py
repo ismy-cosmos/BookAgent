@@ -225,6 +225,39 @@ def test_atomic_prefix_from_colon_ending_sentence():
     assert "Some intro text" not in table_chunk.content
 
 
+def test_atomic_prefix_removed_from_preceding_chunk_when_it_has_more_content():
+    """The colon sentence copied into the atomic chunk must not also survive
+    verbatim in the preceding text chunk it was pulled from — real corpus data
+    (issue found via chunk-size audit) showed it duplicated in both places."""
+    c = Chunker()
+    elems = [
+        _el("Some intro text. The schedule is as follows:"),
+        _el("| T | Process |\n|---|---|\n| 0 | A |", "table"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    text_chunk = next(ch for ch in chunks if ch.element_type == "text")
+    assert "Some intro text" in text_chunk.content
+    assert "The schedule is as follows:" not in text_chunk.content
+    assert text_chunk.token_count == _token_count(text_chunk.content)
+
+
+def test_atomic_prefix_drops_preceding_chunk_when_fully_consumed():
+    """If the preceding text chunk's *entire* content is the colon-ending lead-in
+    sentence (common case: 'The code looks like this:' as its own element), the
+    now-empty orphan chunk must be dropped from the output, not left in as a
+    near-content-free duplicate of what's now prefixed onto the atomic chunk."""
+    c = Chunker()
+    elems = [
+        _el("The associated signaling code would look like this:"),
+        _el("ready = 1;", "code"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert chunks[0].element_type == "code"
+    assert "The associated signaling code would look like this:" in chunks[0].content
+    assert "ready = 1;" in chunks[0].content
+
+
 def test_atomic_no_prefix_when_last_sentence_lacks_colon():
     """No prefix when the preceding text's last sentence does not end with ':'."""
     c = Chunker()
