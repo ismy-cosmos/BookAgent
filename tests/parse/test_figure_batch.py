@@ -45,6 +45,16 @@ def test_caption_next_element_fed_into_prompt():
     assert "Figure 3.2: Process lifecycle." in prompt
 
 
+def test_chinese_caption_next_element_fed_into_prompt():
+    """真实语料（java-ch1-e2e.epub）的中文caption格式："图 N-M　说明"，全角空格
+    分隔，不带冒号——CAPTION_RE 原来只认英文 Figure/Table，这类caption会被漏判。"""
+    fig = _fig()
+    caption = Element(type="text", content="图 1-5　两个线程对共享变量的访问顺序", page_num=1)
+    _, mock_desc, _ = _run([[fig, caption]], describe_side_effect=["desc"])
+    prompt = mock_desc.call_args.kwargs["prompt"]
+    assert "图 1-5　两个线程对共享变量的访问顺序" in prompt
+
+
 def test_non_caption_next_element_not_in_prompt():
     fig = _fig()
     other = Element(type="text", content="Just a normal paragraph.", page_num=1)

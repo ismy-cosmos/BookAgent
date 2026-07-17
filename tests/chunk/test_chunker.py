@@ -225,6 +225,39 @@ def test_atomic_prefix_from_colon_ending_sentence():
     assert "Some intro text" not in table_chunk.content
 
 
+def test_atomic_prefix_removed_from_preceding_chunk_when_it_has_more_content():
+    """The colon sentence copied into the atomic chunk must not also survive
+    verbatim in the preceding text chunk it was pulled from — real corpus data
+    (issue found via chunk-size audit) showed it duplicated in both places."""
+    c = Chunker()
+    elems = [
+        _el("Some intro text. The schedule is as follows:"),
+        _el("| T | Process |\n|---|---|\n| 0 | A |", "table"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    text_chunk = next(ch for ch in chunks if ch.element_type == "text")
+    assert "Some intro text" in text_chunk.content
+    assert "The schedule is as follows:" not in text_chunk.content
+    assert text_chunk.token_count == _token_count(text_chunk.content)
+
+
+def test_atomic_prefix_drops_preceding_chunk_when_fully_consumed():
+    """If the preceding text chunk's *entire* content is the colon-ending lead-in
+    sentence (common case: 'The code looks like this:' as its own element), the
+    now-empty orphan chunk must be dropped from the output, not left in as a
+    near-content-free duplicate of what's now prefixed onto the atomic chunk."""
+    c = Chunker()
+    elems = [
+        _el("The associated signaling code would look like this:"),
+        _el("ready = 1;", "code"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert chunks[0].element_type == "code"
+    assert "The associated signaling code would look like this:" in chunks[0].content
+    assert "ready = 1;" in chunks[0].content
+
+
 def test_atomic_no_prefix_when_last_sentence_lacks_colon():
     """No prefix when the preceding text's last sentence does not end with ':'."""
     c = Chunker()
@@ -273,6 +306,33 @@ def test_atomic_caption_consumed_not_emitted_separately():
     chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
     assert len(chunks) == 1
     assert "Figure 3.2: Process lifecycle diagram." in chunks[0].content
+
+
+def test_atomic_caption_consumed_when_chinese_caption():
+    """中文书籍的"图 N-M　说明文字"格式（真实语料：java-ch1-e2e.epub，用全角空格
+    做分隔，不带冒号）同样要被识别为caption并消费掉，不能只认英文Figure/Table。"""
+    c = Chunker()
+    elems = [
+        _el("![fig](_page_1_Figure_1.jpeg)", "figure"),
+        _el("图 1-5　两个线程对共享变量的访问顺序"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.epub")
+    assert len(chunks) == 1
+    assert "图 1-5　两个线程对共享变量的访问顺序" in chunks[0].content
+
+
+def test_atomic_no_caption_for_inline_figure_reference():
+    """"图1-5就展示了……"是正文里提到图号的引用句，不是caption行（真实语料区别：
+    caption是"图 1-5"带空格，正文引用是"图1-5"紧挨着数字），不能被误吸收。"""
+    c = Chunker()
+    elems = [
+        _el("![fig](_page_1_Figure_1.jpeg)", "figure"),
+        _el("图1-5就展示了如果没有同步好，两个线程同时向共享变量写入的情况。"),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.epub")
+    assert len(chunks) == 2
+    text_chunk = next(ch for ch in chunks if ch.element_type == "text")
+    assert "图1-5就展示了" in text_chunk.content
 
 
 def test_atomic_caption_page_end_extended_to_caption_page():
