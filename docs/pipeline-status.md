@@ -17,11 +17,15 @@
 
 CS 学科 60 题真实问答评测（PR #41）跑完后，新增 **issue #40**（retrieve 无相关性阈值，跨章节内容被误归因产生幻觉），与 #17 同属引用溯源可靠性问题。
 
-1. **下一步：issue #17 + #40 合并规划**（agent 溯源可靠性）。#17 是该 retrieve 却不 retrieve + 历史引用伪造；#40 是确实 retrieve 到了、但内容跟问题不相关时仍被当有效引用来源，单轮问答即可复现。两者是真实评测中唯一验证到的幻觉链路，建议一并设计修复（system prompt 约束 + retrieve 相关性阈值/低置信度标记）。
-2. **之后：issue #11 + #10**：
+**已完成（续）**：**issue #17**（混合计算+书本知识复合题 retrieve 被跳过，system prompt 加 few-shot 示例修复，真实模型验证3个场景，PR #50，2026-07-17 合并；同批顺带修复2处chunk质量bug：冒号前缀继承重复内容、CAPTION_RE 不认中文"图/表"caption）、**issue #10**（audio.py 短 VAD segment 未走打包逻辑，新增 `pack_audio_segments()` 贪心打包到256 token，PR #52，2026-07-17 合并，真实音频数据端到端验证过）。
+
+排查真实chunk数据分布时新发现两项：**issue #49**（chunker跨页断句：flush条件卡在断点和续接内容之间时没有补救机制，从 #19 评论区拆分独立）、**issue #48**（检索层纯dense向量检索缺关键词精确匹配，建议评估混合检索BM25+向量）。
+
+1. **下一步：issue #11 + #49**：
    - #11：EPUB 容器直接子级裸文本节点丢失，内联标签经兜底分支产生碎片元素。
-   - #10：`audio.py` WhisperX 短 VAD segment 直接成 chunk，未走 chunker 打包逻辑。
-   - 这两项都会改变最终入库的 chunk 内容，建议攒到一起做完、再统一跑一次评测级正式 ingest。
+   - #49：chunker 跨页断句丢失，flush 条件截胡续接内容时无补救。
+   - 都会改变最终入库的 chunk 内容，建议攒到一起做完、再统一跑一次评测级正式 ingest 对比 #40 修复效果。
+2. **同一批可评估：issue #48**（混合检索 BM25+向量），跟 reranker/#40 阈值机制同一批规划，见 `docs/product-positioning.md`。
 3. **尚未排期**：issue #25（极小行内排版图片被 VLM 过度解读产生幻觉，同批 CS 评测发现，图片理解层问题）、#24（超大 PDF 导致 marker 解析 OOM，当前语料未触发）、#19（Chunker 句子边界判断评估替换为成熟分句库，issue 原文已注明"暂缓"）。
 
 ## 里程碑覆盖度缺口
