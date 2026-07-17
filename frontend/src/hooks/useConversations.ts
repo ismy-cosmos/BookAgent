@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ConversationSummary } from "../api/types";
-import { createConversation, deleteConversation, listConversations } from "../api/client";
+import type { ConversationSummary } from "@/api/types";
+import { createConversation, deleteConversation, listConversations } from "@/api/client";
 
 export function useConversations(bookId: string) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);

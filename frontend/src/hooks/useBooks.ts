@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { deleteBook, listBooks, renameBook } from "../api/client";
-import { toErrorMessage } from "../errorMessage";
-import { closeBookWindows, hasOpenWindows } from "../windowManager";
+import { deleteBook, listBooks, renameBook } from "@/api/client";
+import { toErrorMessage } from "@/errorMessage";
+import { closeBookWindows, hasOpenWindows } from "@/windowManager";
 
 export function useBooks() {
   const [books, setBooks] = useState<string[]>([]);

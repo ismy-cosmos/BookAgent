@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as client from "../api/client";
+import * as client from "@/api/client";
 import { useFiles } from "./useFiles";
 
 afterEach(() => vi.restoreAllMocks());

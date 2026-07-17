@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, deleteFile, listFiles } from "../api/client";
-import { toErrorMessage } from "../errorMessage";
+import { ApiError, deleteFile, listFiles } from "@/api/client";
+import { toErrorMessage } from "@/errorMessage";
 
 export function useFiles(bookId: string) {
   const [files, setFiles] = useState<string[]>([]);
