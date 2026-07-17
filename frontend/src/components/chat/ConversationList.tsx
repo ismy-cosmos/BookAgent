@@ -1,5 +1,5 @@
-import type { ConversationSummary } from "../api/types";
-import styles from "../ChatWindow.module.css";
+import type { ConversationSummary } from "@/api/types";
+import styles from "./ChatWindow.module.css";
 
 interface ConversationListProps {
   conversations: ConversationSummary[];
