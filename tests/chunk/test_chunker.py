@@ -488,3 +488,82 @@ def test_same_stem_different_ext_no_chunk_id_collision():
     assert pdf_chunks[0].chunk_id != epub_chunks[0].chunk_id
     assert "book.pdf" in pdf_chunks[0].chunk_id
     assert "book.epub" in epub_chunks[0].chunk_id
+
+
+# ── issue #49: 侧边栏框被误判成标题 ─────────────────────────────────────────
+
+def test_callout_box_tip_does_not_flush():
+    """真实案例（cpu-intro.pdf）：TIP侧边栏框被marker误判成# heading，
+    不该触发flush打断正在续接的句子。"""
+    c = Chunker()
+    elems = [
+        _el("In many operating systems, a common design paradigm is to separate."),
+        _el("# TIP: SEPARATE POLICY AND MECHANISM"),
+        _el("pointer are used to manage the stack for function parameters."),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+    assert "TIP: SEPARATE POLICY AND MECHANISM" in chunks[0].content
+    assert "pointer are used to manage the stack" in chunks[0].content
+
+
+def test_callout_box_crux_does_not_flush():
+    """真实案例（cpu-api.pdf）。"""
+    c = Chunker()
+    elems = [
+        _el("Some intro text before the crux box."),
+        _el("## CRUX: HOW TO CREATE AND CONTROL PROCESSES"),
+        _el("The reader should understand this by now."),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+
+
+def test_callout_box_aside_does_not_flush():
+    """真实案例（cpu-intro.pdf）。"""
+    c = Chunker()
+    elems = [
+        _el("The process list holds all the info the OS needs."),
+        _el("# ASIDE: DATA STRUCTURE — THE PROCESS LIST"),
+        _el("Every OS that we know of keeps some kind of process list."),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+
+
+def test_callout_box_lowercase_also_excluded():
+    """大小写不敏感——不是只认全大写。"""
+    c = Chunker()
+    elems = [
+        _el("Some intro text."),
+        _el("# Tip: use lowercase style"),
+        _el("This continues the same thought."),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 1
+
+
+def test_heading_word_containing_keyword_substring_still_flushes():
+    """词边界保护——真实标题里包含关键词子串（不是独立单词）不该被误伤。"""
+    c = Chunker()
+    elems = [
+        _el("Some intro text."),
+        _el("# Tipping Point Theory"),
+        _el("A new unrelated paragraph starts here."),
+    ]
+    chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+    assert len(chunks) == 2
+
+
+def test_callout_box_warning_caution_sidebar_also_excluded():
+    """WARNING/CAUTION/SIDEBAR是风险不对称原则加入的，当前语料没有真实案例，
+    用合成样例验证正则确实覆盖了这三个词（不是遗漏）。"""
+    c = Chunker()
+    for keyword in ("WARNING", "CAUTION", "SIDEBAR"):
+        elems = [
+            _el("Some intro text before the box."),
+            _el(f"# {keyword}: SOMETHING NOTEWORTHY"),
+            _el("The paragraph continues right here."),
+        ]
+        chunks = c.chunk(elems, book_id="b", source_file="f.pdf")
+        assert len(chunks) == 1, f"{keyword} 没有被正确排除"
