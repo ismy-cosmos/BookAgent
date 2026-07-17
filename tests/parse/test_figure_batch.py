@@ -113,7 +113,7 @@ def test_no_targets_no_client_no_release():
 # ── per_image_tokens 记录（真实 usage.prompt_tokens 回传）───────────────────
 
 def _fake_describe_with_usage(tokens):
-    def _inner(client, model, b64, prompt=None, on_usage=None):
+    def _inner(client, model, b64, prompt=None, options=None, on_usage=None):
         if on_usage is not None:
             usage = MagicMock()
             usage.prompt_tokens = tokens
