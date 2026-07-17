@@ -236,13 +236,22 @@ def test_real_executor_retrieve_citation_page_range(real_store):
     assert data[0]["citation"] == "f.pdf p.5-6"
 
 
-def test_real_executor_retrieve_citation_audio_mmss(real_store):
+def test_real_executor_retrieve_citation_audio_timestamp(real_store):
     from pipeline.agent.executor import RealExecutor
     _seed_chunk(real_store, chunk_id="b/a/0000", element_type="audio",
                 page_start=None, page_end=None, start_sec=75.0, end_sec=101.0)
     ex = RealExecutor(book_id="test-book", embedder=_FakeEmbedder(), store=real_store)
     data = json.loads(ex.execute("retrieve", {"query": "q"}))
-    assert data[0]["citation"] == "f.pdf 01:15-01:41"
+    assert data[0]["citation"] == "f.pdf 0:01:15-0:01:41"
+
+
+def test_real_executor_retrieve_citation_audio_over_one_hour(real_store):
+    from pipeline.agent.executor import RealExecutor
+    _seed_chunk(real_store, chunk_id="b/a/0000", element_type="audio",
+                page_start=None, page_end=None, start_sec=5430.0, end_sec=5445.5)
+    ex = RealExecutor(book_id="test-book", embedder=_FakeEmbedder(), store=real_store)
+    data = json.loads(ex.execute("retrieve", {"query": "q"}))
+    assert data[0]["citation"] == "f.pdf 1:30:30-1:30:45"
 
 
 def test_real_executor_retrieve_citation_no_location(real_store):
