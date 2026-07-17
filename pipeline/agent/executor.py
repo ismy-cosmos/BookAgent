@@ -319,10 +319,10 @@ def _format_citation(
 
 
 def _to_record(raw: dict) -> dict:
+    # source_file/citation 排在 content 前面：模型读到出处在读到正文之前，
+    # 降低"记混来源"的概率（issue #40 的失败案例是内容用对了、来源挂错了）。
     return {
         "chunk_id": raw["chunk_id"],
-        "content": raw["content"],
-        "element_type": raw.get("element_type"),
         "source_file": raw.get("source_file"),
         "citation": _format_citation(
             raw.get("source_file"),
@@ -331,6 +331,8 @@ def _to_record(raw: dict) -> dict:
             raw.get("start_sec"),
             raw.get("end_sec"),
         ),
+        "content": raw["content"],
+        "element_type": raw.get("element_type"),
         "low_confidence": raw.get("low_confidence", False),
         "score": raw.get("score"),
     }
