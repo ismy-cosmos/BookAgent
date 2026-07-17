@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getProgress } from "../api/client";
-import type { ProgressResponse } from "../api/types";
+import { getProgress } from "@/api/client";
+import type { ProgressResponse } from "@/api/types";
 
 // GET /progress 只是读内存字典（ImportQueue.get_progress()，加锁复制无 I/O），
 // 前后端都在本机 127.0.0.1，缩短轮询间隔不会有实质性能影响。500ms 是为了让

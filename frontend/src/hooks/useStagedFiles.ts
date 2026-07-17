@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { addStagedFile, listStagedFiles, removeStagedFile } from "../api/client";
-import { toErrorMessage } from "../errorMessage";
+import { addStagedFile, listStagedFiles, removeStagedFile } from "@/api/client";
+import { toErrorMessage } from "@/errorMessage";
 
 export function useStagedFiles(bookId: string) {
   const [files, setFiles] = useState<string[]>([]);

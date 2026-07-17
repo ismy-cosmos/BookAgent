@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ChatTurnRecord } from "../api/types";
-import { ask, getConversation } from "../api/client";
+import type { ChatTurnRecord } from "@/api/types";
+import { ask, getConversation } from "@/api/client";
 
 export function useChat(bookId: string, conversationId: string) {
   const [history, setHistory] = useState<ChatTurnRecord[]>([]);

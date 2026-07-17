@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { installQuitConfirmation } from "../quitConfirmation";
+import { installQuitConfirmation } from "@/quitConfirmation";
 
 // HomeView（退出整个应用）和 ChatView（关闭这一个聊天窗口）都要装一个
 // "关闭前先问一下"的监听器，判断标准不一样（前者看全局忙碌，后者只看

@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as client from "../api/client";
+import * as client from "@/api/client";
 import { ChatView } from "./ChatView";
 
 // ChatView 会装一个关闭确认监听器（跟 HomeView 同一套 installQuitConfirmation），

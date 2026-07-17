@@ -1,6 +1,6 @@
 import { ImportPanel } from "@/components/import/ImportPanel";
 import { FileList } from "@/components/import/FileList";
-import { useImportProgress } from "../hooks/useImportProgress";
+import { useImportProgress } from "@/hooks/useImportProgress";
 
 interface ImportViewProps {
   bookId: string;

@@ -1,14 +1,14 @@
 import { useCallback, useRef } from "react";
-import { useStatus } from "../hooks/useStatus";
-import { useImportProgress } from "../hooks/useImportProgress";
-import { useCloseConfirmation } from "../hooks/useCloseConfirmation";
+import { useStatus } from "@/hooks/useStatus";
+import { useImportProgress } from "@/hooks/useImportProgress";
+import { useCloseConfirmation } from "@/hooks/useCloseConfirmation";
 import { BookGrid } from "@/components/book/BookGrid";
 import { GlobalImportCapsule } from "@/components/import/GlobalImportCapsule";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Toast } from "@/components/shared/Toast";
-import { pauseImport } from "../api/client";
-import { destroyAllWindows, shouldConfirmQuit } from "../quitConfirmation";
-import type { Status } from "../api/types";
+import { pauseImport } from "@/api/client";
+import { destroyAllWindows, shouldConfirmQuit } from "@/quitConfirmation";
+import type { Status } from "@/api/types";
 
 export function HomeView() {
   const { status, unreachable } = useStatus();

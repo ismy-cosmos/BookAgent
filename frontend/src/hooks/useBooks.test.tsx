@@ -1,13 +1,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as client from "../api/client";
+import * as client from "@/api/client";
 import { useBooks } from "./useBooks";
 
-vi.mock("../windowManager", () => ({
+vi.mock("@/windowManager", () => ({
   closeBookWindows: vi.fn().mockResolvedValue(undefined),
   hasOpenWindows: vi.fn().mockResolvedValue(false),
 }));
-import { closeBookWindows, hasOpenWindows } from "../windowManager";
+import { closeBookWindows, hasOpenWindows } from "@/windowManager";
 
 afterEach(() => vi.restoreAllMocks());
 

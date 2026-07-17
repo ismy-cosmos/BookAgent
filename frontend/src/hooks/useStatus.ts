@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getStatus } from "../api/client";
-import type { Status } from "../api/types";
+import { getStatus } from "@/api/client";
+import type { Status } from "@/api/types";
 
 // 跟 useImportProgress.ts 的轮询间隔保持一致——/progress 的响应本来就是
 // /status 的超集（ProgressResponse extends Status），没有理由这两个轮询
