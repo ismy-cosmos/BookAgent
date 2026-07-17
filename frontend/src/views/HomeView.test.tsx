@@ -2,8 +2,8 @@ import { StrictMode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as client from "../api/client";
-import type { ProgressResponse } from "../api/types";
+import * as client from "@/api/client";
+import type { ProgressResponse } from "@/api/types";
 import { HomeView } from "./HomeView";
 
 // HomeView installs a real close-requested listener via
