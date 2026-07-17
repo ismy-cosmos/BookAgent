@@ -12,11 +12,11 @@
 - 已打好的接缝：`pipeline/agent/answer.py` 的 `answer()` 无状态入口 + `AnswerResult`/`ChatTurn`/`Citation` dataclass。
 - 范围提醒：官方任务书对交互的硬性要求只是"一键对话启动"，CLI（`scripts/ask_cli.py`）已经满足。GUI 前端对应评审维度里的"产品思维/用户体验闭环"，是加分项，不是必需交付物——排期时不要让它挤占被打分的核心管线与评测。
 
-### 进度（2026-07-09）
+### 进度（2026-07-17）
 
-- **后端 HTTP 层 + GPU 并发互斥锁（issue #20）+ 异步导入队列（issue #27）+ 前端 Plan A/B**：全部完成并合并进 `dev`（[PR #28](https://github.com/ismy-cosmos/BookAgent/pull/28)、[PR #29](https://github.com/ismy-cosmos/BookAgent/pull/29)、[PR #30](https://github.com/ismy-cosmos/BookAgent/pull/30)、[PR #31](https://github.com/ismy-cosmos/BookAgent/pull/31)）。同一批还修复了 chromadb 并发构造 bug、RAG 历史引用泄露/伪造 bug（[issue #17](https://github.com/ismy-cosmos/BookAgent/issues/17)，已关闭），npm→pnpm 迁移完成。
-- **已知未修的现有缺口**：GPU 互斥锁只做了单向防护——导入中会拒绝问答，但**回答生成期间无法阻止新导入开始**（`submit_import` 不检查 `busy`），可能引发真实显存争用，且无 CPU 降级兜底。设计意图见 `docs/superpowers/specs/2026-07-07-issue20-gpu-mutex-design.md`。需要单独排期修，未开 issue。
-- **前端多窗口大改（进行中）**：现有单窗口条件渲染的简陋界面（`<p><strong>Q:</strong>...</p>` 问答样式）要推倒重做——首页书库网格 + "导入文件"/"开始对话"各开独立 Tauri 窗口 + 对话窗口做成聊天气泡样式。设计已完成，spec 待用户复审：`docs/superpowers/specs/2026-07-09-frontend-multiwindow-redesign-design.md`（此文件不进 git，仅本地）。下一步走 writing-plans 出实现计划。
+- **后端 HTTP 层 + GPU 并发互斥锁（issue #20）+ 异步导入队列（issue #27）+ 前端 Plan A/B**：全部完成并合并进 `dev`（[PR #28](https://github.com/ismy-cosmos/BookAgent/pull/28)、[PR #29](https://github.com/ismy-cosmos/BookAgent/pull/29)、[PR #30](https://github.com/ismy-cosmos/BookAgent/pull/30)、[PR #31](https://github.com/ismy-cosmos/BookAgent/pull/31)）。同一批还修复了 chromadb 并发构造 bug、RAG 历史引用泄露/伪造 bug（issue #17 当时的初版修复；真实评测里后来又发现新的溯源可靠性问题，见下方 issue #17/#40），npm→pnpm 迁移完成。
+- **GPU 互斥锁单向防护缺口已修复**：曾经的已知缺口——回答生成期间无法阻止新导入开始——已通过 issue #36（忙碌锁改双向互斥+导入前释放 Ollama 驻留模型）修复，[PR #39](https://github.com/ismy-cosmos/BookAgent/pull/39)，2026-07-16 合并，issue 已关闭。
+- **前端多窗口大改：已全部完成并合并**。首页书库网格 + "导入文件"/"开始对话"独立 Tauri 窗口 + 对话窗口聊天气泡样式，四个计划全部落地：计划1 后端基础（[PR #32](https://github.com/ismy-cosmos/BookAgent/pull/32)）、计划2 窗口壳层+首页（[PR #33](https://github.com/ismy-cosmos/BookAgent/pull/33)）、计划3 导入文件窗口（[PR #35](https://github.com/ismy-cosmos/BookAgent/pull/35)）、计划4 对话窗口重做（[PR #37](https://github.com/ismy-cosmos/BookAgent/pull/37)）。对话窗口 markdown 渲染同批补上（[PR #38](https://github.com/ismy-cosmos/BookAgent/pull/38)）。遗留的前端代码卫生项（`components/` 按领域重组、`../` import 改 `@` 别名）也已收尾（PR #46、#47）。
 - **`ask` 接口改流式（2026-07-10 讨论，明确排除在这次多窗口大改之外）**：现有 `POST .../ask` 是同步接口，等模型把多轮工具调用+最终回答全部跑完才一次性返回，所以"关闭对话窗口就中断回答"这种效果做不到——这本质是流式架构才有的副作用（连接断开→服务端检测到没人收→停止继续生成），不是加个取消接口能简单补上的。要做到这个效果需要把 `ask` 改成 SSE/chunked 流式响应，`OllamaAgentClient` 支持流式输出，前端气泡改成逐字/逐块更新——后端+前端都要改，是一个真正的新能力，不是小修复。这次多窗口大改明确决定不做，先接受"关窗口后台照跑、回答仍会存进对话历史"这个现状（跟已有的"关闭子窗口不打断后端"设计一致）。触发条件：产品侧明确要"打字机效果"或"关窗口真的能停止生成"时再排期。
 
 ## reranker 精排
