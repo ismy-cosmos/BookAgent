@@ -278,3 +278,64 @@ class Chunker:
 
         flush()
         return chunks
+
+
+_AUDIO_MAX_TOKENS = 256  # 音频chunk目标token上限，不同于文本的512——见spec
+
+
+def pack_audio_segments(
+    segments: list[dict],
+    book_id: str,
+    source_file: str,
+    max_tokens: int = _AUDIO_MAX_TOKENS,
+) -> list[Chunk]:
+    """贪心合并 WhisperX segment 成接近 max_tokens 的 Chunk。
+
+    每个 segment: {"text": str, "start": float, "end": float, "score": float}。
+    score 是该 segment 自己的平均置信度（未经 <0.6 阈值判断的原始分数）。
+    """
+    chunks: list[Chunk] = []
+    buf: list[dict] = []
+    buf_tok = 0
+    seq = 0
+
+    def flush() -> None:
+        nonlocal buf, buf_tok, seq
+        if not buf:
+            return
+        content = " ".join(s["text"] for s in buf)
+        weight_sum = sum(s["tok"] for s in buf)
+        weighted_score = (
+            sum(s["score"] * s["tok"] for s in buf) / weight_sum
+            if weight_sum else 1.0
+        )
+        chunks.append(Chunk(
+            chunk_id=f"{book_id}/{Path(source_file).name}/{seq:04d}",
+            book_id=book_id,
+            source_file=source_file,
+            element_type="audio",
+            content=content,
+            token_count=_token_count(content),
+            page_start=None,
+            page_end=None,
+            start_sec=buf[0]["start"],
+            end_sec=buf[-1]["end"],
+            low_confidence=weighted_score < 0.6,
+        ))
+        seq += 1
+        buf = []
+        buf_tok = 0
+
+    for seg in segments:
+        text = seg["text"].strip()
+        if not text:
+            continue
+        tok = _token_count(text)
+        if buf and buf_tok + tok > max_tokens:
+            flush()
+        buf.append({"text": text, "start": seg["start"], "end": seg["end"],
+                     "score": seg.get("score", 1.0), "tok": tok})
+        buf_tok += tok
+    flush()
+
+    return chunks
