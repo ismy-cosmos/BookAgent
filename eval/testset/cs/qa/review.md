@@ -63,16 +63,16 @@
 | cs-b033 | 计算题 | 中 | 在读-改-写三条指令模型（load到寄存器、寄存器加一、写回内存）下，两个线程各对同一个counter变量执行1000次自增、完全不加锁，counter最终值可能的范围是多少？（2026-07-20改用书中「三条指令」的具体表述重出，原版泛泛提"counter++"跟java-ch1-e2e.epub的共享可变状态讨论概念级碰撞，噪音从80%降到20%） | threads-intro.pdf p9-p11 竞态条件分析（推导题） |
 | cs-b034 | 无答案题 | EN | How exactly do coroutines implement cooperative switching between multiple execution flows within a single thread? | threads-intro.pdf（本章及本次ingest全部语料均未涉及协程coroutine，coroutine/green thread/async/fiber在整个语料库里均0命中） |
 
-## threads-api.pdf（6 条）
+## threads-api.pdf（6 条，2026-07-20用cs-eval库真实审查过；3条英文/3条中文，中英各类型均有覆盖）
 
-| ID | 类型 | 问题 | 来源定位 |
-|---|---|---|---|
-| cs-b035 | 事实题 | pthread_create() 的四个参数分别是什么？ | threads-api.pdf p1 Thread Creation |
-| cs-b036 | 事实题 | pthread_join() 的作用是什么？是否所有多线程程序都必须调用它？ | threads-api.pdf p2-p3, p5 Thread Completion |
-| cs-b037 | 事实题 | 使用条件变量等待某个条件时，为什么书中建议用 while 循环重新检查条件，而不是用一次性的 if 判断？ | threads-api.pdf p8 One Last Oddity |
-| cs-b038 | 事实题 | POSIX 线程库提供了哪两种初始化互斥锁（mutex）的方式？ | threads-api.pdf p6 Locks 初始化 |
-| cs-b039 | 计算题 | 以下加锁代码有两处问题，分别是什么？ pthread_mutex_t lock; pthread_mutex_… | threads-api.pdf p6 Locks（破损示例代码分析） |
-| cs-b040 | 无答案题 | threads-api 这章详细讲解了读写锁（pthread_rwlock）的使用吗？ | threads-api.pdf（本章只讲 mutex 与 condition variable 基本 API，未提及读写锁） |
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b035 | 事实题 | EN | What are the four parameters of pthread_create()? | threads-api.pdf p1 Thread Creation |
+| cs-b036 | 事实题 | 中 | pthread_join() 的作用是什么？是否所有多线程程序都必须调用它？ | threads-api.pdf p2-p3, p5 Thread Completion |
+| cs-b037 | 事实题 | EN | When waiting on a condition variable, why does the book recommend rechecking the condition in a while loop instead of using a one-time if check? | threads-api.pdf p8 One Last Oddity |
+| cs-b038 | 事实题 | 中 | POSIX 线程库提供了哪两种初始化互斥锁（mutex）的方式？ | threads-api.pdf p6 Locks 初始化 |
+| cs-b039 | 计算题 | 中 | 以下加锁代码有两处问题，分别是什么？ pthread_mutex_t lock; pthread_mutex_… | threads-api.pdf p6 Locks（破损示例代码分析） |
+| cs-b040 | 无答案题 | EN | If multiple threads mostly just read shared data and rarely write to it, how exactly does pthread's read-write lock (rwlock) let multiple readers hold the lock at the same time and only enforce exclusion when a writer needs it? | threads-api.pdf（本章及本次ingest全部语料均未涉及读写锁rwlock，rwlock/read-write lock/reader-writer在整个语料库里均0命中） |
 
 ## vm-paging.pdf（8 条）
 

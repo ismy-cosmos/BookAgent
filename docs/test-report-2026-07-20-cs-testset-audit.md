@@ -677,6 +677,116 @@
 **回答是否准确：不准确，幻觉**。5个chunk没有一个提到协程，但模型给出了完整、具体的协程实现细节——yield机制、状态保存、调度器维护ready队列、甚至提到"In languages like Python, coroutines are implemented using generators or async/await constructs"，全部是训练知识编造。
 
 **具体分析**：跟cs-b014、cs-b023同类，都是"检索完全不相关但模型自己对这个常识性CS概念有强训练知识"导致的自信编造。这道题的话题选择本身没问题（避开了元提问模板，也确认了语料库里真实0命中），说明"换成自然问法"能避开"关键词表面碰撞"这类陷阱（详见"遇到的问题"第10条），但避不开"模型自己就懂这个概念、不需要书本依据也能编出一套像模像样的解释"这类幻觉——这是issue #40要处理的核心场景，不是题目设计能解决的。
+---
+
+## threads-api.pdf 章节（Task 8，2026-07-20）
+
+### cs-b035
+
+**题目**："What are the four parameters of pthread_create()?"
+
+**检索query**："four parameters of pthread_create()"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `threads-api.pdf/p0002/0004`（int参数的备选声明形式，非本题四参数） | 0.3648 | 不能 |
+| `threads-api.pdf/p0002/0009`（pthread_join声明，非本题） | 0.3679 | 不能 |
+| `threads-api.pdf/p0001/0002`（pthread_create原始声明） | 0.3721 | 能，核心论据 |
+| `threads-api.pdf/p0002/0006`（void指针参数的备选声明形式，非本题） | 0.3786 | 不能 |
+| `threads-api.pdf/p0001/0003`（逐个解释thread/attr/start_routine/arg四个参数含义） | 0.4172 | 能，最直接支撑 |
+
+**回答是否准确**：准确，四个参数的类型和含义全部答对。
+
+**具体分析**：最直接支撑答案的chunk（`p0001/0003`）排名第5、score反而最高，两个真正相关的chunk一头一尾，中间3个都是同一函数不同参数组合的备选声明示例（`pthread_create`重载写法），score跟真正相关内容差距很小（0.365~0.379 vs 0.372/0.417），排序区分度不高，但答案本身没受影响。
+
+### cs-b036
+
+**题目**："pthread_join() 的作用是什么？是否所有多线程程序都必须调用它？"
+
+**检索query**："pthread_join() 的作用以及在多线程程序中是否必须调用"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `threads-api.pdf/p0002/0009`（pthread_join函数声明） | 0.2721 | 部分能 |
+| `threads-api.pdf/p0005/0017`（完整说明：阻塞等待+web server可不join的例子） | 0.2934 | 能，最直接支撑 |
+| `threads-api.pdf/p0003/0011`（join两个参数的具体含义） | 0.3532 | 部分能 |
+| `threads-api.pdf/p0007/0032`（pthread_cond_wait/signal声明，非本题） | 0.3548 | 不能 |
+| `threads-intro.pdf/p0002/0003`（为什么用线程的一般性动机，跨章节无关） | 0.3690 | 不能 |
+
+**回答是否准确**：准确，阻塞等待+取返回值的作用讲对，"web server这类长期运行程序可以不join、任务型程序通常需要join"的举例跟书中原文（`p0005/0017`）几乎一一对应。
+
+**具体分析**：最直接支撑答案的chunk排名第2且score最低，检索质量良好，5个chunk里3个真实相关。
+
+### cs-b037
+
+**题目**："When waiting on a condition variable, why does the book recommend rechecking the condition in a while loop instead of using a one-time if check?"
+
+**检索query**："why use while loop for condition variable wait instead of if statement"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `threads-api.pdf/p0008/0037`（原文："re-checks the condition in a while loop, instead of a simple if statement...using a while loop is the simple and safe thing to do"） | 0.3633 | 能，核心论据 |
+| `threads-api.pdf/p0007/0033`（cond_wait基本定义） | 0.3887 | 部分能 |
+| `threads-api.pdf/p0008/0035`（等待代码示例） | 0.4054 | 部分能 |
+| `threads-api.pdf/p0008/0038`（改写成spin-wait的对比写法） | 0.4169 | 不能 |
+| `threads-api.pdf/p0007/0031`（条件变量总体介绍） | 0.4206 | 不能 |
+
+**回答是否准确**：基本准确，"while循环重新检查、避免虚假唤醒（spurious wakeup）导致误判"这个结论正确，但检索到的核心chunk（`p0008/0037`）原文只说"我们后面章节再详细讨论这个问题，但用while循环是安全的做法"，并没有出现"spurious wakeup"这个术语或具体机制解释——这部分是模型自己补充的标准术语和原理，不是本次ingest语料明确写出的内容。
+
+**具体分析**：核心chunk排名第1，检索质量正常。回答准确但存在部分内容（spurious wakeup机制）依赖模型自身知识而非检索文本这一情况，跟"遇到的问题"第7条类似的浅层部分依赖模式，但这里不算幻觉——因为这确实是while写法在通用pthread语境下公认的正确原因，跟检索到的"用while是安全做法"结论方向一致，不矛盾。
+
+### cs-b038
+
+**题目**："POSIX 线程库提供了哪两种初始化互斥锁（mutex）的方式？"
+
+**检索query**："POSIX线程库中互斥锁（mutex）的两种初始化方式"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `threads-api.pdf/p0006/0023`（静态初始化PTHREAD_MUTEX_INITIALIZER） | 0.3612 | 能，核心论据 |
+| `threads-api.pdf/p0007/0034`（静态初始化的典型用法示例） | 0.3936 | 部分能 |
+| `threads-api.pdf/p0005/0019`（lock/unlock函数声明，非初始化） | 0.4072 | 不能 |
+| `threads-api.pdf/p0006/0025`（动态初始化pthread_mutex_init） | 0.4093 | 能，核心论据 |
+| `threads-api.pdf/p0006/0022`（引出"POSIX提供两种初始化锁的方式"这句原文） | 0.4192 | 能，引出论点 |
+
+**回答是否准确**：准确，静态（`PTHREAD_MUTEX_INITIALIZER`）+ 动态（`pthread_mutex_init()`）两种方式都答对，示例代码跟原文一致。
+
+**具体分析**：5个chunk里4个真实相关，检索质量良好。
+
+### cs-b039
+
+**题目**："以下加锁代码有两处问题，分别是什么？`pthread_mutex_t lock; pthread_mutex_lock(&lock); x = x + 1; pthread_mutex_unlock(&lock);`"
+
+**检索query**："C语言中 pthread_mutex_lock 的正确使用方式和常见错误"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `threads-api.pdf/p0007/0034`（正确初始化的典型用法示例） | 0.2347 | 部分能 |
+| `threads-api.pdf/p0006/0023`（静态初始化写法） | 0.2552 | 能，支撑问题1 |
+| `threads-api.pdf/p0005/0019`（lock/unlock函数声明） | 0.2756 | 不能 |
+| `threads-api.pdf/p0006/0021`（题目代码本身的原文出处，逐字一致） | 0.2792 | 能，核心论据 |
+| `threads-api.pdf/p0006/0025`（动态初始化+`assert(rc==0)`检查返回值） | 0.2835 | 能，支撑问题2 |
+
+**回答是否准确**：准确，正确指出①未初始化锁、②未检查lock/unlock调用是否成功两处问题，跟标准答案一致。
+
+**具体分析**：题目代码逐字取自`p0006/0021`原文（score最低、排名第4但内容精确匹配），5个chunk全部来自本章且都跟两处bug直接或间接相关，检索质量良好，回答里补充给出的"修正后代码"额外加了错误处理，属于合理延伸，不影响准确性判断。
+
+### cs-b040
+
+**题目**："If multiple threads mostly just read shared data and rarely write to it, how exactly does pthread's read-write lock (rwlock) let multiple readers hold the lock at the same time and only enforce exclusion when a writer needs it?"（出题前已核实`rwlock`/`read-write lock`/`reader-writer`在整个语料库里均0命中）
+
+**检索query**（触发3次retrieve，语义高度重复，均在"rwlock允许多读者/写者互斥"这一个意思上换措辞）：
+1. "pthread read-write lock mechanism for allowing multiple readers while enforcing exclusive access for writers"
+2. "how pthread read-write lock (rwlock) allows multiple readers concurrently while ensuring exclusive access for writers"
+3. "implementation details of pthread read-write lock (rwlock) for concurrent reading and exclusive writing"
+
+15个citation（含大量重复，实际去重后6个不同chunk：`p0007/0028`、`p0006/0023`、`p0007/0034`、`p0005/0019`、`p0009/0045`、`p0006/0021`），score集中在0.35~0.47，全部是mutex/condition variable相关内容，没有一个涉及rwlock。
+
+**回答是否准确：文字表述诚实，但引用标记具有误导性**。模型正文明确写道："The retrieved results still do not contain information about the implementation details of pthread_rwlock_t... Since I cannot find specific information in the provided documents, I will explain the general concept... based on standard knowledge"——清楚承认检索无关、后续内容纯靠通用知识。但由于`citations`列表非空（retrieve确实返回了内容，即便不相关），回答末尾仍被机械挂上`[引用来源：...]`标签，跟正文的诚实免责声明相矛盾。
+
+**具体分析**：这是本轮审查见到的模型在文字表达上最诚实的一次无答案题应对——3次换角度检索确认真的找不到后，没有像cs-b014、cs-b023、cs-b034那样自信编造，而是清楚区分"检索到的内容"和"我基于通用知识的补充"。真正的问题出在引用标签机制上，见"遇到的问题"第13条。
+
+
 ## 遇到的问题（跨题目共性发现）
 
 ### 1. 跨语言查询对检索分数有显著、可复现的影响
@@ -749,3 +859,11 @@ cs-b027是典型案例：题目问两个独立队列的CPU各自完成任务的�
 ### 12. 话题在概念层面跨书重叠时，贴近书本具体表述能显著降低跨书污染
 
 cs-b029（threads-intro.pdf事实题）5个citation里4个（80%）是`java-ch1-e2e.epub`内容，是本轮观察到的高噪音案例——原因是"多线程"这个话题本身在OS书和Java书里都有概念级讨论（OS讲并行/I/O重叠动机，Java讲流并行/共享可变状态），泛化的问法容易两边都命中。cs-b033原本问"counter++"这种通用编程概念时也遇到同样问题（80%噪音，最终数值答案`[1000,2000]`碰巧正确但推导过程明显不连贯，出现"1000+1000-1000=1000"这类凑数表述）；改用书中"读-改-写三条指令"这个具体表述重出后，噪音降到20%，两个核心chunk排到前2名，推导过程也变得连贯清晰（正确给出通用公式`[N,2N]`再代入数值）。这证明**贴近书本身具体术语/机制描述、避免泛化到通用CS概念层面**，能有效缓解这类"话题本身跨书重叠"导致的污染——跟"遇到的问题"第1条（优先用原文术语）是同一个机制在起作用，cs-b033是一个具体、可复现的修复案例。
+
+### 13. 引用标签是否挂出，只看retrieve有没有返回内容，不看模型正文自己怎么说
+
+`pipeline/agent/answer.py`的`_append_tool_tags`逻辑是纯机械化的：`tags = [_citation_tag(citations) if citations else NO_CITATION_TAG]`，只判断这一轮`citations`列表是否非空，完全不解析模型正文里的措辞。cs-b040是这个逻辑产生矛盾结果的实例——检索到的5个chunk全部跟问题（rwlock）无关，模型正文明确写出"the retrieved results still do not contain information about...I will explain the general concept...based on standard knowledge"，诚实承认没有依据；但因为`citations`非空（retrieve确实返回了东西，只是不相关），回答末尾仍被挂上`[引用来源：...]`标签，视觉上像是这段话有书本依据。
+
+这大概率是有意为之：不能信模型自己嘴上说"我用了/没用工具"，只认"是否真的调用了retrieve并拿到非空结果"这个硬事实，防的是模型编造工具使用记录本身。但这个机制回答的是"retrieve有没有被调用且非空"，跟"返回的内容是否真的支撑了这个答案"是两个不同的问题——当前实现把二者划了等号。修复这个问题依赖的是retrieve返回内容的相关性判断能力，是issue #40（相关性阈值/rerank）要解决的同一类问题，不需要现在改标签逻辑本身，留到rerank阶段一并处理。
+
+
