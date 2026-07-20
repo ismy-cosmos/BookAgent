@@ -382,5 +382,62 @@
   "cs-b058": {
     "chunk_ids": [],
     "method": "no_location_expected"
+  },
+  "cs-b059": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0004/0015",
+      "cs-eval/java-ch1-e2e.epub/p0003/0006"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b060": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0003/0006"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b061": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0004/0018"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b062": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0005/0035"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b063": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0004/0025"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b064": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0008/0084"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b065": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0007/0081"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b066": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0006/0071"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b067": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b068": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
   }
 }

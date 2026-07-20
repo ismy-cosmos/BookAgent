@@ -110,3 +110,18 @@
 | cs-a04 | 计算题 | 中 | 运行两个 cpu.c 实例后，系统空闲率变为约 50%。据此推断该机器有多少个虚拟核心？ | 音频 segment-01 04:07–04:29（打包后位于segment-01.mp3/0003） |
 | cs-a05 | 无答案题 | 中 | 在这段 demo 中，Remzi 用 top 查看了哪些内存统计数据？ | 音频 segment-01（全段均无内存数据细节，原文明确说"memory stats, which we are not going to look at at all"） |
 
+## java-ch1-e2e.epub（10 条，新增，2026-07-20用cs-eval库真实审查过；4条英文/6条中文；仅覆盖epub第1章内容，事实题/计算题/无答案题均有覆盖）
+
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b059 | 事实题 | 中 | 书中总结指出，是哪两个迫切需求催生了Java 8的整套新特性？ | java-ch1-e2e.epub §1.1 为什么要关心Java的变化（见"遇到的问题"新增条目——检索到的chunk本可支撑正确答案，但模型误把"简洁代码"替换成了原文里另一个不同的驱动因素"大型系统设计演进"） |
+| cs-b060 | 事实题 | 中 | Stream API的加入，直接导致Java 8同时引入了哪两项配套功能？ | java-ch1-e2e.epub §1.1 为什么要关心Java的变化 |
+| cs-b061 | 事实题 | EN | The book compares Stream to Unix pipe commands like cat/tr/sort/tail. What point about how Stream processes data is this analogy meant to illustrate? | java-ch1-e2e.epub §1.2.2 流处理 |
+| cs-b062 | 事实题 | 中 | 方法引用（如 File::isHidden）相比 Java 8 之前用 FileFilter 匿名类实现同样的筛选功能，好处是什么？ | java-ch1-e2e.epub §1.3.1 方法和Lambda作为一等值（见"遇到的问题"新增条目——回答额外补充了书中未提及的"性能提升""类型安全"两点） |
+| cs-b063 | 事实题 | EN | Why is the absence of shared mutable data a precondition for Stream's "almost free parallelism" to actually work? | java-ch1-e2e.epub §1.2.4 并行与共享的可变数据；图1-5示例 |
+| cs-b064 | 事实题 | 中 | Optional<T> 是为了解决Java中的什么经典问题而引入的？ | java-ch1-e2e.epub §1.6 来自函数式编程的其他好思想 |
+| cs-b065 | 事实题 | 中 | Java 8引入默认方法（default method），是为了解决接口演化过程中的什么困境？ | java-ch1-e2e.epub §1.5 默认方法及Java模块 |
+| cs-b066 | 计算题 | 中 | 书中举的两个线程同时对共享变量sum加数的例子里，sum初始值为100，线程1执行sum=sum+3，线程2执行sum=sum+5。如果没有竞态条件、按顺序正确执行这两次加法，sum最终应该是多少？ | java-ch1-e2e.epub §1.2.4 并行与共享的可变数据；图1-5示例 |
+| cs-b067 | 无答案题 | EN | How does Stream's reduce operation actually combine multiple elements into a single result? | java-ch1-e2e.epub（第1章只在提到filter类操作时顺带点名map、reduce这两个词，未展开解释具体机制，留待第4~7章） |
+| cs-b068 | 无答案题 | EN | If a class implements multiple interfaces that each provide a default method with the same signature, what specific rule does Java use to resolve the conflict? | java-ch1-e2e.epub（第1章只说"Java 8用一些限制来避免出现类似于C++中臭名昭著的菱形继承问题"，明确把具体规则留给第13章，未在本章展开） |
+
