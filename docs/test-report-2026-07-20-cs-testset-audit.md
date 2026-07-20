@@ -786,6 +786,168 @@
 
 **具体分析**：这是本轮审查见到的模型在文字表达上最诚实的一次无答案题应对——3次换角度检索确认真的找不到后，没有像cs-b014、cs-b023、cs-b034那样自信编造，而是清楚区分"检索到的内容"和"我基于通用知识的补充"。真正的问题出在引用标签机制上，见"遇到的问题"第13条。
 
+---
+
+## vm-paging.pdf 章节（Task 9，2026-07-20）
+
+### cs-b041
+
+**题目**："In paging, what is the difference between a page and a page frame?"
+
+**检索query**："difference between a page and a page frame in paging"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-paging.pdf/p0006/0016`（线性页表+valid bit，非本题重点） | 0.3964 | 部分能 |
+| `vm-paging.pdf/p0003/0005`（page table记录虚拟页到物理帧的映射） | 0.4146 | 部分能 |
+| `vm-paging.pdf/p0012/0039`（分页优势总结） | 0.4232 | 不能 |
+| `vm-paging.pdf/p0002/0003`（page frame固定大小槽位介绍） | 0.4288 | 能，核心论据 |
+| `vm-paging.pdf/p0005/0012`（Figure 18.4页表映射图示） | 0.4349 | 能，核心论据 |
+
+**回答是否准确**：准确，page是虚拟地址空间的逻辑单位、page frame是物理内存的实际单位这一区别讲对，还引用了原文Figure 18.2的具体映射例子。
+
+**具体分析**：5个chunk全部来自本章，虽然score普遍不低（0.40~0.43，排序区分度一般），但都跟分页机制相关，无跨书/跨章节污染。
+
+### cs-b042
+
+**题目**："一个虚拟地址在分页系统中如何被划分为 VPN 和 offset？"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-paging.pdf/p0004/0011`（Figure 18.3地址转换流程图示） | 0.2594 | 部分能 |
+| `vm-paging.pdf/p0004/0009`（21=010101的具体划分示例） | 0.2737 | 能，核心论据 |
+| `vm-paging.pdf/p0003/0007`（VPN/offset位划分表格） | 0.2770 | 能，核心论据 |
+| `vm-paging.pdf/p0004/0008`（2位VPN+4位offset的推导） | 0.2902 | 能，核心论据 |
+| `vm-paging.pdf/p0008/0024`（VPN_MASK/SHIFT实现细节） | 0.3088 | 部分能 |
+
+**回答是否准确**：准确，高位VPN+低位offset的划分原则讲对，还用书中同一个例子（21=010101，页大小16字节）复现了完整推导过程。
+
+**具体分析**：5个chunk全部真实相关，检索质量良好。
+
+### cs-b043
+
+**题目**："What is the role of the valid bit in a page table entry (PTE)?"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-paging.pdf/p0006/0016`（valid bit定义+trap行为） | 0.3179 | 能，核心论据 |
+| `vm-paging.pdf/p0007/0017`（x86 PTE位结构图示，非valid bit本身） | 0.3422 | 部分能 |
+| `vm-paging.pdf/p0007/0019`（x86中valid/present bit合并的细节） | 0.3594 | 能 |
+| `vm-paging.pdf/p0007/0018`（protection/present/dirty/reference等其他位，非valid bit） | 0.3816 | 不能 |
+| `vm-paging.pdf/p0005/0014`（页表体积讨论，非valid bit） | 0.4678 | 不能 |
+
+**回答是否准确**：准确，valid bit的作用（标记转换是否有效、触发trap、支持稀疏地址空间节省内存）全部答对，还补充了x86里valid/present bit合并的细节，跟检索到的chunk一致。
+
+**具体分析**：核心chunk排名第1，检索质量良好。
+
+### cs-b044
+
+**题目**："为什么书中说最朴素的分页机制会让内存访问变慢？"
+
+**检索query**："最朴素的分页机制如何导致内存访问变慢"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-paging.pdf/p0005/0014`（32位系统页表体积推导） | 0.4036 | 部分能 |
+| `vm-paging.pdf/p0012/0039`（分页优缺点总结） | 0.4121 | 部分能 |
+| `vm-paging.pdf/p0008/0020`（引出"页表也会拖慢速度"） | 0.4189 | 能 |
+| `vm-paging.pdf/p0009/0028`（原文明确写"factor of two or more"） | 0.4254 | 能，最直接支撑 |
+| `vm-paging.pdf/p0006/0016`（线性页表组织方式，非速度问题） | 0.4315 | 不能 |
+
+**回答是否准确**：准确，正确指出每次访存需要先查一次页表再访问真正目标地址，逐字引用了原文"Extra memory references are costly, and in this case will likely slow down the process by a factor of two or more"。
+
+**具体分析**：最直接支撑答案的chunk排名第4，但内容本身足够清楚，回答未受排序影响。
+
+### cs-b045
+
+**题目**："According to the book's summary, what fragmentation-related advantage does paging have over previous approaches like segmentation, and why?"
+
+**检索query**："paging vs segmentation in terms of fragmentation advantages"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-paging.pdf/p0012/0039`（分页优势总结，明确写不产生external fragmentation） | 0.3055 | 能，核心论据 |
+| `vm-segmentation.pdf/p0010/0028`（分段产生外部碎片的具体原因） | 0.3624 | 能，对比论据 |
+| `vm-paging.pdf/p0001/0000`（分页/分段两种思路的引入） | 0.4212 | 部分能 |
+| `vm-paging.pdf/p0002/0003`（固定大小槽位介绍） | 0.4308 | 部分能 |
+| `vm-segmentation.pdf/p0001/0001`（分段机制定义） | 0.4398 | 部分能 |
+
+**回答是否准确**：准确，"分页不产生外部碎片、因为固定大小单元不存在大小不匹配问题"这个核心论点讲对，跨章节引用`vm-segmentation.pdf`解释分段为什么会产生外部碎片是合理的对比论据，不算污染。
+
+**具体分析**：核心chunk排名第1，跨书chunk服务于对比论证，检索质量良好。
+
+### cs-b046
+
+**题目**："系统使用 32 位虚拟地址，页大小 4KB（2^12 字节），按书中地址划分方法，VPN 占多少位？页表最多需要多少个条目？"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-paging.pdf/p0004/0008`（书中64字节小例子的划分方法，非本题数值） | 0.2814 | 部分能，仅示范方法 |
+| `vm-paging.pdf/p0010/0036`（数组VPN范围例子，非本题） | 0.2927 | 不能 |
+| `vm-paging.pdf/p0005/0014`（32位系统4KB页示例：20位VPN、2^20条目，跟题目数值完全一致） | 0.3037 | 能，核心论据 |
+| `vm-paging.pdf/p0003/0007`（VPN/offset划分表格） | 0.3401 | 部分能 |
+| `vm-paging.pdf/p0001/0001`（书中小例子的引入） | 0.3474 | 不能 |
+
+**回答是否准确**：准确，VPN=20位、页表最多2^20个条目，跟标准答案完全一致，推导过程清晰。
+
+**具体分析**：核心chunk（`p0005/0014`）里的数值（32位地址、4KB页、20位VPN、2^20条目）跟题目设问逐字对应，检索质量良好。这道题是简单的减法+乘方运算，**没有调用calculate工具**，回答自己直接算出32-12=20、2^20=1,048,576，属于个位数量级以外但仍然是模型可靠心算范围内的运算，不算问题（呼应"遇到的问题"第8条已确立的判断标准）。
+
+### cs-b047
+
+**题目**："Following the same style as the book's example: with a 64-byte virtual address space and 16-byte pages, what are the VPN and offset for virtual address 21 (binary 010101)? If that VPN maps to page frame PFN=5, what is the physical address?"
+
+**检索query**："virtual address space with 64-byte size and 16-byte pages: how to calculate VPN and offset from a virtual address"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-paging.pdf/p0004/0008`（2位VPN+4位offset推导） | 0.2020 | 能，核心论据 |
+| `vm-paging.pdf/p0003/0007`（VPN/offset划分表格） | 0.2041 | 部分能 |
+| `vm-paging.pdf/p0003/0006`（64字节地址空间需6位总长的推导） | 0.2579 | 能，核心论据 |
+| `vm-paging.pdf/p0004/0009`（21=010101的具体划分示例，逐字对应题目数值） | 0.2644 | 能，最直接支撑 |
+| `vm-paging.pdf/p0008/0024`（VPN_MASK/SHIFT实现细节，同样用21举例） | 0.2726 | 能 |
+
+**回答是否准确：不稳定，会出现完全没有答案的情况**。检索到的5个chunk全部真实相关、其中一个逐字包含题目用到的具体数值（虚拟地址21、二进制010101），检索链路没有问题。但同一道题独立测试4次，**全部触发`MAX_ROUNDS_EXCEEDED`**（管线5轮工具调用耗尽，没有产出任何文字回答）。用带工具调用日志的诊断脚本复现后确认根因：模型选择用二进制字符串解析的方式做计算——依次尝试`0b010101 >> 4`（位移）、`int('010101', 2) // 16`（函数调用）等表达式，但`calculate`工具的表达式沙箱只允许四则运算符（`+ - * / // % **`），不允许位移和函数调用，每次都返回明确的中文错误（"不允许的操作: RShift"/"不允许的操作: Call"）。模型收到这个明确反馈后没有调整策略，反复用不同写法重试同一种被禁止的思路，而不是退回十进制算术（`21 // 16`、`21 % 16`，这是允许的运算），最终5轮全部耗尽在这个死循环上。**把题目原样改回中文表述后，3次独立测试全部正常给出正确答案（85）**，检索到的chunk跟英文版一致。这不是提示词没写清楚"允许什么"——`calculate`工具的description已经明确写了"只能包含数字和四则运算符...不允许函数调用或变量"，问题在于模型没有利用工具返回的明确错误信息调整方法，是模型自身工具纠错能力的问题，跟语言措辞的具体关联机制未深入验证。
+
+**具体分析**：这是本轮审查里最严重的"完全无答案"案例——不同于cs-b013/cs-b022那种"答案不稳定但最终有结果"，这道题触发的是管线彻底无输出。跟"遇到的问题"第8条（计算题执行质量问题）同属工具调用/生成稳定性范畴，与issue #40（检索相关性）无关，但因其复现率高（英文4/4失败、中文3/3+首次共4/4成功）、根因明确（工具沙箱语法限制+模型未利用错误反馈调整策略），是本轮记录里最值得后续单独跟进的稳定性问题，详见"遇到的问题"新增条目。
+
+### cs-b048（原无答案题，因ground truth本身矛盾已改判为事实题）
+
+**题目**："为什么页表不直接存放在 MMU 芯片上的专用硬件里，而是存放在内存中？书中提到的最简单的页表组织形式是怎样工作的？"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-paging.pdf/p0006/0015`（原文："we don't keep any special on-chip hardware in the MMU...we store the page table for each process in memory"） | 0.3047 | 能，核心论据 |
+| `vm-segmentation.pdf/p0003/0005`（分段MMU硬件结构，跨章节非本题） | 0.4221 | 不能 |
+| `vm-paging.pdf/p0006/0016`（线性页表定义：数组+VPN索引+PTE查PFN） | 0.4242 | 能，核心论据 |
+| `vm-paging.pdf/p0002/0003`（page frame固定槽位介绍） | 0.4439 | 不能 |
+| `vm-paging.pdf/p0003/0005`（free list管理空闲页帧，非本题） | 0.4441 | 不能 |
+
+**回答是否准确**：准确，页表太大以至于MMU没有片上专用硬件、因此存放在内存中的原因讲对，线性页表（数组+VPN索引+查PTE取PFN）的工作方式也讲对。
+
+**具体分析**：这道题原为无答案题（"vm-paging这章详细介绍了多级页表的具体实现吗"），但`ground_truth_bookagent.json`里这道题早已标注了真实chunk_id（`p0006/0015`、`p0006/0016`），跟"无答案题"分类自相矛盾——这两个chunk真实存在且内容具体，只是回答的不是"多级页表实现细节"（书中确实没有），而是"页表为什么存内存里、最简单的组织形式是什么"这个相邻但不同的问题。按无答案题的判定标准，若某个话题下能找到chunk支撑，就说明当初题目或分类出错，此处属于分类错误：已把题目改写成这两个chunk真正能回答的问题，`question_type`相应改为事实题。
+
+### cs-b058（新增无答案题）
+
+**题目**："To avoid paying the extra memory access needed to walk the page table on every single memory reference, does the hardware use a small on-chip cache that holds recently used virtual-to-physical translations, and if so, how does it decide when a cached translation can still be reused versus when it needs to be re-fetched from the page table?"（出题前已核实：`TLB`/`Translation Lookaside Buffer`在vm-paging.pdf全文0命中；`TLB`在cpu-sched.pdf、cpu-sched-multi.pdf里各出现1次，均只是作为"on-chip硬件状态"的例子一笔带过，未展开解释工作原理）
+
+**检索query**（触发3次retrieve）：
+1. "hardware mechanism for caching virtual-to-physical address translations to avoid frequent page table walks"
+2. "hardware TLB (Translation Lookaside Buffer) and its role in caching virtual-to-physical translations"
+3. "how TLB decides when to cache a translation and when to invalidate it"
+
+15个citation，去重后11个不同chunk，score集中在0.31~0.56，全部是页表基础机制/分段/调度相关内容，没有一个解释TLB的具体工作原理。
+
+**回答是否准确：不准确，严重幻觉**。模型直接给出"Yes, the hardware does use a small on-chip cache...This cache is known as the Translation Lookaside Buffer (TLB)"，随后详细描述了validity bit机制、LRU替换策略、页表更新时的TLB失效处理——全部是训练知识编造，且没有任何一句免责声明，比cs-b014、cs-b023更彻底：连"检索内容不支撑"这个观察都没提，直接给出确定性答案。
+
+**具体分析**：这是本轮审查里语气最自信、最没有保留的一次幻觉——3次换角度检索都没找到TLB工作原理相关内容，模型仍然把训练知识里对TLB的标准理解（LRU替换、validity bit、失效更新）当作从检索内容里得出的结论呈现，完全没有触发"未查找到相关资料"这条system prompt指令。跟cs-b040（同样检索不到、但诚实声明）形成鲜明对比，说明这条指令能不能被触发，很大程度上取决于具体问题和模型当时的"自信程度"，不稳定。
 
 ## 遇到的问题（跨题目共性发现）
 
@@ -828,7 +990,9 @@ cs-b009、cs-b012都观察到`java-ch1-e2e.epub`的无关内容排到citation第
 
 ### 6. Prompt工程能改善检索排序，但拦不住"自信编造"类幻觉
 
-当前system prompt已加入"retrieve返回内容没回答问题时要说明未查找到相关资料"这条指令，但cs-b014证明这条指令对模型自身有强训练知识、根本不觉得"自己不知道"的专业内容（semaphore）完全不起作用——两次retrieve都查不到相关内容，模型依然自信编造一整套教程，没有触发这条指令。这说明检索排序类问题（citation噪音、排名不理想）和"自信编造"类幻觉是两类不同性质的问题：前者能通过改进检索环节本身缓解，后者的根源是模型没有意识到自己在编，不是缺一句提醒，需要issue #40真正的机制（阈值/reranker/低置信度标记），prompt工程这条路走不通。
+当前system prompt已加入"retrieve返回内容没回答问题时要说明未查找到相关资料"这条指令，但cs-b014证明这条指令对模型自身有强训练知识、根本不觉得"自己不知道"的专业内容（semaphore）完全不起作用——两次retrieve都查不到相关内容，模型依然自信编造一整套教程，没有触发这条指令。这说明检索排序类问题（citation噪音、排名不理想）和"自信编造"类幻觉是两类不同性质的问题：前者能通过改进检索环节本身缓解，后者的根源是模型没有意识到自己在编，不是缺一句提醒，需要issue #40真正的机制（阈值/reranker/低置信度标记），prompt工程这条路走不通。cs-b058（TLB工作原理）是更极端的例子：3次换角度检索、11个不同chunk全部不相关，模型给出的却是全程没有一句保留、语气完全确定的详细幻觉，连cs-b014那种"检索结果没有直接提到"式的过渡都没有，说明这条指令能否触发，除了"模型是否有强训练知识"之外，还跟具体问题、模型当时的"自信程度"有关，触发与否不稳定。
+
+`_append_tool_tags`（详见第13条）进一步说明这条路为什么走不通：系统本身已经不信任模型自己嘴上说"有没有用到资料"，citation标签只认"retrieve是否真的返回了非空结果"这个硬事实，不解析正文措辞——这个设计本身就承认了"模型自我报告是否有依据"不可靠。而"先判断检索内容能不能回答问题、不能就先说明"这条prompt指令，本质上仍然是在要求模型对同一件事（自己是否真的有依据）做一次准确的自我报告，只是换了个问法。系统已经在标签机制上不信任这种自我报告，却又在生成阶段依赖同一种自我报告来防幻觉，逻辑上是自相矛盾的——不管这条指令写得多细、要求模型先做"能否回答"这一步判断再输出，本质上都是在期待模型对自己的知识边界做出准确判断，而cs-b014/cs-b023/cs-b034/cs-b058反复证明这件事本身就不可靠。真正一致的解法只能来自检索链路自己给出可信的相关性信号（阈值/reranker），而不是继续在prompt层面加更多要求模型自我判断的指令。
 
 ### 7. 单跳检索对"只描述场景、不给术语"的问题存在真实结构性局限
 
@@ -841,6 +1005,8 @@ cs-b010是代表案例：题目原文全程没有出现"zombie"这个词，只�
 **生成过程不稳定**：cs-b013（4次测试2次开头给错答案）、cs-b022（开头给错"50ms"、FIFO算术算错、混淆书中另一算例的数字，反复重算三次才收敛到正确答案）——检索到的chunk本身基本相关，问题完全出在生成/推理环节。
 
 **calculate工具调用不规范，两个方向都有**：cs-b006这类个位数加减法（10-1+1）完全没调用calculate，system prompt里"任何数值计算都必须调用"这条规则对这种量级的算术不合理，不算这道题的问题（已把cs-b006改判事实题）；但cs-b022这边即使调用了calculate、每一步单独计算都对，最后汇总平均值时仍然漏除以3（"(5+15+35)/3=55ms"），说明工具调用本身不能保证最终答案的数值组合正确，容错点在工具调用前后的"整合"这一步。
+
+**calculate工具语法被拒后，模型不会调整策略、彻底耗尽轮数**：cs-b047是比上述两类更严重的情况——不是"答错"而是"完全无输出"。检索质量、工具描述本身都没有问题（`calculate`工具的description已明确写"只能包含数字和四则运算符...不允许函数调用或变量"），但英文措辞下模型连续4次独立测试都选择用二进制字符串解析（`0b010101 >> 4`、`int('010101', 2) // 16`等）做这道题，每次都拿到工具返回的明确中文错误（"不允许的操作: RShift"/"不允许的操作: Call"），却没有据此调整为十进制算术（这是允许的运算，中文版就是这么算出正确答案的），反复用不同写法重试同一种被禁止的思路，直到5轮工具调用全部耗尽，回答变成`[MAX_ROUNDS_EXCEEDED]`——用户什么都得不到。同一道题改回中文表述后3次测试全部成功。这不是提示词遗漏了什么信息，而是模型在收到工具明确的错误反馈后，没有把这个反馈用于调整下一步策略，是模型自身的工具纠错/恢复能力问题，具体在什么条件下更容易被特定语言措辞触发未深入验证，值得后续单独关注。
 
 这两类现象都跟issue #40（检索相关性）是不同性质的问题，更像是模型在数值推理/工具编排上的稳定性问题，记录供后续参考，不在这轮处理范围。
 

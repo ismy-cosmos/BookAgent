@@ -74,18 +74,19 @@
 | cs-b039 | 计算题 | 中 | 以下加锁代码有两处问题，分别是什么？ pthread_mutex_t lock; pthread_mutex_… | threads-api.pdf p6 Locks（破损示例代码分析） |
 | cs-b040 | 无答案题 | EN | If multiple threads mostly just read shared data and rarely write to it, how exactly does pthread's read-write lock (rwlock) let multiple readers hold the lock at the same time and only enforce exclusion when a writer needs it? | threads-api.pdf（本章及本次ingest全部语料均未涉及读写锁rwlock，rwlock/read-write lock/reader-writer在整个语料库里均0命中） |
 
-## vm-paging.pdf（8 条）
+## vm-paging.pdf（9 条，2026-07-20用cs-eval库真实审查过；5条英文/4条中文，中英各类型均有覆盖；cs-b048由无答案题改判为事实题，原ground truth已矛盾）
 
-| ID | 类型 | 问题 | 来源定位 |
-|---|---|---|---|
-| cs-b041 | 事实题 | 分页机制中页（page）和页帧（page frame）的区别是什么？ | vm-paging.pdf p1-p2 A Simple Example |
-| cs-b042 | 事实题 | 一个虚拟地址在分页系统中如何被划分为 VPN 和 offset？ | vm-paging.pdf p3 地址结构 |
-| cs-b043 | 事实题 | 页表项（PTE）中有效位（valid bit）的作用是什么？ | vm-paging.pdf p6 What's In The Page Table |
-| cs-b044 | 事实题 | 为什么书中说最朴素的分页机制会让内存访问变慢？ | vm-paging.pdf p8-p9 Paging: Also Too Slow |
-| cs-b045 | 事实题 | 书中总结部分指出，分页相比之前的方案（如分段）有什么碎片方面的优势？为什么？ | vm-paging.pdf p12 Summary |
-| cs-b046 | 计算题 | 系统使用 32 位虚拟地址，页大小 4KB（2^12 字节），按书中地址划分方法，VPN 占多少位？页表最多需… | vm-paging.pdf p3 地址划分方法（推导题） |
-| cs-b047 | 计算题 | 仿照书中例子：虚拟地址空间 64 字节、页大小 16 字节，虚拟地址 21（二进制 010101）对应的 VP… | vm-paging.pdf p3-p4 地址转换示例（沿用书中数值） |
-| cs-b048 | 无答案题 | vm-paging 这章详细介绍了多级页表（multi-level page table）的具体实现吗？ | vm-paging.pdf（本章只用线性页表举例，p6 明确说更高级的数据结构留待后续章节） |
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b041 | 事实题 | EN | In paging, what is the difference between a page and a page frame? | vm-paging.pdf p1-p2 A Simple Example |
+| cs-b042 | 事实题 | 中 | 一个虚拟地址在分页系统中如何被划分为 VPN 和 offset？ | vm-paging.pdf p3 地址结构 |
+| cs-b043 | 事实题 | EN | What is the role of the valid bit in a page table entry (PTE)? | vm-paging.pdf p6 What's In The Page Table |
+| cs-b044 | 事实题 | 中 | 为什么书中说最朴素的分页机制会让内存访问变慢？ | vm-paging.pdf p8-p9 Paging: Also Too Slow |
+| cs-b045 | 事实题 | EN | According to the book's summary, what fragmentation-related advantage does paging have over previous approaches like segmentation, and why? | vm-paging.pdf p12 Summary |
+| cs-b046 | 计算题 | 中 | 系统使用 32 位虚拟地址，页大小 4KB（2^12 字节），按书中地址划分方法，VPN 占多少位？页表最多需… | vm-paging.pdf p3 地址划分方法（推导题） |
+| cs-b047 | 计算题 | EN | Following the same style as the book's example: 64-byte virtual address space, 16-byte pages, virtual address 21 (binary 010101) — VPN/offset and physical address given PFN=5? | vm-paging.pdf p3-p4 地址转换示例（沿用书中数值；见"遇到的问题"新增条目——英文措辞下calculate工具死循环导致MAX_ROUNDS_EXCEEDED，中文版正常） |
+| cs-b048 | 事实题（原无答案题，已改判） | 中 | 为什么页表不直接存放在 MMU 芯片上的专用硬件里，而是存放在内存中？书中提到的最简单的页表组织形式是怎样工作的？ | vm-paging.pdf p6 页表的存放位置与组织方式 |
+| cs-b058 | 无答案题 | EN | To avoid paying the extra memory access needed to walk the page table on every single memory reference, does the hardware use a small on-chip cache that holds recently used virtual-to-physical translations, and if so, how does it decide when a cached translation can still be reused versus when it needs to be re-fetched from the page table? | vm-paging.pdf（全文未讲解TLB工作原理；"TLB"/"Translation Lookaside Buffer"在vm-paging.pdf全文0命中，仅在cpu-sched.pdf、cpu-sched-multi.pdf各一笔带过） |
 
 ## vm-segmentation.pdf（7 条）
 
