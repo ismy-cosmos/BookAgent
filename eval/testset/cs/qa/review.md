@@ -40,14 +40,16 @@
 | cs-b022 | 计算题 | 中 | 三个任务 A(20ms)、B(5ms)、C(10ms) 同时在 t=0 到达，用 SJF（最短作业优先）调度，平均周转时间是多少？（改为独立题目，不依赖cs-b021上下文） | cpu-sched.pdf p4 §7.4 SJF（计算题，沿用书中方法论） |
 | cs-b023 | 无答案题 | 中 | 多级反馈队列调度算法具体是怎么根据进程的历史行为动态调整它所在的队列优先级的？ | cpu-sched.pdf（本章及本次ingest全部语料均未详细讨论多级反馈队列MLFQ的具体调整规则，cpu-sched.pdf p11明确写着MLFQ"is the topic of the next chapter"，cpu-sched-multi.pdf里只有一处一笔带过的类比提及，没有展开讲解队列调整机制本身） |
 
-## cpu-sched-multi.pdf（4 条）
+## cpu-sched-multi.pdf（6 条，2026-07-20用cs-eval库真实审查过，新增cs-b056/cs-b057；3条英文/3条中文，中英各类型均有覆盖）
 
-| ID | 类型 | 问题 | 来源定位 |
-|---|---|---|---|
-| cs-b024 | 事实题 | 多核调度中「缓存亲和性」（cache affinity）指的是什么？为什么调度器应尽量保持它？ | cpu-sched-multi.pdf p5 §10.3 One Final Issue: Cache Affinity |
-| cs-b025 | 事实题 | SQMS（单队列多处理器调度）的两个主要缺点是什么？ | cpu-sched-multi.pdf p6 §10.4 Single-Queue Scheduling |
-| cs-b026 | 事实题 | MQMS（多队列多处理器调度）如何解决负载不均衡问题？ | cpu-sched-multi.pdf p7-p10 §10.5 Multi-Queue Scheduling（work stealing） |
-| cs-b027 | 计算题 | 系统有 2 个 CPU，各自维护独立就绪队列。CPU0 有任务 A(10ms)、B(10ms)，CPU1 有任… | cpu-sched-multi.pdf p7-p9 §10.5 Multi-Queue Scheduling（负载不均衡示例） |
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b024 | 事实题 | EN | What is "cache affinity" in multiprocessor scheduling, and why should a scheduler try to preserve it? | cpu-sched-multi.pdf p5 §10.3 One Final Issue: Cache Affinity |
+| cs-b025 | 事实题 | 中 | SQMS（单队列多处理器调度）的两个主要缺点是什么？ | cpu-sched-multi.pdf p6 §10.4 Single-Queue Scheduling |
+| cs-b026 | 事实题 | EN | How does MQMS (Multi-Queue Multiprocessor Scheduling) address the problem of load imbalance across CPUs? | cpu-sched-multi.pdf p7-p10 §10.5 Multi-Queue Scheduling（work stealing） |
+| cs-b027 | 计算题 | 中 | 系统有 2 个 CPU，各自维护独立就绪队列。CPU0 有任务 A(10ms)、B(10ms)，CPU1 有任… | cpu-sched-multi.pdf p7-p9 §10.5 Multi-Queue Scheduling（负载不均衡示例） |
+| cs-b056 | 事实题 | 中 | Linux社区实际使用的三种调度器实现——O(1)调度器、完全公平调度器（CFS）、BF调度器（BFS）——分别是单队列还是多队列设计？ | cpu-sched-multi.pdf p10 §10.6 Linux Multiprocessor Schedulers |
+| cs-b057 | 无答案题 | EN | How does the operating system decide which tasks to schedule on the CPU versus offloading to the GPU in a system with heterogeneous processors? | cpu-sched-multi.pdf（本章及本次ingest全部语料均未涉及GPU/异构处理器调度，GPU/heterogeneous/graphics在整个语料库里均0命中） |
 
 ## threads-intro.pdf（7 条）
 

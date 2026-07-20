@@ -435,6 +435,118 @@
 
 ---
 
+## cpu-sched-multi.pdf 章节（Task 6，2026-07-20）
+
+### cs-b024
+
+**题目**："What is 'cache affinity' in multiprocessor scheduling, and why should a scheduler try to preserve it?"
+
+**检索query**："cache affinity in multiprocessor scheduling and why scheduler should preserve it"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched-multi.pdf/p0005/0010`（cache affinity定义） | 0.2266 | 能，核心论据 |
+| `cpu-sched-multi.pdf/p0006/0013`（SQMS的affinity机制） | 0.3197 | 部分能 |
+| `cpu-sched-multi.pdf/p0007/0015`（affinity fairness讨论） | 0.3520 | 部分能 |
+| `cpu-sched-multi.pdf/p0010/0030`（SQMS/MQMS对比总结） | 0.3536 | 部分能 |
+| `cpu-sched-multi.pdf/p0008/0018`（MQMS的cache affinity优势） | 0.3684 | 能 |
+
+**回答是否准确**：准确，正确解释了cache affinity的概念及调度器应保持它的原因。
+
+**具体分析**：5个chunk全部来自本章，检索质量正常。
+
+### cs-b025
+
+**题目**："SQMS（单队列多处理器调度）的两个主要缺点是什么？"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched-multi.pdf/p0006/0011`（SQMS扩展性问题：锁竞争） | 0.3170 | 能，核心论据 |
+| `cpu-sched-multi.pdf/p0010/0030`（SQMS/MQMS对比总结） | 0.3322 | 部分能 |
+| `cpu-sched-multi.pdf/p0007/0015`（SQMS不易保持cache affinity） | 0.3547 | 能，核心论据 |
+| `cpu-sched-multi.pdf/p0007/0016`（MQMS介绍，非SQMS缺点） | 0.3715 | 不能 |
+| `cpu-sched-multi.pdf/p0008/0018`（MQMS优势） | 0.3860 | 不能 |
+
+**回答是否准确**：准确，扩展性差（锁竞争）+cache affinity差两点都答对。
+
+**具体分析**：两个核心论据chunk分别排第1、第3，检索质量正常。
+
+### cs-b026
+
+**题目**："How does MQMS (Multi-Queue Multiprocessor Scheduling) address the problem of load imbalance across CPUs?"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched-multi.pdf/p0007/0016`（MQMS介绍） | 0.2222 | 部分能 |
+| `cpu-sched-multi.pdf/p0008/0018`（MQMS引出负载不均衡问题） | 0.2352 | 部分能 |
+| `cpu-sched-multi.pdf/p0010/0030`（SQMS/MQMS对比总结） | 0.2512 | 部分能 |
+| `cpu-sched-multi.pdf/p0008/0024`（"CPU 0 is idle!"负载不均衡例子+migration方案） | 0.2717 | 能，核心论据 |
+| `cpu-sched-multi.pdf/p0006/0011`（SQMS介绍，非MQMS本身） | 0.2825 | 不能 |
+
+**回答是否准确**：准确，正确解释了migration（任务迁移）机制。
+
+**具体分析**：核心论据chunk排第4但仍在top-5内，5个score普遍偏低（0.22~0.28），检索质量良好。
+
+### cs-b027
+
+**题目**："系统有 2 个 CPU，各自维护独立就绪队列。CPU0 有任务 A(10ms)、B(10ms)，CPU1 有任务 C(10ms)、D(10ms)、E(10ms)。不做负载均衡，CPU0 和 CPU1 各自完成所有任务需多少 ms？空闲多少 ms？"
+
+**检索query**（触发2次retrieve）：
+1. "多核系统中每个CPU独立处理任务的调度机制"
+2. "任务调度中周转时间的定义和计算方法"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched-multi.pdf/p0007/0016`（MQMS介绍） | 0.3537 | 部分能 |
+| `java-ch1-e2e.epub/p0006/0069`（多核计算机介绍，跨书无关） | 0.3620 | 不能 |
+| `cpu-sched-multi.pdf/p0008/0021`（RR多核调度示例） | 0.3702 | 部分能 |
+| `cpu-sched-multi.pdf/p0002/0003`（单核多核缓存差异背景） | 0.3792 | 不能 |
+| `cpu-sched-multi.pdf/p0009/0027`（负载均衡后的调度示例） | 0.3890 | 部分能 |
+| （另5个chunk来自cpu-sched.pdf，均为通用调度算法内容，不直接支撑本题） | 0.40~0.43 | 不能 |
+
+**回答是否准确：不准确**。回答给出"CPU0总耗时20ms，无空闲；CPU1总耗时30ms，无空闲"，与标准答案（CPU0应空闲10ms）矛盾——模型只计算了每个CPU处理自己队列的总耗时，完全没有考虑"CPU0在20ms完成后，系统整体还要等CPU1跑到30ms"这层含义，即CPU0相对系统整体完成时间有10ms的空闲。
+
+**具体分析**：**这是一次纯粹的推理错误，检索和工具调用都没有问题**——10个citation里虽然没有精确对应"两个独立队列各自耗时+空闲"这个具体场景的chunk，但书里恰恰有一句和这道题的教学意图完全一致的原文"How terrible – CPU 0 is idle!"（出自负载不均衡的示例讲解），检索也确实调用了calculate工具（表明模型知道这是计算题），但模型没有把"CPU0比CPU1提前完成"这层关系转化为"CPU0要等待、因此产生空闲"的结论，属于对题目语义的理解偏差，不是检索或工具调用的问题。
+
+### cs-b056
+
+**题目**："Linux社区实际使用的三种调度器实现——O(1)调度器、完全公平调度器（CFS）、BF调度器（BFS）——分别是单队列还是多队列设计？"
+
+**检索query**："Linux内核中O(1)调度器、完全公平调度器(CFS)和BF调度器(BFS)的实现是单队列还是多队列设计"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched-multi.pdf/p0010/0029`（明确写"Both O(1) and CFS use multiple queues, whereas BFS uses a single queue"） | 0.2502 | **能，精确命中原文** |
+| `cpu-sched-multi.pdf/p0010/0030`（SQMS/MQMS对比总结） | 0.3966 | 不能 |
+| `cpu-sched.pdf/p0002/0006`（FIFO介绍，跨章节无关） | 0.4628 | 不能 |
+| `cpu-sched-multi.pdf/p0007/0016`（MQMS介绍） | 0.4726 | 不能 |
+| `cpu-sched-multi.pdf/p0008/0021`（RR多核调度示例） | 0.4794 | 不能 |
+
+**回答是否准确**：准确，三种调度器的单/多队列归属全部答对。
+
+**具体分析**：核心论据chunk排名第1且score明显低于其余4个（0.25 vs 0.40+），检索精确命中。
+
+### cs-b057
+
+**题目**："How does the operating system decide which tasks to schedule on the CPU versus offloading to the GPU in a system with heterogeneous processors?"（出题前已核实`GPU`/`heterogeneous`/`graphics`语料库均0命中）
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-api.pdf/p0003/0009`（调度器不确定性） | 0.3378 | 不能 |
+| `cpu-sched-multi.pdf/p0005/0010`（cache affinity） | 0.3562 | 不能 |
+| `cpu-sched-multi.pdf/p0002/0003`（单核多核缓存差异） | 0.3671 | 不能 |
+| `cpu-sched-multi.pdf/p0007/0016`（MQMS介绍） | 0.3673 | 不能 |
+| `cpu-sched.pdf/p0010/0031`（STCF子任务拆分） | 0.3700 | 不能 |
+
+**回答是否准确**：准确拒答——"None of the retrieved chunks directly address how an operating system decides whether to schedule tasks on the CPU or offload them to the GPU... I cannot provide an answer based on the book's content."，清楚说明检索内容不支撑这个问题。
+
+**具体分析**：又一个不点名pdf/章节、用自然技术问句的无答案题案例，效果良好——5个score都在0.34~0.37，没有一个能支撑答案，模型没有被表面关键词（如"scheduling"）带偏，正确判断出这是超出语料范围的问题。
 ## 遇到的问题（跨题目共性发现）
 
 ### 1. 跨语言查询对检索分数有显著、可复现的影响
@@ -498,4 +610,8 @@ cs-b023是典型案例：问题问的是多级反馈队列MLFQ具体怎么调整
 
 ### 10. 无答案题不能用"这本书/这一章讨论了X吗"这种元提问模板，应该用自然的直接技术问句
 
-审查过程中发现，早期无答案题（包括cs-b007、cs-b014、cs-b023最初的版本）大量采用"cpu-xxx这一章讨论了/讲解了X吗"这种句式——直接向模型提出关于"书本身覆盖范围"的元问题。这类模板本身就是问题的一部分，不只是话题选得好不好的问题：它明着点出pdf/章节名称当问题主语，容易让模型把注意力放在"要不要承认没讲"这种元推理上，而不是老老实实检索、发现内容对不上再判断。cs-b007重出后改成不点名pdf/章节、直接问"是怎么实现的"这种自然技术问句（关于容器隔离机制），结果是本轮处理最好的无答案题案例：模型多次换角度检索（4次）确认真的找不到后，清楚说明这是通用知识而非书本依据，正确挂上`[未找到参考资料]`标签。这说明"元提问模板"本身会干扰模型的正常判断路径，无答案题应该像有答案题一样自然提问，让"找不到依据"成为检索之后自然得出的结论，而不是题目本身就在问"有没有"。
+审查过程中发现，早期无答案题（包括cs-b007、cs-b014、cs-b023最初的版本）大量采用"cpu-xxx这一章讨论了/讲解了X吗"这种句式——直接向模型提出关于"书本身覆盖范围"的元问题。这类模板本身就是问题的一部分，不只是话题选得好不好的问题：它明着点出pdf/章节名称当问题主语，容易让模型把注意力放在"要不要承认没讲"这种元推理上，而不是老老实实检索、发现内容对不上再判断。cs-b007重出后改成不点名pdf/章节、直接问"是怎么实现的"这种自然技术问句（关于容器隔离机制），结果是本轮处理最好的无答案题案例：模型多次换角度检索（4次）确认真的找不到后，清楚说明这是通用知识而非书本依据，正确挂上`[未找到参考资料]`标签。cs-b057（GPU异构调度）延续这个思路同样效果良好。这说明"元提问模板"本身会干扰模型的正常判断路径，无答案题应该像有答案题一样自然提问，让"找不到依据"成为检索之后自然得出的结论，而不是题目本身就在问"有没有"。
+
+### 11. 检索和工具调用都正确，纯粹是模型自己的推理/语义理解错误，不是这轮审查能改的问题
+
+cs-b027是典型案例：题目问两个独立队列的CPU各自完成任务的耗时和空闲时间，检索到的10个chunk里虽然没有精确对应这个具体场景的内容，但书中原文有一句和这道题教学意图完全一致的例句"How terrible – CPU 0 is idle!"（负载不均衡示例的原文），calculate工具也被正确调用。但模型给出的最终答案是"CPU0/CPU1均无空闲"，跟标准答案（CPU0应空闲10ms）矛盾——它只计算了每个CPU自己的任务耗时总和，没有把"CPU0比CPU1提前完成"这层关系转化为"要等待、因此产生空闲"的结论。这是一次纯粹的语义理解/推理错误，检索链路和工具调用链路都没有问题，不在issue #40（检索相关性）范畴内，也不是这轮测试集审查能通过改题目或改prompt解决的问题，如实记录。
