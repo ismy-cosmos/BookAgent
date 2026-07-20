@@ -112,27 +112,23 @@
 | `cpu-sched.pdf/p0002/0005`（turnaround作为性能指标的说明） | 0.4835 | 部分相关 |
 | `cpu-sched.pdf/p0003/0008`（FIFO周转时间算例） | 0.4893 | 部分相关 |
 
-**回答是否准确**：准确，Process0=10个时间单位、Process1=8个时间单位，与标准答案完全一致，回答里还主动指出题目给的公式"完成-到达+1"跟书里标准公式"完成-到达"略有出入，并遵循题目给的口径计算，处理得当。
+**回答是否准确**：准确，Process0=10个时间单位、Process1=8个时间单位，与标准答案完全一致，回答里还主动指出题目给的公式"完成-到达+1"跟书里标准公式"完成-到达"略有出入，并遵循题目给的口径计算，处理得当。**没有调用calculate工具**，纯文本推理完成10-1+1、8-1+1这类个位数加减法。
 
-**具体分析**：题目场景直接取自Figure 4.4的真实追踪数据（而非编造数字），检索到的是通用的周转时间公式定义并正确应用。ground_truth对应`cpu-sched.pdf/p0002/0004`这个公式chunk。
+**具体分析**：题目场景直接取自Figure 4.4的真实追踪数据（而非编造数字），检索到的是通用的周转时间公式定义并正确应用。ground_truth对应`cpu-sched.pdf/p0002/0004`这个公式chunk。这道题原先归类为计算题，但数值推导过于简单（个位数加减法），够不上"计算题"这个分类的门槛，已改判事实题；system prompt里"任何数值计算都必须调用calculate"这条规则对这种量级的算术要求本身也不合理，不能算这道题的问题。
 
 ### cs-b007
 
-**题目**："Does the cpu-intro chapter discuss file system persistence mechanisms, such as how files are organized and stored on disk?"
+**题目**："How does the operating system give a group of processes their own isolated view of the filesystem and network, the way container runtimes like Docker do?"
 
-**检索query**："file system persistence mechanisms, how files are organized and stored on disk"
+**检索query**（触发4次retrieve，从不同角度尝试）：
+1. "how does an operating system provide isolated filesystem and network views for processes, similar to Docker containers"
+2. "how does Linux use namespaces and cgroups to isolate processes for containerization, like Docker"
+3. "what are Linux namespaces and how do they provide isolated views of the filesystem and network for processes"
+4. "what are Linux cgroups and how do they provide resource isolation for processes in containers"
 
-| chunk | score | 能否支撑答案 |
-|---|---|---|
-| `threads-intro.pdf/p0012/0029`（提到file system用journaling/copy-on-write，但在讲并发原子性） | 0.4463 | 不能 |
-| `cpu-intro.pdf/p0007/0013`（进程列表数据结构） | 0.4588 | 不能 |
-| `cpu-intro.pdf/p0008/0015`（进程状态寄存器保存） | 0.4662 | 不能 |
-| `vm-segmentation.pdf/p0009/0026`（外部碎片管理） | 0.4754 | 不能 |
-| `vm-segmentation.pdf/p0010/0027`（空闲空间分配算法） | 0.4771 | 不能 |
+**回答是否准确**：正确处理。4次检索全部未能返回充分相关的内容（`container`/`cgroup`/`namespace`/`Docker`/`chroot`在全库0命中），最终0个citation，模型基于自己的通用知识介绍了namespace/cgroup机制，并在回答末尾明确声明"If you're asking about a specific textbook or OS implementation... this is a general explanation based on standard operating system principles"——清楚说明这不是书里的内容，系统正确挂上`[未找到参考资料]`标签。
 
-**回答是否准确**：准确拒答，且处理得比较精细——"there is a mention of file systems using journaling or copy-on-write... but this appears in a different chapter related to concurrency rather than CPU internals"，正确识别出`threads-intro.pdf`里提到的journaling/copy-on-write不属于cpu-intro章节，没有把跨章节内容误归因。
-
-**具体分析**：persistence属于OSTEP原书第三部分，不在这批语料范围内，5个score全部偏高（0.446~0.477），明显高于其他题"真正相关"的分数段（多在0.25~0.40），没有一个能支撑答案，模型正确拒答。
+**具体分析**：这是本轮审查里处理得最好的无答案题案例——模型没有把"检索不到"当成"答不出来就算了"，反而多次换角度检索（4次，本轮单题最多），确认真的找不到后，坦诚说明这是通用知识而非书本依据。跟cs-b014、cs-b023的幻觉形成鲜明对比，说明这条正确行为路径是模型能力范围内可以做到的，只是不稳定。
 
 ---
 
@@ -273,6 +269,172 @@
 
 ---
 
+## cpu-sched.pdf 章节（Task 5，2026-07-20）
+
+### cs-b015
+
+**题目**："In scheduling, what is the formula for calculating 'turnaround time'?"
+
+**检索query**："turnaround time formula in scheduling"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0002/0004`（精确公式） | 0.3188 | 能，排第1 |
+| `cpu-sched.pdf/p0002/0005` | 0.3325 | 部分能 |
+| `cpu-sched.pdf/p0003/0008`（算例） | 0.3502 | 部分能 |
+| `cpu-sched.pdf/p0002/0003`（turnaround定义） | 0.3523 | 能 |
+| `cpu-sched.pdf/p0003/0010`（convoy effect） | 0.3554 | 不能 |
+
+**回答是否准确**：准确，公式完全正确。
+
+**具体分析**：5个chunk全部来自cpu-sched.pdf本章，检索质量正常。
+
+### cs-b016
+
+**题目**："FIFO 调度在什么情况下会产生「护航效应」（convoy effect）？"
+
+**检索query**："FIFO 调度中的 convoy effect 定义和产生条件"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0003/0010`（convoy effect算例，100秒长任务） | 0.5242 | 能 |
+| `cpu-sched.pdf/p0012/0034`（参考文献列表，含Convoy Phenomenon引用） | 0.5458 | 部分能 |
+| `cpu-sched.pdf/p0002/0006`（FIFO介绍） | 0.5493 | 部分能 |
+| `cpu-sched.pdf/p0005/0015`（convoy效应数值延续） | 0.5756 | 能 |
+| `threads-intro.pdf/p0011/0028`（竞态条件，与convoy effect无关） | 0.5887 | 不能 |
+
+**回答是否准确**：准确，正确解释了长任务阻塞短任务导致护航效应的机制。
+
+**具体分析**：这批score普遍偏高（0.52~0.59），比其他题目的"真正相关"分数段（多在0.25~0.40）高出一截，但4/5 chunk仍然真实相关——这说明score的绝对数值不仅跨query不可比（"遇到的问题"第5条已用cs-b002/cs-b007证明过），同一批"相关"内容本身的score基准也会因题目不同而系统性偏移，进一步印证不能用固定阈值卡数值。跨章节的threads-intro内容混入citation第5名，是"遇到的问题"第3条模式的又一实例。
+
+### cs-b017
+
+**题目**："Why is SJF (Shortest Job First) difficult to apply directly in real systems?"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0004/0011`（SJF定义） | 0.3239 | 能 |
+| `cpu-sched.pdf/p0006/0018`（STCF/抢占） | 0.3866 | 部分能 |
+| `cpu-sched.pdf/p0003/0010`（convoy effect） | 0.3948 | 部分能 |
+| `cpu-sched.pdf/p0010/0032`（调度器不知道任务长度） | 0.4343 | 能，核心论据 |
+| `cpu-sched.pdf/p0004/0013`（SJF算例） | 0.4399 | 部分能 |
+
+**回答是否准确**：准确，核心论据（无法预知任务长度）正确，回答还补充了非抢占/护航效应等合理的延伸说明。
+
+**具体分析**：5个chunk全部来自本章，检索质量正常。
+
+### cs-b018
+
+**题目**："STCF 与 SJF 的主要区别是什么？"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0006/0018`（STCF定义，明确对比抢占/非抢占） | 0.3926 | 能，核心论据 |
+| `cpu-sched.pdf/p0004/0013`（SJF算例） | 0.4723 | 部分能 |
+| `cpu-sched.pdf/p0004/0011`（SJF定义） | 0.4889 | 能 |
+| `cpu-sched.pdf/p0007/0024`（响应时间讨论） | 0.5099 | 不能 |
+| `cpu-sched.pdf/p0010/0032`（调度器不知道任务长度） | 0.5385 | 不能 |
+
+**回答是否准确**：准确，正确抓住"是否支持抢占"这个核心区别。
+
+**具体分析**：核心论据chunk排名第1，检索质量正常。
+
+### cs-b019
+
+**题目**："Why does Round Robin scheduling improve response time but usually result in worse turnaround time?"
+
+**检索query**："Round Robin scheduling and its effect on response time and turnaround time"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0007/0025`（RR定义/time slice） | 0.3387 | 能 |
+| `cpu-sched.pdf/p0003/0010`（convoy effect） | 0.3458 | 不能 |
+| `cpu-sched.pdf/p0008/0026`（time slice权衡讨论） | 0.3483 | 能 |
+| `cpu-sched-multi.pdf/p0008/0017`（多核RR调度示例） | 0.3518 | 不能 |
+| `cpu-sched.pdf/p0002/0005`（turnaround定义） | 0.3631 | 部分能 |
+
+**回答是否准确**：核心结论准确（RR改善响应时间、牺牲周转时间），但推导过程中出现数字混淆——回答里"This is much worse than SJF's 10-second average turnaround time ($\frac{100+110+120}{3}=110$ for a different example, but in the same context...)"这句话把两个不同算例的数字混在一起，读起来前后矛盾（先说"10秒"又算出"110"）。
+
+**具体分析**：检索到跨章节的cpu-sched-multi.pdf多核调度示例，跟本题讨论的单核RR响应时间/周转时间权衡关系不大。回答里的数字混淆是生成环节把书中RR示例（A/B/C各5秒）和另一处FIFO/convoy示例（A=100秒/B=C=10秒）的数字揉在一句话里，不是检索内容本身的错误。
+
+### cs-b020
+
+**题目**："调度器在处理含 I/O 的任务时，如何实现 CPU 与 I/O 的重叠利用？"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0010/0031`（STCF子任务拆分实现重叠） | 0.3701 | 能，核心论据 |
+| `cpu-sched.pdf/p0009/0028`（I/O阻塞决策） | 0.3910 | 能 |
+| `cpu-intro.pdf/p0007/0011`（Figure 4.4 I/O重叠追踪表） | 0.4036 | 能，具体例证 |
+| `cpu-intro.pdf/p0001/0001`（time sharing介绍） | 0.4036 | 部分能 |
+| `cpu-intro.pdf/p0007/0012`（Figure 4.4文字说明） | 0.4059 | 能，具体例证 |
+
+**回答是否准确**：准确，正确描述了CPU突发拆分+I/O阻塞时切换+中断恢复的完整机制。
+
+**具体分析**：跨章节引用cpu-intro.pdf的Figure 4.4 I/O重叠追踪表是合理的——CPU/I/O重叠这个概念本身就是cpu-intro先引入、cpu-sched再用STCF子任务拆分具体实现，5个chunk全部真实相关，检索质量良好。
+
+### cs-b021
+
+**题目**："Three tasks A(5ms), B(10ms), and C(15ms) all arrive at t=0. Under FIFO scheduling in the order A→B→C, what is the average turnaround time?"
+
+**检索query**："FIFO scheduling algorithm definition and how to calculate turnaround time"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0002/0006`（FIFO介绍+算例） | 0.2999 | 能 |
+| `cpu-sched.pdf/p0003/0008`（周转时间算例） | 0.3280 | 能 |
+| `cpu-sched.pdf/p0013/0037`（练习题） | 0.3970 | 不能 |
+| `cpu-sched.pdf/p0003/0010`（convoy effect） | 0.4188 | 不能 |
+| `cpu-sched.pdf/p0007/0025`（RR介绍） | 0.4297 | 不能 |
+
+**回答是否准确**：准确，16.67ms，用了计算工具，过程清晰无矛盾。
+
+**具体分析**：核心chunk排名前2，检索质量正常，生成过程稳定。
+
+### cs-b022（重出，改为独立题目）
+
+**题目**："三个任务 A(20ms)、B(5ms)、C(10ms) 同时在 t=0 到达，用 SJF（最短作业优先）调度，平均周转时间是多少？"
+
+**检索query**："SJF 调度算法的定义和平均周转时间计算方法"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0004/0013`（SJF算例） | 0.3645 | 能 |
+| `cpu-sched.pdf/p0003/0010`（convoy effect） | 0.3923 | 不能 |
+| `cpu-sched.pdf/p0006/0018`（STCF/抢占） | 0.3935 | 部分能 |
+| `cpu-sched.pdf/p0004/0011`（SJF定义） | 0.4244 | 能 |
+| `cpu-sched.pdf/p0007/0025`（RR介绍） | 0.4277 | 不能 |
+
+**回答是否准确**：调度顺序（B→C→A）和每个任务的周转时间（B=5ms、C=15ms、A=35ms）全部算对，但最后一步**漏除以3**——"(5+15+35)/3 = **55ms**"，正确答案应为55/3≈18.33ms。调用了calculate工具，但错误出在工具调用后的结果整合环节，不是工具本身算错。
+
+**具体分析**：原题"同上三个任务...改用SJF调度"依赖cs-b021的上下文，但`audit_question.py`每次调用都是`history=[]`单轮独立测试，这种依赖上一轮语境的设计在当前审查方法论下根本没被真正测到——哪怕题目括号里补了具体数字使其"看起来"能独立回答，也不是这道题当初想验证的东西（多轮对话记忆）。已重出为完全独立的SJF算例，跟cs-b021互不依赖。检索质量正常，生成过程本身稳定（这次没有出现自我怀疑循环），但暴露了一个新问题：计算步骤分解正确、单步计算也调用了工具，最后汇总平均值这一步却漏掉了除法，记入"遇到的问题"第8条。
+
+### cs-b023（重出两次，避开"这章讨论了X吗"模板）
+
+**题目**："多级反馈队列调度算法具体是怎么根据进程的历史行为动态调整它所在的队列优先级的？"（出题前已核实`MLFQ`/`feedback queue`/`Multi-Level Feedback`语料库里只有一处一笔带过的类比提及，没有展开讲解）
+
+**检索query**："多级反馈队列调度算法中，如何根据进程的历史行为动态调整其所在队列的优先级"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `cpu-sched.pdf/p0011/0033`（明确写"multi-level feedback queue...is the topic of the **next chapter**"，即不在本次语料范围内） | 0.4261 | **不能，且明确标注MLFQ在下一章** |
+| `cpu-sched-multi.pdf/p0008/0021`（多核RR调度示例） | 0.4320 | 不能 |
+| `cpu-sched-multi.pdf/p0005/0009`（链表加锁示例） | 0.4457 | 不能 |
+| `cpu-sched-multi.pdf/p0008/0019`（调度队列示例Q0/Q1） | 0.4542 | 不能 |
+| `java-ch1-e2e.epub/p0006/0065`（Java Stream API代码，完全无关） | 0.4573 | 不能 |
+
+**回答是否准确：不准确，幻觉**。回答给出了一套具体的MLFQ规则——初始进最高优先级队列、时间片用完或阻塞则降级、长时间等待可升级、根据CPU使用率/阻塞次数/I/O频率动态调整——内容大方向不算离谱（是MLFQ真实机制的合理近似），但检索到的5个chunk没有一个实际讲解这些规则，其中排名第1的chunk原文明确写着"multi-level feedback queue...is the topic of the next chapter"——这是一个比"内容不相关"更强烈的信号，相当于书本身告诉模型"这个话题我这里不讲，下一章才讲"，模型仍然视而不见地给出了详细答案。
+
+**具体分析**：这题第一版用"是否讨论了X"的模板句式（针对EDF），被指出这种明着问"书/章节是否讨论了某内容"的模板本身就该弃用，不管换什么话题都不该再用这个句式；重出后改成不点名pdf/章节、直接问"具体怎么实现"的自然技术问句。这次抓到的幻觉比EDF那版更明确——检索结果里甚至包含"这是下一章内容"的显式声明，模型仍然忽略这个信号给出了编造的具体规则，是本轮除cs-b014外最清晰的"忽略明确的'找不到'信号仍然作答"的案例。
+
+---
+
 ## 遇到的问题（跨题目共性发现）
 
 ### 1. 跨语言查询对检索分数有显著、可复现的影响
@@ -319,3 +481,21 @@ cs-b009、cs-b012都观察到`java-ch1-e2e.epub`的无关内容排到citation第
 ### 7. 单跳检索对"只描述场景、不给术语"的问题存在真实结构性局限
 
 cs-b010是代表案例：题目原文全程没有出现"zombie"这个词，只描述了"父进程不调用wait()、子进程先退出"的场景。retrieve的query由模型从题目原文生成，没有"zombie"这个锚点，检索自然找不到僵尸进程定义所在的chunk（内容确实存在于语料库里，用精确术语查得到）。这不是"该检索到的没检索到"这种干净的检索bug，也不是题目设计缺陷，而是"单次query-from-question的检索机制，对不给术语只描述场景的问题"天然覆盖不到——这类问题在真实用户场景里很常见（用户经常不知道教科书术语，只会描述现象），是有代表性的测试场景，应作为issue #40设计时的真实案例保留。
+
+### 8. 计算题的执行质量问题：自我怀疑/纠错循环，以及工具调用不规范
+
+两类独立问题：
+
+**生成过程不稳定**：cs-b013（4次测试2次开头给错答案）、cs-b022（开头给错"50ms"、FIFO算术算错、混淆书中另一算例的数字，反复重算三次才收敛到正确答案）——检索到的chunk本身基本相关，问题完全出在生成/推理环节。
+
+**calculate工具调用不规范，两个方向都有**：cs-b006这类个位数加减法（10-1+1）完全没调用calculate，system prompt里"任何数值计算都必须调用"这条规则对这种量级的算术不合理，不算这道题的问题（已把cs-b006改判事实题）；但cs-b022这边即使调用了calculate、每一步单独计算都对，最后汇总平均值时仍然漏除以3（"(5+15+35)/3=55ms"），说明工具调用本身不能保证最终答案的数值组合正确，容错点在工具调用前后的"整合"这一步。
+
+这两类现象都跟issue #40（检索相关性）是不同性质的问题，更像是模型在数值推理/工具编排上的稳定性问题，记录供后续参考，不在这轮处理范围。
+
+### 9. 表面关键词相似但概念不同的内容，会诱导模型做出错误的"确认"式幻觉
+
+cs-b023是典型案例：问题问的是多级反馈队列MLFQ具体怎么调整优先级，检索到的排名第1的chunk原文明确写着"multi-level feedback queue...is the topic of the next chapter"——比"内容不相关"更强的信号，相当于书本身声明"这里不讲"。模型仍然给出了一套具体、看起来合理的MLFQ规则细节，完全忽略了这个显式声明。cpu-sched.pdf这批还有一个更早的实例：原cs-b023版本问EDF，检索到的内容里有个完全不同的概念——Linux BFS调度器用的"Earliest Eligible Virtual Deadline First (EEVDF)"，只因为名字里也带"deadline"，模型的回答写出"检索结果中没有直接提到EDF"却依然用EEVDF反向论证"书里确实讨论了deadline调度"。这两个案例都不是cs-b014那种"检索完全不相关、纯粹凭空编"——是有一个弱信号（名字相似，或者更极端地，一个明确的"下一章才讲"声明）被模型忽略或误用，最终仍然给出了确认式的错误回答。这提示issue #40的判定逻辑除了"有没有检索到内容"之外，还需要考虑"检索到的内容是否明确表明这个话题不在当前范围内"这种更细的情况，单纯判断"retrieve返回是否非空"不足以覆盖这类幻觉。
+
+### 10. 无答案题不能用"这本书/这一章讨论了X吗"这种元提问模板，应该用自然的直接技术问句
+
+审查过程中发现，早期无答案题（包括cs-b007、cs-b014、cs-b023最初的版本）大量采用"cpu-xxx这一章讨论了/讲解了X吗"这种句式——直接向模型提出关于"书本身覆盖范围"的元问题。这类模板本身就是问题的一部分，不只是话题选得好不好的问题：它明着点出pdf/章节名称当问题主语，容易让模型把注意力放在"要不要承认没讲"这种元推理上，而不是老老实实检索、发现内容对不上再判断。cs-b007重出后改成不点名pdf/章节、直接问"是怎么实现的"这种自然技术问句（关于容器隔离机制），结果是本轮处理最好的无答案题案例：模型多次换角度检索（4次）确认真的找不到后，清楚说明这是通用知识而非书本依据，正确挂上`[未找到参考资料]`标签。这说明"元提问模板"本身会干扰模型的正常判断路径，无答案题应该像有答案题一样自然提问，让"找不到依据"成为检索之后自然得出的结论，而不是题目本身就在问"有没有"。

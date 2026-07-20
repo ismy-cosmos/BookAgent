@@ -11,8 +11,8 @@
 | cs-b003 | 事实题 | EN | What technique does the operating system use to run multiple processes on a single physical CPU at the same time? What is its core cost? | cpu-intro.pdf 引言及 §4.1 |
 | cs-b004 | 事实题 | 中 | OS 将程序加载为进程时，在跳转到 main() 之前会依次完成哪些初始化步骤？ | cpu-intro.pdf §4.3 Process Creation: A Little More Detail |
 | cs-b005 | 事实题 | EN | What are the three basic states of a process? What does each mean, and what conditions trigger transitions between them? | cpu-intro.pdf §4.4 Process States |
-| cs-b006 | 计算题 | 中 | cpu-intro.pdf 的 Figure 4.4 展示了 Process0 和 Process1 的执行追踪：两者在时间单位1同时到达系统… | cpu-intro.pdf §4.4 Process States，Figure 4.4 Tracing Process State: CPU and I/O |
-| cs-b007 | 无答案题 | EN | Does the cpu-intro chapter discuss file system persistence mechanisms, such as how files are organized and stored on disk? | cpu-intro.pdf（本章及本次ingest全部语料均未涉及persistence，属OSTEP原书第三部分，不在这批8个PDF+epub+音频范围内） |
+| cs-b006 | 事实题 | 中 | cpu-intro.pdf 的 Figure 4.4 展示了 Process0 和 Process1 的执行追踪：两者在时间单位1同时到达系统…（数值推导为个位数加减法，够不上计算题分类，改判事实题） | cpu-intro.pdf §4.4 Process States，Figure 4.4 Tracing Process State: CPU and I/O |
+| cs-b007 | 无答案题 | EN | How does the operating system give a group of processes their own isolated view of the filesystem and network, the way container runtimes like Docker do? | cpu-intro.pdf（本章及本次ingest全部语料均未涉及容器/namespace隔离机制，container/cgroup/namespace/Docker/chroot在整个语料库里均0命中） |
 
 ## cpu-api.pdf（7 条，2026-07-20用cs-eval库真实审查过；3条英文/4条中文，中英各类型均有覆盖）
 
@@ -26,19 +26,19 @@
 | cs-b013 | 计算题 | EN | How many lines of "hello" will the following C code print in total when executed? int main() { fork(); fork(); p… | cpu-api.pdf §5.1 The fork() System Call（fork 调用树分析） |
 | cs-b014 | 无答案题 | 中 | 多个用 fork() 创建的兄弟进程之间，操作系统提供了信号量（semaphore）这类同步原语来协调彼此的执行顺序吗？具体是怎么用的？ | cpu-api.pdf（本章及本次ingest全部语料均未涉及semaphore，见test-report真实幻觉案例记录） |
 
-## cpu-sched.pdf（9 条）
+## cpu-sched.pdf（9 条，2026-07-20用cs-eval库真实审查过；4条英文/5条中文，中英各类型均有覆盖）
 
-| ID | 类型 | 问题 | 来源定位 |
-|---|---|---|---|
-| cs-b015 | 事实题 | 调度领域中「周转时间」（turnaround time）的计算公式是什么？ | cpu-sched.pdf p2 §7.2 Scheduling Metrics |
-| cs-b016 | 事实题 | FIFO 调度在什么情况下会产生「护航效应」（convoy effect）？ | cpu-sched.pdf p3 §7.3 FIFO（Convoy Effect） |
-| cs-b017 | 事实题 | SJF（Shortest Job First）为什么在实际系统中难以直接应用？ | cpu-sched.pdf p4 §7.4 Shortest Job First (SJF) |
-| cs-b018 | 事实题 | STCF 与 SJF 的主要区别是什么？ | cpu-sched.pdf p5 §7.5 Shortest Time-to-Completion First (STCF) |
-| cs-b019 | 事实题 | Round Robin 调度为何能改善响应时间，但通常周转时间更差？ | cpu-sched.pdf p6-p8 §7.6 Response Time / §7.7 Round Robin |
-| cs-b020 | 事实题 | 调度器在处理含 I/O 的任务时，如何实现 CPU 与 I/O 的重叠利用？ | cpu-sched.pdf p9-p10 §7.8 Incorporating I/O |
-| cs-b021 | 计算题 | 三个任务 A(5ms)、B(10ms)、C(15ms) 同时在 t=0 到达，FIFO 按 A→B→C 顺序调… | cpu-sched.pdf p3 §7.3 FIFO（计算题，沿用书中方法论） |
-| cs-b022 | 计算题 | 同上三个任务（A=5, B=10, C=15，t=0 同时到达），改用 SJF 调度，平均周转时间是多少？与 … | cpu-sched.pdf p4 §7.4 SJF（计算题，沿用书中方法论） |
-| cs-b023 | 无答案题 | cpu-sched 这章讨论了多核处理器上的调度问题（如 SQMS/MQMS 架构）吗？ | cpu-sched.pdf（本章只讨论单核调度，多核在 cpu-sched-multi 章节） |
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b015 | 事实题 | EN | In scheduling, what is the formula for calculating "turnaround time"? | cpu-sched.pdf p2 §7.2 Scheduling Metrics |
+| cs-b016 | 事实题 | 中 | FIFO 调度在什么情况下会产生「护航效应」（convoy effect）？ | cpu-sched.pdf p3 §7.3 FIFO（Convoy Effect） |
+| cs-b017 | 事实题 | EN | Why is SJF (Shortest Job First) difficult to apply directly in real systems? | cpu-sched.pdf p4 §7.4 Shortest Job First (SJF) |
+| cs-b018 | 事实题 | 中 | STCF 与 SJF 的主要区别是什么？ | cpu-sched.pdf p5 §7.5 Shortest Time-to-Completion First (STCF) |
+| cs-b019 | 事实题 | EN | Why does Round Robin scheduling improve response time but usually result in worse turnaround time? | cpu-sched.pdf p6-p8 §7.6 Response Time / §7.7 Round Robin |
+| cs-b020 | 事实题 | 中 | 调度器在处理含 I/O 的任务时，如何实现 CPU 与 I/O 的重叠利用？ | cpu-sched.pdf p9-p10 §7.8 Incorporating I/O |
+| cs-b021 | 计算题 | EN | Three tasks A(5ms), B(10ms), and C(15ms) all arrive at t=0. Under FIFO scheduling in the order A→B→C, what is the average turnaround time? | cpu-sched.pdf p3 §7.3 FIFO（计算题，沿用书中方法论） |
+| cs-b022 | 计算题 | 中 | 三个任务 A(20ms)、B(5ms)、C(10ms) 同时在 t=0 到达，用 SJF（最短作业优先）调度，平均周转时间是多少？（改为独立题目，不依赖cs-b021上下文） | cpu-sched.pdf p4 §7.4 SJF（计算题，沿用书中方法论） |
+| cs-b023 | 无答案题 | 中 | 多级反馈队列调度算法具体是怎么根据进程的历史行为动态调整它所在的队列优先级的？ | cpu-sched.pdf（本章及本次ingest全部语料均未详细讨论多级反馈队列MLFQ的具体调整规则，cpu-sched.pdf p11明确写着MLFQ"is the topic of the next chapter"，cpu-sched-multi.pdf里只有一处一笔带过的类比提及，没有展开讲解队列调整机制本身） |
 
 ## cpu-sched-multi.pdf（4 条）
 
