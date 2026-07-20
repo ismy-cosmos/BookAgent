@@ -11,20 +11,20 @@
 | cs-b003 | 事实题 | EN | What technique does the operating system use to run multiple processes on a single physical CPU at the same time? What is its core cost? | cpu-intro.pdf 引言及 §4.1 |
 | cs-b004 | 事实题 | 中 | OS 将程序加载为进程时，在跳转到 main() 之前会依次完成哪些初始化步骤？ | cpu-intro.pdf §4.3 Process Creation: A Little More Detail |
 | cs-b005 | 事实题 | EN | What are the three basic states of a process? What does each mean, and what conditions trigger transitions between them? | cpu-intro.pdf §4.4 Process States |
-| cs-b006 | 计算题 | 中 | cpu-intro.pdf 的 Figure 4.4 展示了 Process0 和 Process1 的执行追踪：两者在时间单位1同时到达系统…（2026-07-20重出，原题A/B/5ms/10ms全是自编数字，书里没有对应词汇导致检索天然找不到锚点；新题直接引用书中Figure 4.4的真实追踪数据） | cpu-intro.pdf §4.4 Process States，Figure 4.4 Tracing Process State: CPU and I/O |
-| cs-b007 | 无答案题 | EN | Does the cpu-intro chapter discuss file system persistence mechanisms, such as how files are organized and stored on disk? | cpu-intro.pdf（本章及本次ingest全部语料均未涉及persistence，属OSTEP原书第三部分，不在这批8个PDF+epub+音频范围内；2026-07-20重出，原题"是否讨论FIFO/RR性能对比"因FIFO/RR在同库cpu-sched.pdf里真实存在且高相关可检索到，不满足无答案题设计原则，判定题目本身有缺陷而非幻觉bug，已废弃） |
+| cs-b006 | 计算题 | 中 | cpu-intro.pdf 的 Figure 4.4 展示了 Process0 和 Process1 的执行追踪：两者在时间单位1同时到达系统… | cpu-intro.pdf §4.4 Process States，Figure 4.4 Tracing Process State: CPU and I/O |
+| cs-b007 | 无答案题 | EN | Does the cpu-intro chapter discuss file system persistence mechanisms, such as how files are organized and stored on disk? | cpu-intro.pdf（本章及本次ingest全部语料均未涉及persistence，属OSTEP原书第三部分，不在这批8个PDF+epub+音频范围内） |
 
-## cpu-api.pdf（7 条）
+## cpu-api.pdf（7 条，2026-07-20用cs-eval库真实审查过；3条英文/4条中文，中英各类型均有覆盖）
 
-| ID | 类型 | 问题 | 来源定位 |
-|---|---|---|---|
-| cs-b008 | 事实题 | fork() 系统调用在父进程和子进程中分别返回什么值？调用失败时返回什么？ | cpu-api.pdf §5.1 The fork() System Call |
-| cs-b009 | 事实题 | exec() 系列调用成功执行后为什么不会返回到调用它的代码？ | cpu-api.pdf §5.2 The exec() System Call |
-| cs-b010 | 事实题 | wait() 的作用是什么？父进程不调用 wait() 而子进程先退出，会产生什么现象？ | cpu-api.pdf p4 §5.2 The wait() System Call；僵尸状态定义见 cpu-intro.pdf p9 ASIDE: Process List |
-| cs-b011 | 事实题 | fork() 后子进程是否会获得父进程文件描述符的独立副本？这一特性如何支撑 shell 的输出重定向功能？ | cpu-api.pdf p6-p7 §5.4 Why? Motivating The API（重定向示例） |
-| cs-b012 | 事实题 | shell 执行用户输入命令的典型三步流程是什么？ | cpu-api.pdf §5.4 Why? Motivating The API |
-| cs-b013 | 计算题 | 以下 C 代码执行后共会打印多少行 hello？ int main() { fork(); fork(); p… | cpu-api.pdf §5.1 The fork() System Call（fork 调用树分析） |
-| cs-b014 | 无答案题 | cpu-api 这章讲解了进程间通信（IPC）的具体实现机制（如管道、共享内存、消息队列）吗？ | cpu-api.pdf（本章只涵盖 fork/exec/wait 基本 API，未涉及 IPC 机制） |
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b008 | 事实题 | EN | What value does fork() return in the parent process versus the child process? What does it return if the call fails? | cpu-api.pdf §5.1 The fork() System Call |
+| cs-b009 | 事实题 | 中 | exec() 系列调用成功执行后为什么不会返回到调用它的代码？ | cpu-api.pdf §5.2 The exec() System Call |
+| cs-b010 | 事实题 | EN | What does wait() do? What happens if the parent process doesn't call wait() and the child process exits first? | cpu-api.pdf p4 §5.2 The wait() System Call；僵尸状态定义见 cpu-intro.pdf p9 ASIDE: Process List |
+| cs-b011 | 事实题 | 中 | fork() 后子进程是否会获得父进程文件描述符的独立副本？这一特性如何支撑 shell 的输出重定向功能？ | cpu-api.pdf p6-p7 §5.4 Why? Motivating The API（重定向示例） |
+| cs-b012 | 事实题 | 中 | shell 执行用户输入命令的典型三步流程是什么？ | cpu-api.pdf §5.4 Why? Motivating The API |
+| cs-b013 | 计算题 | EN | How many lines of "hello" will the following C code print in total when executed? int main() { fork(); fork(); p… | cpu-api.pdf §5.1 The fork() System Call（fork 调用树分析） |
+| cs-b014 | 无答案题 | 中 | 多个用 fork() 创建的兄弟进程之间，操作系统提供了信号量（semaphore）这类同步原语来协调彼此的执行顺序吗？具体是怎么用的？ | cpu-api.pdf（本章及本次ingest全部语料均未涉及semaphore，见test-report真实幻觉案例记录） |
 
 ## cpu-sched.pdf（9 条）
 

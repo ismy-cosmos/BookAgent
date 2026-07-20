@@ -96,58 +96,43 @@
   },
   "cs-b008": {
     "chunk_ids": [
-      "cs-eval-60/cpu-api.pdf/p0001/0002",
-      "cs-eval-60/cpu-api.pdf/p0002/0006",
-      "cs-eval-60/cpu-api.pdf/p0005/0018"
+      "cs-eval/cpu-api.pdf/p0003/0007",
+      "cs-eval/cpu-api.pdf/p0002/0002"
     ],
-    "method": "section_search"
+    "method": "page_exact"
   },
   "cs-b009": {
     "chunk_ids": [
-      "cs-eval-60/cpu-api.pdf/p0004/0014"
+      "cs-eval/cpu-api.pdf/p0005/0017"
     ],
-    "method": "section_search"
+    "method": "page_exact"
   },
   "cs-b010": {
     "chunk_ids": [
-      "cs-eval-60/cpu-api.pdf/p0004/0011",
-      "cs-eval-60/cpu-api.pdf/p0004/0012",
-      "cs-eval-60/cpu-api.pdf/p0004/0013",
-      "cs-eval-60/cpu-api.pdf/p0004/0014",
-      "cs-eval-60/cpu-intro.pdf/p0009/0018",
-      "cs-eval-60/cpu-intro.pdf/p0009/0019"
+      "cs-eval/cpu-api.pdf/p0004/0010",
+      "cs-eval/cpu-intro.pdf/p0009/0016"
     ],
     "method": "page_exact"
   },
   "cs-b011": {
     "chunk_ids": [
-      "cs-eval-60/cpu-api.pdf/p0006/0019",
-      "cs-eval-60/cpu-api.pdf/p0006/0020",
-      "cs-eval-60/cpu-api.pdf/p0006/0021",
-      "cs-eval-60/cpu-api.pdf/p0006/0022",
-      "cs-eval-60/cpu-api.pdf/p0007/0023",
-      "cs-eval-60/cpu-api.pdf/p0007/0024"
+      "cs-eval/cpu-api.pdf/p0006/0020",
+      "cs-eval/cpu-api.pdf/p0007/0022"
     ],
     "method": "page_exact"
   },
   "cs-b012": {
     "chunk_ids": [
-      "cs-eval-60/cpu-api.pdf/p0006/0019",
-      "cs-eval-60/cpu-api.pdf/p0006/0020",
-      "cs-eval-60/cpu-api.pdf/p0006/0021",
-      "cs-eval-60/cpu-api.pdf/p0006/0022",
-      "cs-eval-60/cpu-api.pdf/p0007/0023",
-      "cs-eval-60/cpu-api.pdf/p0007/0024"
+      "cs-eval/cpu-api.pdf/p0006/0018",
+      "cs-eval/cpu-api.pdf/p0005/0014"
     ],
     "method": "page_exact"
   },
   "cs-b013": {
     "chunk_ids": [
-      "cs-eval-60/cpu-api.pdf/p0001/0002",
-      "cs-eval-60/cpu-api.pdf/p0002/0006",
-      "cs-eval-60/cpu-api.pdf/p0005/0018"
+      "cs-eval/cpu-api.pdf/p0001/0001"
     ],
-    "method": "section_search"
+    "method": "page_exact"
   },
   "cs-b014": {
     "chunk_ids": [],
