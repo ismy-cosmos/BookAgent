@@ -52,54 +52,41 @@
   },
   "cs-b001": {
     "chunk_ids": [
-      "cs-eval-60/cpu-intro.pdf/p0001/0000",
-      "cs-eval-60/cpu-intro.pdf/p0001/0001"
+      "cs-eval/cpu-intro.pdf/p0001/0000",
+      "cs-eval/cpu-intro.pdf/p0002/0002"
     ],
     "method": "page_exact"
   },
   "cs-b002": {
     "chunk_ids": [
-      "cs-eval-60/cpu-intro.pdf/p0001/0000",
-      "cs-eval-60/cpu-intro.pdf/p0001/0001",
-      "cs-eval-60/cpu-intro.pdf/p0002/0002",
-      "cs-eval-60/cpu-intro.pdf/p0002/0003"
+      "cs-eval/cpu-intro.pdf/p0002/0002",
+      "cs-eval/cpu-intro.pdf/p0009/0016"
     ],
     "method": "page_exact"
   },
   "cs-b003": {
     "chunk_ids": [
-      "cs-eval-60/cpu-intro.pdf/p0001/0000",
-      "cs-eval-60/cpu-intro.pdf/p0001/0001",
-      "cs-eval-60/cpu-intro.pdf/p0002/0002",
-      "cs-eval-60/cpu-intro.pdf/p0002/0003"
+      "cs-eval/cpu-intro.pdf/p0001/0001"
     ],
     "method": "page_exact"
   },
   "cs-b004": {
     "chunk_ids": [
-      "cs-eval-60/cpu-intro.pdf/p0004/0006",
-      "cs-eval-60/cpu-intro.pdf/p0004/0007",
-      "cs-eval-60/cpu-intro.pdf/p0005/0008",
-      "cs-eval-60/cpu-intro.pdf/p0005/0009"
+      "cs-eval/cpu-intro.pdf/p0004/0005",
+      "cs-eval/cpu-intro.pdf/p0005/0006"
     ],
     "method": "page_exact"
   },
   "cs-b005": {
     "chunk_ids": [
-      "cs-eval-60/cpu-intro.pdf/p0006/0010",
-      "cs-eval-60/cpu-intro.pdf/p0006/0011",
-      "cs-eval-60/cpu-intro.pdf/p0006/0012"
+      "cs-eval/cpu-intro.pdf/p0005/0007",
+      "cs-eval/cpu-intro.pdf/p0006/0009"
     ],
     "method": "page_exact"
   },
   "cs-b006": {
     "chunk_ids": [
-      "cs-eval-60/cpu-intro.pdf/p0006/0010",
-      "cs-eval-60/cpu-intro.pdf/p0006/0011",
-      "cs-eval-60/cpu-intro.pdf/p0006/0012",
-      "cs-eval-60/cpu-intro.pdf/p0007/0013",
-      "cs-eval-60/cpu-intro.pdf/p0007/0014",
-      "cs-eval-60/cpu-intro.pdf/p0007/0015"
+      "cs-eval/cpu-sched.pdf/p0002/0004"
     ],
     "method": "page_exact"
   },

@@ -2,17 +2,17 @@
 
 总计 60 条，按来源章节分组。所有条目均已对照实际 PDF 内容核验，source_location 标注真实页码（早期 cs-b001~b027 部分用书内章节号 §x.x 辅助定位，对照解析结果已核实编号准确）。
 
-## cpu-intro.pdf（7 条）
+## cpu-intro.pdf（7 条，2026-07-20用cs-eval库真实审查过；4条英文/3条中文，中英各类型均有覆盖）
 
-| ID | 类型 | 问题 | 来源定位 |
-|---|---|---|---|
-| cs-b001 | 事实题 | 操作系统对「进程」的精确定义是什么？进程与程序的区别是什么？ | cpu-intro.pdf §4.1 The Abstraction: A Process |
-| cs-b002 | 事实题 | 进程的机器状态（machine state）由哪三类主要成分构成？ | cpu-intro.pdf §4.1 The Abstraction: A Process |
-| cs-b003 | 事实题 | 操作系统通过什么技术在单个物理 CPU 上让多个进程同时运行？其核心代价是什么？ | cpu-intro.pdf 引言及 §4.1 |
-| cs-b004 | 事实题 | OS 将程序加载为进程时，在跳转到 main() 之前会依次完成哪些初始化步骤？ | cpu-intro.pdf §4.3 Process Creation: A Little More Detail |
-| cs-b005 | 事实题 | 进程的三种基本状态是什么？各自的含义及相互转换条件是什么？ | cpu-intro.pdf §4.4 Process States |
-| cs-b006 | 计算题 | 系统有 1 个 CPU，进程 A 和 B 同时到达（t=0）。A 先运行 5ms 后发起需 10ms 的 I/… | cpu-intro.pdf §4.4 Process States（I/O 重叠示例） |
-| cs-b007 | 无答案题 | cpu-intro 这一章讨论了进程调度算法（如 FIFO、Round Robin）的具体性能对比吗？ | cpu-intro.pdf（本章未涉及具体调度算法，仅介绍进程抽象概念，调度算法在 cpu-sched 章节） |
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b001 | 事实题 | EN | What is the operating system's precise definition of a "process"? What is the difference between a process and a program? | cpu-intro.pdf §4.1 The Abstraction: A Process |
+| cs-b002 | 事实题 | 中 | 进程的机器状态（machine state）由哪三类主要成分构成？ | cpu-intro.pdf §4.1 The Abstraction: A Process |
+| cs-b003 | 事实题 | EN | What technique does the operating system use to run multiple processes on a single physical CPU at the same time? What is its core cost? | cpu-intro.pdf 引言及 §4.1 |
+| cs-b004 | 事实题 | 中 | OS 将程序加载为进程时，在跳转到 main() 之前会依次完成哪些初始化步骤？ | cpu-intro.pdf §4.3 Process Creation: A Little More Detail |
+| cs-b005 | 事实题 | EN | What are the three basic states of a process? What does each mean, and what conditions trigger transitions between them? | cpu-intro.pdf §4.4 Process States |
+| cs-b006 | 计算题 | 中 | cpu-intro.pdf 的 Figure 4.4 展示了 Process0 和 Process1 的执行追踪：两者在时间单位1同时到达系统…（2026-07-20重出，原题A/B/5ms/10ms全是自编数字，书里没有对应词汇导致检索天然找不到锚点；新题直接引用书中Figure 4.4的真实追踪数据） | cpu-intro.pdf §4.4 Process States，Figure 4.4 Tracing Process State: CPU and I/O |
+| cs-b007 | 无答案题 | EN | Does the cpu-intro chapter discuss file system persistence mechanisms, such as how files are organized and stored on disk? | cpu-intro.pdf（本章及本次ingest全部语料均未涉及persistence，属OSTEP原书第三部分，不在这批8个PDF+epub+音频范围内；2026-07-20重出，原题"是否讨论FIFO/RR性能对比"因FIFO/RR在同库cpu-sched.pdf里真实存在且高相关可检索到，不满足无答案题设计原则，判定题目本身有缺陷而非幻觉bug，已废弃） |
 
 ## cpu-api.pdf（7 条）
 

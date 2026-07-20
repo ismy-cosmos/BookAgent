@@ -22,6 +22,15 @@ _MODEL = "qwen3:q4km"
 _QA_FILE = Path(__file__).parent / "testset/cs/qa/qa.jsonl"
 
 
+class LoggingExecutor(RealExecutor):
+    """RealExecutor 的审查专用子类：额外把模型自己组织的 retrieve query 打印出来。
+    审查检索质量必须知道模型实际发了什么 query，不能拿题目原文代替——两者常常不同。"""
+
+    def _retrieve(self, args: dict) -> str:
+        print(f"\n  [retrieve调用] query={args.get('query', '')!r}  k={args.get('k', 5)}")
+        return super()._retrieve(args)
+
+
 def main() -> None:
     ids = sys.argv[1:]
     if not ids:
@@ -36,7 +45,7 @@ def main() -> None:
 
     store = ChromaStore(persist_dir=_CHROMA_DIR)
     embedder = Embedder(device="cpu")
-    executor = RealExecutor(book_id=_BOOK_ID, embedder=embedder, store=store)
+    executor = LoggingExecutor(book_id=_BOOK_ID, embedder=embedder, store=store)
     client = OllamaAgentClient(model=_MODEL, executor=executor)
 
     for qid in ids:
