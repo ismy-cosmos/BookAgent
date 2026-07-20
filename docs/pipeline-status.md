@@ -23,11 +23,13 @@ CS 学科 60 题真实问答评测（PR #41）跑完后，新增 **issue #40**�
 
 **已完成（续2）**：**issue #49**（真实根因是marker把TIP/CRUX/ASIDE侧边栏框误判成`#`标题，触发flush截断续接句子——8本真实书人工审查27处误判、24处被关键词规则覆盖，另加WARNING/CAUTION/SIDEBAR共6词，PR #53，2026-07-17合并，真实cpu-intro.pdf端到端验证过）。issue #19评论区那条"跨页断句丢失"的原始发现已经被#49解决，#19本身保留的"要不要换分句库"范围仍暂缓。
 
-1. **下一步：issue #40**（retrieve 无相关性阈值，跨章节内容被误归因产生幻觉）——降幻觉率主线，唯一有真实评测数据支撑的幻觉链路，跟 reranker/#48 混合检索同一批规划，见 `docs/product-positioning.md`。
+**已完成（续3）**：**CS测试集全量真实审查+扩容至76题**（PR #55，2026-07-20合并）——用真实端到端管线（`book_id=cs-eval`）逐题核验原60题，改判2道question_type、订正2道ground truth（`derive_ground_truth.py`不检查`question_type`导致的脚本bug）；扩容16题（cs-b056~071，覆盖已有PDF补充无答案题、`java-ch1-e2e.epub`新增10题、图片新增3题）；排查并重出9道用了元提问模板/元指代开头的题目。核心指标：Hit@5=98.4%、工具调用率=100%、幻觉率=7.9%全量口径/46.2%无答案题专项口径。详细逐题记录见`docs/test-report-2026-07-20-cs-testset-audit.md`，是issue #40设计阶段的证据基础。审查过程中发现calculate工具在特定英文措辞下会反复触发`_ALLOWED_NODES`白名单拒绝、模型不会调整策略导致`MAX_ROUNDS_EXCEEDED`完全无输出，已拆分为独立 **issue #54**（方案：扩展`_ALLOWED_NODES`支持位移运算+窄口子白名单函数，不引入新依赖，不属于#40范畴）。
+
+1. **下一步：issue #40**（retrieve 无相关性阈值，跨章节内容被误归因产生幻觉）——降幻觉率主线，现在有76题真实评测数据+18条共性发现支撑设计（PR #55 test-report），跟 reranker/#48 混合检索同一批规划，见 `docs/product-positioning.md`。
 2. **之后：测试集扩充**（临床医学 / 法学两个学科，候选书目已定，见"里程碑覆盖度缺口"一节）。
 3. **issue #11 暂缓**（EPUB 容器直接子级裸文本节点丢失）：用真实语料核实过，当前EPUB测试语料（`java-ch1-e2e.epub`）里这个具体bug模式命中0次，是理论缺陷不是已验证的真实问题（跟#19一个性质）。等测试集扩充过程中如果真的撞见这个问题，再回来处理，不主动排期。
-4. **尚未排期**：issue #25（极小行内排版图片被 VLM 过度解读产生幻觉，同批 CS 评测发现，图片理解层问题）、#24（超大 PDF 导致 marker 解析 OOM，当前语料未触发）、#19（Chunker 句子边界判断评估替换为成熟分句库，issue 原文已注明"暂缓"）。
+4. **尚未排期**：issue #25（极小行内排版图片被 VLM 过度解读产生幻觉，同批 CS 评测发现，图片理解层问题）、#24（超大 PDF 导致 marker 解析 OOM，当前语料未触发）、#19（Chunker 句子边界判断评估替换为成熟分句库，issue 原文已注明"暂缓"）、**#54**（calculate工具表达式沙箱不支持位移运算，特定英文措辞下模型死循环触发`MAX_ROUNDS_EXCEEDED`，方案已明确，独立于#40，可随时排期）。
 
 ## 里程碑覆盖度缺口
 
-README 目标指标要求 Hit@5 覆盖 **CS / 临床医学 / 法学** 三学科，目前只有 **CS 完整跑完**（`eval/testset/cs/`，60 题 QA + 真实评测，PR #41）。临床医学（候选书目已定：《Nursing Pharmacology》）、法学（候选书目已定：《Criminal Procedure》，CALI eLangdell）两个学科候选书目早已选定（`eval/parser_selection/textbook-candidates.md`），但 ingest/QA 出题/评测三步均未开始，`eval/testset/clinical/`、`eval/testset/law/` 目前只有占位目录。是否现在启动、还是等上面 issue 修完再复制到新学科，待决策。
+README 目标指标要求 Hit@5 覆盖 **CS / 临床医学 / 法学** 三学科，目前只有 **CS 完整跑完**（`eval/testset/cs/`，76 题 QA + 真实评测，PR #41 首轮60题 → PR #55 全量审查+扩容至76题）。临床医学（候选书目已定：《Nursing Pharmacology》）、法学（候选书目已定：《Criminal Procedure》，CALI eLangdell）两个学科候选书目早已选定（`eval/parser_selection/textbook-candidates.md`），但 ingest/QA 出题/评测三步均未开始，`eval/testset/clinical/`、`eval/testset/law/` 目前只有占位目录。是否现在启动、还是等上面 issue 修完再复制到新学科，待决策。
