@@ -439,5 +439,21 @@
   "cs-b068": {
     "chunk_ids": [],
     "method": "no_location_expected"
+  },
+  "cs-b069": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b070": {
+    "chunk_ids": [
+      "cs-eval/cs_p2.png/pNone/0000"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b071": {
+    "chunk_ids": [
+      "cs-eval/cs_p3.png/pNone/0000"
+    ],
+    "method": "page_exact"
   }
 }

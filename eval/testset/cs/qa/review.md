@@ -82,7 +82,7 @@
 | cs-b042 | 事实题 | 中 | 一个虚拟地址在分页系统中如何被划分为 VPN 和 offset？ | vm-paging.pdf p3 地址结构 |
 | cs-b043 | 事实题 | EN | What is the role of the valid bit in a page table entry (PTE)? | vm-paging.pdf p6 What's In The Page Table |
 | cs-b044 | 事实题 | 中 | 为什么书中说最朴素的分页机制会让内存访问变慢？ | vm-paging.pdf p8-p9 Paging: Also Too Slow |
-| cs-b045 | 事实题 | EN | According to the book's summary, what fragmentation-related advantage does paging have over previous approaches like segmentation, and why? | vm-paging.pdf p12 Summary |
+| cs-b045 | 事实题 | EN | What fragmentation-related advantage does paging have over previous approaches like segmentation, and why? | vm-paging.pdf p12 Summary |
 | cs-b046 | 计算题 | 中 | 系统使用 32 位虚拟地址，页大小 4KB（2^12 字节），按书中地址划分方法，VPN 占多少位？页表最多需… | vm-paging.pdf p3 地址划分方法（推导题） |
 | cs-b047 | 计算题 | EN | Following the same style as the book's example: 64-byte virtual address space, 16-byte pages, virtual address 21 (binary 010101) — VPN/offset and physical address given PFN=5? | vm-paging.pdf p3-p4 地址转换示例（沿用书中数值；见"遇到的问题"新增条目——英文措辞下calculate工具死循环导致MAX_ROUNDS_EXCEEDED，中文版正常） |
 | cs-b048 | 事实题（原无答案题，已改判） | 中 | 为什么页表不直接存放在 MMU 芯片上的专用硬件里，而是存放在内存中？书中提到的最简单的页表组织形式是怎样工作的？ | vm-paging.pdf p6 页表的存放位置与组织方式 |
@@ -97,24 +97,24 @@
 | cs-b051 | 事实题 | EN | Which segments does a segmented system typically divide a process's address space into? | vm-segmentation.pdf p1-p2 Segmentation: Generalized Base/Bounds（见"遇到的问题"新增条目——中文版曾出现"堆段"被错答成"静态数据段"，英文版未复现） |
 | cs-b052 | 事实题 | 中 | 分段相比之前整个地址空间用一对 base+bounds 映射的方式，解决了什么问题？ | vm-segmentation.pdf p1 引言 |
 | cs-b053 | 计算题 | EN | Using the same code segment configuration as the book's Figure 16.3 (base=32KB, bounds/size=2KB), is an access at virtual offset=100B legal? What is the physical address? | vm-segmentation.pdf p3 Figure 16.3 Segment Register Values |
-| cs-b054 | 无答案题 | 中 | vm-segmentation 这章讨论了现代 x86-64 处理器中分段寄存器的实际使用方式吗？ | vm-segmentation.pdf（本章只介绍经典分段概念与历史，未涉及 x86-64 具体实现） |
-| cs-b055 | 无答案题 | 中 | vm-segmentation 这章给出了不同外部碎片消减算法（如最佳适应、最差适应）的量化性能对比实验数据吗？ | vm-segmentation.pdf p9（提到存在很多算法及压缩 compact 的思路，但未给出具体算法的量化对比数据） |
+| cs-b054 | 无答案题 | 中 | 在现代x86-64处理器里，分段寄存器具体是怎么被实际使用的？ | vm-segmentation.pdf（本章只介绍经典分段概念与历史，未涉及 x86-64 具体实现；见"遇到的问题"——去掉元提问模板后仍然是严重幻觉，换了一套完全不同的编造内容） |
+| cs-b055 | 无答案题 | 中 | 针对外部碎片问题，最佳适应（best-fit）和最差适应（worst-fit）这两种算法相比，具体的性能表现差多少？ | vm-segmentation.pdf p9（提到存在很多算法及压缩 compact 的思路，但未给出具体算法的量化对比数据） |
 
 ## 音频 segment-01（5 条，2026-07-20用cs-eval库真实审查过；打包后chunk边界（issue #10修复后，68碎片→5个大chunk）已核实仍完整覆盖各题所需时间戳内容，回答全部准确/合理）
 
 | ID | 类型 | 语言 | 问题 | 来源定位 |
 |---|---|---|---|---|
-| cs-a01 | 音频题 | 中 | 在这段 demo 开始时，Remzi 的机器上共有多少个进程？其中处于活跃运行状态的有几个？其余的在做什么？ | 音频 segment-01 01:14–01:41（打包后位于segment-01.mp3/0001） |
+| cs-a01 | 音频题 | 中 | Remzi用top命令查看自己的机器时，系统里一共有多少个进程？其中真正处于活跃运行状态的有几个，其余大多数在做什么？ | 音频 segment-01 01:14–01:41（打包后位于segment-01.mp3/0001） |
 | cs-a02 | 音频题 | 中 | cpu.c 中的 spin 函数为什么要重复调用 getTime，而不是写一个真正的空循环？ | 音频 segment-01 03:16–03:38（打包后与cs-a03同位于segment-01.mp3/0002） |
 | cs-a03 | 音频题 | 中 | top 输出中进程 ID 0 是什么？它是什么时候创建的，负责什么？ | 音频 segment-01 02:19–02:49（打包后与cs-a02同位于segment-01.mp3/0002） |
 | cs-a04 | 计算题 | 中 | 运行两个 cpu.c 实例后，系统空闲率变为约 50%。据此推断该机器有多少个虚拟核心？ | 音频 segment-01 04:07–04:29（打包后位于segment-01.mp3/0003） |
-| cs-a05 | 无答案题 | 中 | 在这段 demo 中，Remzi 用 top 查看了哪些内存统计数据？ | 音频 segment-01（全段均无内存数据细节，原文明确说"memory stats, which we are not going to look at at all"） |
+| cs-a05 | 无答案题 | 中 | Remzi用top命令查看进程信息时，具体展示了哪些内存统计数据？ | 音频 segment-01（全段均无内存数据细节，原文明确说"memory stats, which we are not going to look at at all"） |
 
 ## java-ch1-e2e.epub（10 条，新增，2026-07-20用cs-eval库真实审查过；4条英文/6条中文；仅覆盖epub第1章内容，事实题/计算题/无答案题均有覆盖）
 
 | ID | 类型 | 语言 | 问题 | 来源定位 |
 |---|---|---|---|---|
-| cs-b059 | 事实题 | 中 | 书中总结指出，是哪两个迫切需求催生了Java 8的整套新特性？ | java-ch1-e2e.epub §1.1 为什么要关心Java的变化（见"遇到的问题"新增条目——检索到的chunk本可支撑正确答案，但模型误把"简洁代码"替换成了原文里另一个不同的驱动因素"大型系统设计演进"） |
+| cs-b059 | 事实题 | 中 | 是哪两个迫切需求催生了Java 8的整套新特性？ | java-ch1-e2e.epub §1.1 为什么要关心Java的变化（见"遇到的问题"——核心chunk稳定排第1，但两次独立测试一次答对一次答错，是生成环节本身的不稳定，跟题目措辞无关） |
 | cs-b060 | 事实题 | 中 | Stream API的加入，直接导致Java 8同时引入了哪两项配套功能？ | java-ch1-e2e.epub §1.1 为什么要关心Java的变化 |
 | cs-b061 | 事实题 | EN | The book compares Stream to Unix pipe commands like cat/tr/sort/tail. What point about how Stream processes data is this analogy meant to illustrate? | java-ch1-e2e.epub §1.2.2 流处理 |
 | cs-b062 | 事实题 | 中 | 方法引用（如 File::isHidden）相比 Java 8 之前用 FileFilter 匿名类实现同样的筛选功能，好处是什么？ | java-ch1-e2e.epub §1.3.1 方法和Lambda作为一等值（见"遇到的问题"新增条目——回答额外补充了书中未提及的"性能提升""类型安全"两点） |
@@ -122,6 +122,14 @@
 | cs-b064 | 事实题 | 中 | Optional<T> 是为了解决Java中的什么经典问题而引入的？ | java-ch1-e2e.epub §1.6 来自函数式编程的其他好思想 |
 | cs-b065 | 事实题 | 中 | Java 8引入默认方法（default method），是为了解决接口演化过程中的什么困境？ | java-ch1-e2e.epub §1.5 默认方法及Java模块 |
 | cs-b066 | 计算题 | 中 | 书中举的两个线程同时对共享变量sum加数的例子里，sum初始值为100，线程1执行sum=sum+3，线程2执行sum=sum+5。如果没有竞态条件、按顺序正确执行这两次加法，sum最终应该是多少？ | java-ch1-e2e.epub §1.2.4 并行与共享的可变数据；图1-5示例 |
-| cs-b067 | 无答案题 | EN | How does Stream's reduce operation actually combine multiple elements into a single result? | java-ch1-e2e.epub（第1章只在提到filter类操作时顺带点名map、reduce这两个词，未展开解释具体机制，留待第4~7章） |
-| cs-b068 | 无答案题 | EN | If a class implements multiple interfaces that each provide a default method with the same signature, what specific rule does Java use to resolve the conflict? | java-ch1-e2e.epub（第1章只说"Java 8用一些限制来避免出现类似于C++中臭名昭著的菱形继承问题"，明确把具体规则留给第13章，未在本章展开） |
+| cs-b067 | 无答案题 | EN | How does Stream's reduce operation actually combine multiple elements into a single result? | java-ch1-e2e.epub（第1章只在提到filter类操作时顺带点名map、reduce这两个词，未展开解释具体机制） |
+| cs-b068 | 无答案题 | EN | If a class implements multiple interfaces that each provide a default method with the same signature, what specific rule does Java use to resolve the conflict? | java-ch1-e2e.epub（第1章只说"Java 8用一些限制来避免出现类似于C++中臭名昭著的菱形继承问题"，未展开具体规则） |
+
+## 图片题（3 条，新增，2026-07-20用cs-eval库真实审查过；1条无答案题）
+
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b069 | 无答案题 | 中 | RAG新闻分析报告流程里，"Core RAG"和"Ranking"两个阶段具体各自用的是哪个AI模型？ | 图片 cs_p1.png（图中只有流程步骤和挑战/建议文字，全程未提及任何具体AI模型名称） |
+| cs-b070 | 事实题 | 中 | 大语言模型训练过程中的强化学习（RLHF）阶段，具体是通过什么方式让模型的回答更符合人类偏好的？ | 图片 cs_p2.png 第6步「强化学习（RLHF）」 |
+| cs-b071 | 事实题 | EN | DeepMind's Nature cover article used graph neural networks to speed up optimization for proving or refining what kind of mathematical problems? | 图片 cs_p3.png 正文第二段 |
 
