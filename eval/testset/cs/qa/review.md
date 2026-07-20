@@ -88,17 +88,17 @@
 | cs-b048 | 事实题（原无答案题，已改判） | 中 | 为什么页表不直接存放在 MMU 芯片上的专用硬件里，而是存放在内存中？书中提到的最简单的页表组织形式是怎样工作的？ | vm-paging.pdf p6 页表的存放位置与组织方式 |
 | cs-b058 | 无答案题 | EN | To avoid paying the extra memory access needed to walk the page table on every single memory reference, does the hardware use a small on-chip cache that holds recently used virtual-to-physical translations, and if so, how does it decide when a cached translation can still be reused versus when it needs to be re-fetched from the page table? | vm-paging.pdf（全文未讲解TLB工作原理；"TLB"/"Translation Lookaside Buffer"在vm-paging.pdf全文0命中，仅在cpu-sched.pdf、cpu-sched-multi.pdf各一笔带过） |
 
-## vm-segmentation.pdf（7 条）
+## vm-segmentation.pdf（7 条，2026-07-20用cs-eval库真实审查过；3条英文/4条中文，中英各类型均有覆盖；cs-b055的ground truth修正为no_location_expected，题目本身保留）
 
-| ID | 类型 | 问题 | 来源定位 |
-|---|---|---|---|
-| cs-b049 | 事实题 | 分段（segmentation）机制如何进行地址转换？什么情况下会触发段错误（segmentation fau… | vm-segmentation.pdf p1-p4 地址转换与 Segmentation Fault |
-| cs-b050 | 事实题 | 分段机制会产生什么类型的碎片？书中是如何描述这一问题的？ | vm-segmentation.pdf p9 Managing Free Space |
-| cs-b051 | 事实题 | 分段系统通常将进程地址空间划分为哪几个段？ | vm-segmentation.pdf p1-p2 Segmentation: Generalized Base/Bounds |
-| cs-b052 | 事实题 | 分段相比之前整个地址空间用一对 base+bounds 映射的方式，解决了什么问题？ | vm-segmentation.pdf p1 引言 |
-| cs-b053 | 计算题 | 沿用书中 Figure 16.3 的代码段配置（base=32KB，bounds/size=2KB），若访问虚… | vm-segmentation.pdf p3 Figure 16.3 Segment Register Values |
-| cs-b054 | 无答案题 | vm-segmentation 这章讨论了现代 x86-64 处理器中分段寄存器的实际使用方式吗？ | vm-segmentation.pdf（本章只介绍经典分段概念与历史，未涉及 x86-64 具体实现） |
-| cs-b055 | 无答案题 | vm-segmentation 这章给出了不同外部碎片消减算法（如最佳适应、最差适应）的量化性能对比实验数据吗… | vm-segmentation.pdf p9（提到存在很多算法及压缩 compact 的思路，但未给出具体算法的量化对比数据） |
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b049 | 事实题 | EN | How does the segmentation mechanism perform address translation? Under what circumstances does it trigger a segmentation fault? | vm-segmentation.pdf p1-p4 地址转换与 Segmentation Fault |
+| cs-b050 | 事实题 | 中 | 分段机制会产生什么类型的碎片？书中是如何描述这一问题的？ | vm-segmentation.pdf p9 Managing Free Space |
+| cs-b051 | 事实题 | EN | Which segments does a segmented system typically divide a process's address space into? | vm-segmentation.pdf p1-p2 Segmentation: Generalized Base/Bounds（见"遇到的问题"新增条目——中文版曾出现"堆段"被错答成"静态数据段"，英文版未复现） |
+| cs-b052 | 事实题 | 中 | 分段相比之前整个地址空间用一对 base+bounds 映射的方式，解决了什么问题？ | vm-segmentation.pdf p1 引言 |
+| cs-b053 | 计算题 | EN | Using the same code segment configuration as the book's Figure 16.3 (base=32KB, bounds/size=2KB), is an access at virtual offset=100B legal? What is the physical address? | vm-segmentation.pdf p3 Figure 16.3 Segment Register Values |
+| cs-b054 | 无答案题 | 中 | vm-segmentation 这章讨论了现代 x86-64 处理器中分段寄存器的实际使用方式吗？ | vm-segmentation.pdf（本章只介绍经典分段概念与历史，未涉及 x86-64 具体实现） |
+| cs-b055 | 无答案题 | 中 | vm-segmentation 这章给出了不同外部碎片消减算法（如最佳适应、最差适应）的量化性能对比实验数据吗？ | vm-segmentation.pdf p9（提到存在很多算法及压缩 compact 的思路，但未给出具体算法的量化对比数据） |
 
 ## 音频 segment-01（5 条）
 

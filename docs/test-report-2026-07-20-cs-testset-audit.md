@@ -949,6 +949,136 @@
 
 **具体分析**：这是本轮审查里语气最自信、最没有保留的一次幻觉——3次换角度检索都没找到TLB工作原理相关内容，模型仍然把训练知识里对TLB的标准理解（LRU替换、validity bit、失效更新）当作从检索内容里得出的结论呈现，完全没有触发"未查找到相关资料"这条system prompt指令。跟cs-b040（同样检索不到、但诚实声明）形成鲜明对比，说明这条指令能不能被触发，很大程度上取决于具体问题和模型当时的"自信程度"，不稳定。
 
+---
+
+## vm-segmentation.pdf 章节（Task 10，2026-07-20）
+
+### cs-b049
+
+**题目**："How does the segmentation mechanism perform address translation? Under what circumstances does it trigger a segmentation fault?"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-segmentation.pdf/p0012/0031`（segmentation.py练习题介绍，非本题） | 0.3332 | 不能 |
+| `vm-segmentation.pdf/p0004/0009`（段寄存器/显式分段方式） | 0.3958 | 能，核心论据 |
+| `vm-segmentation.pdf/p0008/0025`（分段整体回顾，非地址转换细节） | 0.4065 | 部分能 |
+| `vm-segmentation.pdf/p0012/0032`（练习题具体内容，非本题） | 0.4093 | 不能 |
+| `vm-segmentation.pdf/p0010/0028`（分段解决的问题总览） | 0.4232 | 部分能 |
+
+**回答是否准确**：准确，base+bounds地址转换机制、越界触发段错误的原因都答对。
+
+**具体分析**：核心chunk`p0004/0009`只排第2，5个chunk里2个是练习题相关内容（不支撑本题），排序质量一般但答案未受影响。
+
+### cs-b050
+
+**题目**："分段机制会产生什么类型的碎片？书中是如何描述这一问题的？"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-segmentation.pdf/p0009/0026`（外部碎片定义，含20KB/24KB具体例子） | 0.4860 | 能，核心论据 |
+| `java-ch1-e2e.epub/p0003/0005`（Java多核/并发介绍，跨书无关） | 0.4987 | 不能 |
+| `vm-segmentation.pdf/p0007/0022`（粗粒度/细粒度分段，非碎片） | 0.5055 | 不能 |
+| `vm-segmentation.pdf/p0008/0025`（分段整体回顾） | 0.5074 | 不能 |
+| `vm-paging.pdf/p0001/0000`（分页/分段两种思路对比，跨章节相关） | 0.5188 | 部分能 |
+
+**回答是否准确**：准确，外部碎片定义+具体数值例子+compaction应对方案全部答对，逐字引用了原文"We call this problem external fragmentation"。
+
+**具体分析**：核心chunk排名第1，但跨书Java EPUB内容混入citation第2名，是"遇到的问题"第3条模式的又一实例。
+
+### cs-b051
+
+**题目**："Which segments does a segmented system typically divide a process's address space into?"
+
+**检索query**："segmented system divides process's address space into which segments"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-segmentation.pdf/p0002/0003`（原文明确写"three logically-different segments: code, stack, and heap"） | 0.3268 | 能，核心论据 |
+| `vm-segmentation.pdf/p0008/0025`（分段整体回顾） | 0.3294 | 部分能 |
+| `vm-segmentation.pdf/p0012/0031`（练习题介绍，非本题） | 0.3430 | 不能 |
+| `vm-segmentation.pdf/p0007/0022`（粗粒度/细粒度分段，提及code/stack/heap） | 0.3452 | 能 |
+| `vm-segmentation.pdf/p0003/0005`（MMU硬件结构，三对base/bounds寄存器） | 0.3479 | 部分能 |
+
+**回答是否准确**：准确，"code、stack、heap"三段全部答对，跟核心chunk原文逐字一致。
+
+**具体分析**：核心chunk排名第1，检索质量良好。这道题用中文原文（"分段系统通常将进程地址空间划分为哪几个段？"）单独测试时出现过真实错误——核心chunk同样排名第1、原文同样明确写着"code, stack, and heap"，但回答给出的是"代码段、**静态数据段**、堆栈段"，用"静态数据段"替换了"堆段"，且引用列表里混入了一个跨章节`cpu-intro.pdf`的图示（画的是"code/static data/heap/stack"四个区域）。英文版复测未复现这个错误。这是检索正确、生成环节本身出错的案例，跟cs-b047属于同一类"跨语言生成不稳定"现象，但这次是"中文错、英文对"，方向和cs-b047相反，说明这种不稳定性没有固定的语言偏向，记入"遇到的问题"新增条目。
+
+### cs-b052
+
+**题目**："分段相比之前整个地址空间用一对 base+bounds 映射的方式，解决了什么问题？"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-segmentation.pdf/p0001/0001`（分段概念引入） | 0.3762 | 部分能 |
+| `vm-segmentation.pdf/p0006/0016`（栈反向增长，非本题） | 0.4016 | 不能 |
+| `vm-segmentation.pdf/p0006/0018`（栈地址转换示例，非本题） | 0.4051 | 不能 |
+| `vm-segmentation.pdf/p0005/0014`（分段地址转换伪代码） | 0.4116 | 部分能 |
+| `vm-segmentation.pdf/p0002/0003`（避免堆栈间未用空间占用物理内存，核心论据） | 0.4148 | 能，核心论据 |
+
+**回答是否准确**：准确，"避免堆和栈之间未用空间浪费物理内存"这一核心论点讲对，还补充了栈反向增长这类合理延伸。
+
+**具体分析**：核心chunk排名第5但内容仍被正确使用，5个chunk全部来自本章，无跨书/跨章节污染。
+
+### cs-b053
+
+**题目**："Using the same code segment configuration as the book's Figure 16.3 (base=32KB, bounds/size=2KB), is an access at virtual offset=100B legal? What is the physical address?"
+
+**检索query**：与题目原文相同
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-segmentation.pdf/p0006/0018`（栈反向增长转换示例，非本题） | 0.3052 | 不能 |
+| `vm-segmentation.pdf/p0003/0007`（原文逐字例子："100 + 32KB, or 32868"） | 0.3152 | 能，最直接支撑 |
+| `vm-segmentation.pdf/p0006/0016`（栈反向增长，非本题） | 0.3186 | 不能 |
+| `vm-paging.pdf/p0001/0001`（跨章节分页示例，非本题） | 0.3315 | 不能 |
+| `vm-paging.pdf/p0004/0008`（跨章节VPN示例，非本题） | 0.3327 | 不能 |
+
+**回答是否准确**：准确，合法+物理地址32868，跟标准答案完全一致，正确调用了calculate工具。
+
+**具体分析**：最直接支撑答案的chunk（题目数值的原始出处）排名第2，其余4个都不相关（含2个跨章节vm-paging.pdf内容），噪音比例80%，但核心chunk内容本身足够精确，答案未受影响。
+
+### cs-b054
+
+**题目**："vm-segmentation 这章讨论了现代 x86-64 处理器中分段寄存器的实际使用方式吗？"
+
+**检索query**："modern x86-64 processors segment registers usage"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-segmentation.pdf/p0003/0005`（MMU硬件结构，三对base/bounds寄存器） | 0.4010 | 不能 |
+| `vm-segmentation.pdf/p0007/0019`（代码段共享/保护位机制） | 0.4150 | 不能 |
+| `vm-segmentation.pdf/p0008/0024`（细粒度分段历史，Burroughs B5000等早期机器） | 0.4180 | 不能 |
+| `vm-segmentation.pdf/p0005/0015`（隐式分段方法，SEG_MASK等寄存器常量） | 0.4296 | 不能 |
+| `vm-segmentation.pdf/p0003/0007`（Figure 16.3代码段配置示例） | 0.4331 | 不能 |
+
+**回答是否准确：结论错误，但对关键事实有明确披露**。回答开头写"是的，vm-segmentation 这一章确实讨论了现代 x86-64 处理器中分段寄存器的实际使用方式"，结尾重申"可以确认...还涉及了现代 x86-64 处理器中如何实际利用这些寄存器"，但在中间的括号说明里明确承认"书中没有直接提到'x86-64'这个具体架构名称"。5个chunk全部是经典分段概念/历史内容，没有一个提到x86-64或任何现代具体架构。
+
+**具体分析**：这道题延用了"这章讨论了X吗"元提问模板（design spec评审阶段已决定保留这一道，用于持续观察这类模板的实际表现）。模型的结论方向错了（该说"没有"却说"是的"），但没有像cs-b014/cs-b023/cs-b034/cs-b058那样对检索内容与自身结论之间的落差完全没有察觉——它明确点出了"x86-64"这个具体术语在原文中不存在，只是没有把这个已经观察到的事实用来修正开头和结尾的结论方向。按"模型是否表现得像书里全说清楚了、自己毫不知情在编"这个标准衡量，这道题不属于最严重的一类，但结论本身确实是错的，如实记录。
+
+### cs-b055（原判无答案题，ground truth订正）
+
+**题目**："vm-segmentation 这章给出了不同外部碎片消减算法（如最佳适应、最差适应）的量化性能对比实验数据吗？"
+
+**检索query**："vm-segmentation chapter, external fragmentation reduction algorithms, quantitative performance comparison experiments"
+
+| chunk | score | 能否支撑答案 |
+|---|---|---|
+| `vm-segmentation.pdf/p0011/0030`（参考文献列表，含Wilson survey引用） | 0.3922 | 部分能 |
+| `vm-segmentation.pdf/p0010/0028`（分段问题总览，提到smart algorithms） | 0.4324 | 部分能 |
+| `vm-segmentation.pdf/p0010/0027`（best-fit/worst-fit/first-fit/buddy算法点名，但只有名字没有量化对比） | 0.4519 | 能，核心论据 |
+| `vm-segmentation.pdf/p0009/0026`（外部碎片定义，非量化对比） | 0.4524 | 不能 |
+| `vm-segmentation.pdf/p0007/0019`（代码段共享，非本题） | 0.4557 | 不能 |
+
+**回答是否准确**：准确，正确指出书中只点了best-fit/worst-fit/first-fit/buddy algorithm这些算法的名字、引用了外部Wilson survey作延伸阅读，但没有给出量化对比数据。
+
+**具体分析**：这道题原本ground truth标注了真实chunk_id（跟cs-b050完全相同的`p0009/0026`+`p0009/0027`），与"无答案题"分类自相矛盾。追查`eval/derive_ground_truth.py`（首次生成ground truth的自动化脚本）发现根因：脚本按正则`\bp(\d+)`匹配`source_location`文本里任何"p数字"模式并直接判定为`page_exact`，完全不检查`question_type`——cs-b055的`source_location`写的是"vm-segmentation.pdf p9（提到存在很多算法...但未给出具体算法的量化对比数据）"，本意是说明"p9附近有相关但不够的内容"，脚本却把这个"p9"当成了真实定位依据，误判为有答案。核实过当前qa.jsonl里全部无答案题，只有cs-b048（已在Task 9修复）和cs-b055受这个bug影响，其余无答案题的`source_location`本来就没有具体页码，没有触发这个问题。cs-b055题目本身不改，ground truth订正为`no_location_expected`。
+
 ## 遇到的问题（跨题目共性发现）
 
 ### 1. 跨语言查询对检索分数有显著、可复现的影响
@@ -1031,5 +1161,9 @@ cs-b029（threads-intro.pdf事实题）5个citation里4个（80%）是`java-ch1-
 `pipeline/agent/answer.py`的`_append_tool_tags`逻辑是纯机械化的：`tags = [_citation_tag(citations) if citations else NO_CITATION_TAG]`，只判断这一轮`citations`列表是否非空，完全不解析模型正文里的措辞。cs-b040是这个逻辑产生矛盾结果的实例——检索到的5个chunk全部跟问题（rwlock）无关，模型正文明确写出"the retrieved results still do not contain information about...I will explain the general concept...based on standard knowledge"，诚实承认没有依据；但因为`citations`非空（retrieve确实返回了东西，只是不相关），回答末尾仍被挂上`[引用来源：...]`标签，视觉上像是这段话有书本依据。
 
 这大概率是有意为之：不能信模型自己嘴上说"我用了/没用工具"，只认"是否真的调用了retrieve并拿到非空结果"这个硬事实，防的是模型编造工具使用记录本身。但这个机制回答的是"retrieve有没有被调用且非空"，跟"返回的内容是否真的支撑了这个答案"是两个不同的问题——当前实现把二者划了等号。修复这个问题依赖的是retrieve返回内容的相关性判断能力，是issue #40（相关性阈值/rerank）要解决的同一类问题，不需要现在改标签逻辑本身，留到rerank阶段一并处理。
+
+### 14. 跨语言生成不稳定不止一个方向，检索链路一致时答案仍可能因语言而异
+
+cs-b047（第8条已详述）是英文触发`MAX_ROUNDS_EXCEEDED`完全无输出、中文正常的案例。cs-b051是方向相反的例子：同一道事实题，检索到的核心chunk排名、内容完全一致（原文明确写"code, stack, and heap"），中文提问时模型答成"代码段、静态数据段、堆栈段"（把"堆段"错答成"静态数据段"，还混入了一个跨章节`cpu-intro.pdf`的四区域图示），英文提问时正确答出"code, stack, and heap"。两个案例合在一起说明：检索链路给出同样高质量、同样排序的输入时，生成环节仍可能因提问语言不同而产出不同结果——没有固定的"哪种语言更可靠"的偏向，语言本身是一个会影响生成稳定性的独立变量，不是检索质量问题，也不属于issue #40范畴，记录供后续参考。
 
 
