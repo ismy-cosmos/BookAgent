@@ -1,48 +1,25 @@
 {
   "cs-a01": {
     "chunk_ids": [
-      "cs-eval-60/segment-01.mp3/0016",
-      "cs-eval-60/segment-01.mp3/0017",
-      "cs-eval-60/segment-01.mp3/0018",
-      "cs-eval-60/segment-01.mp3/0019",
-      "cs-eval-60/segment-01.mp3/0020",
-      "cs-eval-60/segment-01.mp3/0021",
-      "cs-eval-60/segment-01.mp3/0022",
-      "cs-eval-60/segment-01.mp3/0023",
-      "cs-eval-60/segment-01.mp3/0024"
+      "cs-eval/segment-01.mp3/0001"
     ],
     "method": "audio_overlap"
   },
   "cs-a02": {
     "chunk_ids": [
-      "cs-eval-60/segment-01.mp3/0045",
-      "cs-eval-60/segment-01.mp3/0046",
-      "cs-eval-60/segment-01.mp3/0047",
-      "cs-eval-60/segment-01.mp3/0048",
-      "cs-eval-60/segment-01.mp3/0049"
+      "cs-eval/segment-01.mp3/0002"
     ],
     "method": "audio_overlap"
   },
   "cs-a03": {
     "chunk_ids": [
-      "cs-eval-60/segment-01.mp3/0033",
-      "cs-eval-60/segment-01.mp3/0034",
-      "cs-eval-60/segment-01.mp3/0035",
-      "cs-eval-60/segment-01.mp3/0036",
-      "cs-eval-60/segment-01.mp3/0037",
-      "cs-eval-60/segment-01.mp3/0038"
+      "cs-eval/segment-01.mp3/0002"
     ],
     "method": "audio_overlap"
   },
   "cs-a04": {
     "chunk_ids": [
-      "cs-eval-60/segment-01.mp3/0052",
-      "cs-eval-60/segment-01.mp3/0053",
-      "cs-eval-60/segment-01.mp3/0054",
-      "cs-eval-60/segment-01.mp3/0055",
-      "cs-eval-60/segment-01.mp3/0056",
-      "cs-eval-60/segment-01.mp3/0057",
-      "cs-eval-60/segment-01.mp3/0058"
+      "cs-eval/segment-01.mp3/0003"
     ],
     "method": "audio_overlap"
   },
