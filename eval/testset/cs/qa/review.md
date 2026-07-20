@@ -51,17 +51,17 @@
 | cs-b056 | 事实题 | 中 | Linux社区实际使用的三种调度器实现——O(1)调度器、完全公平调度器（CFS）、BF调度器（BFS）——分别是单队列还是多队列设计？ | cpu-sched-multi.pdf p10 §10.6 Linux Multiprocessor Schedulers |
 | cs-b057 | 无答案题 | EN | How does the operating system decide which tasks to schedule on the CPU versus offloading to the GPU in a system with heterogeneous processors? | cpu-sched-multi.pdf（本章及本次ingest全部语料均未涉及GPU/异构处理器调度，GPU/heterogeneous/graphics在整个语料库里均0命中） |
 
-## threads-intro.pdf（7 条）
+## threads-intro.pdf（7 条，2026-07-20用cs-eval库真实审查过；4条英文/3条中文，中英各类型均有覆盖）
 
-| ID | 类型 | 问题 | 来源定位 |
-|---|---|---|---|
-| cs-b028 | 事实题 | 线程与进程在地址空间上的核心区别是什么？ | threads-intro.pdf p1-p2 线程模型 |
-| cs-b029 | 事实题 | 使用多线程而非多进程的两个主要动机是什么？ | threads-intro.pdf p3 为何使用线程 |
-| cs-b030 | 事实题 | 什么是竞态条件（race condition）？结合 counter 共享变量的例子说明。 | threads-intro.pdf p11 竞态条件 |
-| cs-b031 | 事实题 | 临界区（critical section）指的是什么代码？我们希望对临界区实现什么性质，以避免竞态条件？ | threads-intro.pdf p11 临界区与互斥 |
-| cs-b032 | 事实题 | 为什么 counter++ 这样看起来只有一行的语句也可能不是原子的？ | threads-intro.pdf p9-p10 The Heart Of The Problem |
-| cs-b033 | 计算题 | 两个线程各对共享变量 counter（初始为 0）执行 1000 次 counter++，如果没有任何同步，c… | threads-intro.pdf p9-p11 竞态条件分析（推导题） |
-| cs-b034 | 无答案题 | threads-intro 这章介绍了无锁（lock-free）数据结构的实现方式吗？ | threads-intro.pdf（本章只引入竞态条件和互斥的基本概念，未涉及无锁数据结构） |
+| ID | 类型 | 语言 | 问题 | 来源定位 |
+|---|---|---|---|---|
+| cs-b028 | 事实题 | EN | What is the core difference between a thread and a process in terms of address space? | threads-intro.pdf p1-p2 线程模型 |
+| cs-b029 | 事实题 | 中 | 使用多线程而非多进程的两个主要动机是什么？ | threads-intro.pdf p3 为何使用线程 |
+| cs-b030 | 事实题 | EN | What is a race condition? Explain using the example of a shared counter variable. | threads-intro.pdf p11 竞态条件 |
+| cs-b031 | 事实题 | 中 | 临界区（critical section）指的是什么代码？我们希望对临界区实现什么性质，以避免竞态条件？ | threads-intro.pdf p11 临界区与互斥 |
+| cs-b032 | 事实题 | EN | Why might a single line of code like counter++ not be atomic? | threads-intro.pdf p9-p10 The Heart Of The Problem |
+| cs-b033 | 计算题 | 中 | 在读-改-写三条指令模型（load到寄存器、寄存器加一、写回内存）下，两个线程各对同一个counter变量执行1000次自增、完全不加锁，counter最终值可能的范围是多少？（2026-07-20改用书中「三条指令」的具体表述重出，原版泛泛提"counter++"跟java-ch1-e2e.epub的共享可变状态讨论概念级碰撞，噪音从80%降到20%） | threads-intro.pdf p9-p11 竞态条件分析（推导题） |
+| cs-b034 | 无答案题 | EN | How exactly do coroutines implement cooperative switching between multiple execution flows within a single thread? | threads-intro.pdf（本章及本次ingest全部语料均未涉及协程coroutine，coroutine/green thread/async/fiber在整个语料库里均0命中） |
 
 ## threads-api.pdf（6 条）
 

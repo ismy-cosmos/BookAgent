@@ -221,69 +221,41 @@
   },
   "cs-b028": {
     "chunk_ids": [
-      "cs-eval-60/threads-intro.pdf/p0001/0000",
-      "cs-eval-60/threads-intro.pdf/p0002/0001",
-      "cs-eval-60/threads-intro.pdf/p0002/0002",
-      "cs-eval-60/threads-intro.pdf/p0002/0003"
+      "cs-eval/threads-intro.pdf/p0002/0002",
+      "cs-eval/threads-intro.pdf/p0001/0000"
     ],
     "method": "page_exact"
   },
   "cs-b029": {
     "chunk_ids": [
-      "cs-eval-60/threads-intro.pdf/p0003/0004"
+      "cs-eval/threads-intro.pdf/p0002/0003"
     ],
     "method": "page_exact"
   },
   "cs-b030": {
     "chunk_ids": [
-      "cs-eval-60/threads-intro.pdf/p0011/0027",
-      "cs-eval-60/threads-intro.pdf/p0011/0028",
-      "cs-eval-60/threads-intro.pdf/p0011/0029"
+      "cs-eval/threads-intro.pdf/p0011/0028"
     ],
     "method": "page_exact"
   },
   "cs-b031": {
     "chunk_ids": [
-      "cs-eval-60/threads-intro.pdf/p0011/0027",
-      "cs-eval-60/threads-intro.pdf/p0011/0028",
-      "cs-eval-60/threads-intro.pdf/p0011/0029"
+      "cs-eval/threads-intro.pdf/p0013/0036",
+      "cs-eval/threads-intro.pdf/p0011/0028"
     ],
     "method": "page_exact"
   },
   "cs-b032": {
     "chunk_ids": [
-      "cs-eval-60/threads-intro.pdf/p0009/0015",
-      "cs-eval-60/threads-intro.pdf/p0009/0016",
-      "cs-eval-60/threads-intro.pdf/p0009/0017",
-      "cs-eval-60/threads-intro.pdf/p0009/0018",
-      "cs-eval-60/threads-intro.pdf/p0009/0019",
-      "cs-eval-60/threads-intro.pdf/p0009/0020",
-      "cs-eval-60/threads-intro.pdf/p0009/0021",
-      "cs-eval-60/threads-intro.pdf/p0009/0022",
-      "cs-eval-60/threads-intro.pdf/p0010/0023",
-      "cs-eval-60/threads-intro.pdf/p0010/0024",
-      "cs-eval-60/threads-intro.pdf/p0010/0025",
-      "cs-eval-60/threads-intro.pdf/p0010/0026"
+      "cs-eval/threads-intro.pdf/p0012/0033",
+      "cs-eval/threads-intro.pdf/p0010/0022"
     ],
     "method": "page_exact"
   },
   "cs-b033": {
     "chunk_ids": [
-      "cs-eval-60/threads-intro.pdf/p0009/0015",
-      "cs-eval-60/threads-intro.pdf/p0009/0016",
-      "cs-eval-60/threads-intro.pdf/p0009/0017",
-      "cs-eval-60/threads-intro.pdf/p0009/0018",
-      "cs-eval-60/threads-intro.pdf/p0009/0019",
-      "cs-eval-60/threads-intro.pdf/p0009/0020",
-      "cs-eval-60/threads-intro.pdf/p0009/0021",
-      "cs-eval-60/threads-intro.pdf/p0009/0022",
-      "cs-eval-60/threads-intro.pdf/p0010/0023",
-      "cs-eval-60/threads-intro.pdf/p0010/0024",
-      "cs-eval-60/threads-intro.pdf/p0010/0025",
-      "cs-eval-60/threads-intro.pdf/p0010/0026",
-      "cs-eval-60/threads-intro.pdf/p0011/0027",
-      "cs-eval-60/threads-intro.pdf/p0011/0028",
-      "cs-eval-60/threads-intro.pdf/p0011/0029"
+      "cs-eval/threads-intro.pdf/p0011/0026",
+      "cs-eval/threads-intro.pdf/p0010/0024"
     ],
     "method": "page_exact"
   },
