@@ -12,12 +12,14 @@ Slow: loads marker's layout/OCR models. Requires the eval/testset/cs raw
 PDFs to be present on disk.
 """
 import os
+from unittest.mock import patch
 
 import pytest
 
 from pipeline.parse.marker import MarkerParser
 
 _PDF_PATH = "eval/testset/cs/raw/book/cpu-intro.pdf"
+_THREADS_INTRO_PATH = "eval/testset/cs/raw/book/threads-intro.pdf"
 
 
 @pytest.mark.skipif(not os.path.exists(_PDF_PATH), reason="corpus PDF not present")
@@ -56,3 +58,39 @@ def test_marker_parser_page_sep_is_derived_not_hardcoded():
     MarkerParser._get_converter()
     resolved = MarkerParser._converter.resolve_dependencies(MarkerParser._converter.renderer)
     assert MarkerParser._page_sep == resolved.page_separator
+
+
+@pytest.mark.skipif(not os.path.exists(_THREADS_INTRO_PATH), reason="corpus PDF not present")
+def test_marker_parser_batched_matches_single_shot_page_count():
+    """强制小批大小触发分批路径，验证跟单次整本解析页码总数一致（16页）。"""
+    import pipeline.parse.marker as marker_module
+
+    with patch.object(marker_module, "_BATCH_SIZE_PAGES", 5):
+        elements = MarkerParser().parse(_THREADS_INTRO_PATH)
+
+    max_page = max(e.page_num for e in elements)
+    assert max_page == 16, (
+        f"分批解析（batch_size=5）应产出16页，实际最大 page_num={max_page}——"
+        "分隔符碰撞或跨批页码拼接可能有问题"
+    )
+
+
+@pytest.mark.skipif(not os.path.exists(_THREADS_INTRO_PATH), reason="corpus PDF not present")
+def test_marker_parser_batched_table_not_split_at_batch_boundary():
+    """真实案例：物理第6页的宽表格，换新分隔符后不应再被误切成两个chunk。
+    强制 batch_size=5 让第6页恰好落在某一批的边界附近，验证物理切分不会
+    像旧分隔符碰撞那样破坏这张表格的完整性。"""
+    import pipeline.parse.marker as marker_module
+
+    with patch.object(marker_module, "_BATCH_SIZE_PAGES", 5):
+        elements = MarkerParser().parse(_THREADS_INTRO_PATH)
+
+    page6_elements = [e for e in elements if e.page_num == 6]
+    table_elements = [e for e in page6_elements if "Thread 1" in e.content and "Thread2" in e.content]
+    assert len(table_elements) == 1, (
+        f"第6页应该只有一个完整的 Thread1/Thread2 表格 element，实际找到 "
+        f"{len(table_elements)} 个——可能被误切成了两段"
+    )
+    assert "|---" in table_elements[0].content or "|--" in table_elements[0].content, (
+        "表格必须包含完整的分隔行，不能是缺分隔行的头部半截"
+    )
