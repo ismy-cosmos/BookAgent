@@ -240,7 +240,7 @@ def _fake_rendered(markdown: str):
 
 def test_parse_per_page_correct_page_nums(tmp_path):
     pdf = tmp_path / "test.pdf"
-    pdf.write_bytes(b"%PDF-1.4 fake")
+    _make_blank_pdf(str(pdf), 2)  # 真实可打开的PDF——parse() 现在会用pypdfium2读页数
 
     md = _paginated("# Chapter One\n\nFirst.", "# Chapter Two\n\nSecond.")
     mock_converter = MagicMock(return_value=_fake_rendered(md))
@@ -258,7 +258,7 @@ def test_parse_per_page_correct_page_nums(tmp_path):
 
 def test_parse_empty_pdf_returns_empty(tmp_path):
     pdf = tmp_path / "test.pdf"
-    pdf.write_bytes(b"%PDF-1.4 fake")
+    _make_blank_pdf(str(pdf), 2)  # 真实可打开的PDF——parse() 现在会用pypdfium2读页数
 
     mock_converter = MagicMock(return_value=_fake_rendered(""))
 
@@ -271,7 +271,7 @@ def test_parse_empty_pdf_returns_empty(tmp_path):
 
 def test_parse_returns_element_instances(tmp_path):
     pdf = tmp_path / "test.pdf"
-    pdf.write_bytes(b"%PDF-1.4 fake")
+    _make_blank_pdf(str(pdf), 2)  # 真实可打开的PDF——parse() 现在会用pypdfium2读页数
 
     md = _paginated("Some text.\n\n$$x^2$$")
     mock_converter = MagicMock(return_value=_fake_rendered(md))
@@ -386,3 +386,99 @@ def test_write_page_range_pdf_first_batch(tmp_path):
     dest_path = str(tmp_path / "batch0.pdf")
     _write_page_range_pdf(src_path, 0, 3, dest_path)
     assert _pdf_page_count(dest_path) == 3
+
+
+# ── _parse_in_batches ──────────────────────────────────────────────────────
+
+def test_parse_in_batches_assigns_absolute_page_numbers(tmp_path):
+    import pipeline.parse.marker as marker_module
+
+    pdf_path = str(tmp_path / "big.pdf")
+    _make_blank_pdf(pdf_path, 6)
+
+    batch1_md = _paginated("Page one.", "Page two.", "Page three.")
+    batch2_md = _paginated("Page four.", "Page five.", "Page six.")
+    mock_converter = MagicMock(side_effect=[_fake_rendered(batch1_md), _fake_rendered(batch2_md)])
+
+    with patch.object(marker_module, "_BATCH_SIZE_PAGES", 3):
+        elements = marker_module._parse_in_batches(
+            mock_converter, _PAGE_SEP, pdf_path, total_pages=6,
+            should_pause=lambda: False,
+        )
+
+    assert [e.page_num for e in elements] == [1, 2, 3, 4, 5, 6]
+    assert mock_converter.call_count == 2
+
+
+def test_parse_in_batches_single_batch_when_under_threshold(tmp_path):
+    import pipeline.parse.marker as marker_module
+
+    pdf_path = str(tmp_path / "small.pdf")
+    _make_blank_pdf(pdf_path, 3)
+
+    md = _paginated("Alpha.", "Beta.", "Gamma.")
+    mock_converter = MagicMock(return_value=_fake_rendered(md))
+
+    elements = marker_module._parse_in_batches(
+        mock_converter, _PAGE_SEP, pdf_path, total_pages=3,
+        should_pause=lambda: False,
+    )
+
+    assert [e.page_num for e in elements] == [1, 2, 3]
+    assert mock_converter.call_count == 1
+
+
+def test_parse_in_batches_warns_on_page_count_mismatch(tmp_path, capsys):
+    import pipeline.parse.marker as marker_module
+
+    pdf_path = str(tmp_path / "big.pdf")
+    _make_blank_pdf(pdf_path, 3)
+
+    # 只渲染出2页的内容,但这一批实际覆盖3页——模拟页码校验不一致的场景
+    mismatched_md = _paginated("Page one.", "Page two.")
+    mock_converter = MagicMock(return_value=_fake_rendered(mismatched_md))
+
+    elements = marker_module._parse_in_batches(
+        mock_converter, _PAGE_SEP, pdf_path, total_pages=3,
+        should_pause=lambda: False,
+    )
+
+    captured = capsys.readouterr()
+    assert "[warn]" in captured.out
+    assert "期望 3 页" in captured.out
+    assert "实际渲染 2 段" in captured.out
+    # 降级：不抛异常、不丢内容，照常返回已解析出的 elements
+    assert len(elements) == 2
+
+
+def test_parse_dispatches_to_batches_when_over_threshold(tmp_path):
+    import pipeline.parse.marker as marker_module
+
+    pdf_path = str(tmp_path / "big.pdf")
+    _make_blank_pdf(pdf_path, 4)
+
+    md_batch = _paginated("One.", "Two.")
+    mock_converter = MagicMock(return_value=_fake_rendered(md_batch))
+
+    with patch.object(marker_module, "_BATCH_SIZE_PAGES", 2), \
+         patch.object(MarkerParser, "_get_converter", return_value=mock_converter), \
+         patch.object(MarkerParser, "_page_sep", _PAGE_SEP):
+        elements = MarkerParser().parse(str(pdf_path))
+
+    assert mock_converter.call_count == 2  # 4页/批大小2 = 2批
+    assert [e.page_num for e in elements] == [1, 2, 3, 4]
+
+
+def test_parse_stays_single_call_when_under_threshold(tmp_path):
+    pdf_path = str(tmp_path / "small.pdf")
+    _make_blank_pdf(pdf_path, 2)
+
+    md = _paginated("Only page.", "Second page.")
+    mock_converter = MagicMock(return_value=_fake_rendered(md))
+
+    with patch.object(MarkerParser, "_get_converter", return_value=mock_converter), \
+         patch.object(MarkerParser, "_page_sep", _PAGE_SEP):
+        elements = MarkerParser().parse(str(pdf_path))
+
+    assert mock_converter.call_count == 1
+    assert [e.page_num for e in elements] == [1, 2]

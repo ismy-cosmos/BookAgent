@@ -15,6 +15,12 @@ from .base import Element, Parser
 # 是测试用假分页 markdown 时的 fallback 分隔符。
 _PAGE_SEP = "@@BOOKAGENT_PAGE_BREAK@@"
 
+_BATCH_SIZE_PAGES = 100  # 超过这个页数才物理切分；具体数值待用965页真实文件实测内存后定案
+
+
+def _always_false() -> bool:
+    return False
+
 
 def _pdf_page_count(pdf_path: str) -> int:
     """轻量页数读取，不涉及 OCR/layout 模型，用于判断是否需要分批。"""
@@ -37,6 +43,41 @@ def _write_page_range_pdf(pdf_path: str, start: int, end: int, dest_path: str) -
     finally:
         dst.close()
         src.close()
+
+
+def _parse_in_batches(
+    converter,
+    page_sep: str,
+    pdf_path: str,
+    total_pages: int,
+    should_pause: Callable[[], bool],
+) -> list[Element]:
+    """把 pdf_path 按 _BATCH_SIZE_PAGES 物理切分、逐份交给 converter 解析，
+    按绝对页码拼接成一条 Element 列表。"""
+    all_elements: list[Element] = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for batch_idx, start in enumerate(range(0, total_pages, _BATCH_SIZE_PAGES)):
+            end = min(start + _BATCH_SIZE_PAGES, total_pages)
+            batch_path = str(Path(tmpdir) / f"batch_{batch_idx:04d}.pdf")
+            _write_page_range_pdf(pdf_path, start, end, batch_path)
+
+            rendered = converter(batch_path)
+            expected_pages = end - start
+            actual_sections = len(rendered.markdown.split(page_sep)) - 1
+            if actual_sections != expected_pages:
+                print(
+                    f"[warn] MarkerParser 分批解析页码不一致：{pdf_path} "
+                    f"第 {batch_idx + 1} 批（原书第 {start + 1}-{end} 页），"
+                    f"期望 {expected_pages} 页，实际渲染 {actual_sections} 段。"
+                    f"该批页码可能不准确，照常继续解析。"
+                )
+
+            batch_elements = _rendered_to_elements(rendered, page_sep=page_sep)
+            for elem in batch_elements:
+                elem.page_num += start
+            all_elements.extend(batch_elements)
+
+    return all_elements
 
 
 class MarkerParser(Parser):
@@ -83,10 +124,13 @@ class MarkerParser(Parser):
         except ImportError:
             pass
 
-    def parse(self, pdf_path: str) -> list[Element]:
+    def parse(self, pdf_path: str, should_pause: Callable[[], bool] = _always_false) -> list[Element]:
         converter = self._get_converter()
-        rendered = converter(pdf_path)
-        return _rendered_to_elements(rendered, page_sep=self._page_sep)
+        total_pages = _pdf_page_count(pdf_path)
+        if total_pages <= _BATCH_SIZE_PAGES:
+            rendered = converter(pdf_path)
+            return _rendered_to_elements(rendered, page_sep=self._page_sep)
+        return _parse_in_batches(converter, self._page_sep, pdf_path, total_pages, should_pause)
 
 
 def _rendered_to_elements(rendered, page_sep: str) -> list[Element]:
