@@ -22,6 +22,11 @@ def _always_false() -> bool:
     return False
 
 
+class MarkerParsePaused(RuntimeError):
+    """批次间收到暂停请求——已解析完的批次全部丢弃，这个文件的解析工作
+    完全作废，下次从头重新解析（语义同 pipeline.parse.audio.AudioParsePaused）。"""
+
+
 def _pdf_page_count(pdf_path: str) -> int:
     """轻量页数读取，不涉及 OCR/layout 模型，用于判断是否需要分批。"""
     doc = pdfium.PdfDocument(pdf_path)
@@ -57,6 +62,9 @@ def _parse_in_batches(
     all_elements: list[Element] = []
     with tempfile.TemporaryDirectory() as tmpdir:
         for batch_idx, start in enumerate(range(0, total_pages, _BATCH_SIZE_PAGES)):
+            if should_pause():
+                raise MarkerParsePaused(f"暂停请求中止了 PDF 解析：{pdf_path}")
+
             end = min(start + _BATCH_SIZE_PAGES, total_pages)
             batch_path = str(Path(tmpdir) / f"batch_{batch_idx:04d}.pdf")
             _write_page_range_pdf(pdf_path, start, end, batch_path)

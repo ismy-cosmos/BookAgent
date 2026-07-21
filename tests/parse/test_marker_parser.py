@@ -482,3 +482,48 @@ def test_parse_stays_single_call_when_under_threshold(tmp_path):
 
     assert mock_converter.call_count == 1
     assert [e.page_num for e in elements] == [1, 2]
+
+
+# ── 批次级暂停 ─────────────────────────────────────────────────────────────
+
+def test_parse_in_batches_pause_raises_before_next_batch(tmp_path):
+    import pipeline.parse.marker as marker_module
+
+    pdf_path = str(tmp_path / "big.pdf")
+    _make_blank_pdf(pdf_path, 6)
+
+    md = _paginated("One.", "Two.", "Three.")
+    mock_converter = MagicMock(return_value=_fake_rendered(md))
+
+    calls = {"n": 0}
+    def pause_after_first_batch():
+        calls["n"] += 1
+        return calls["n"] > 1
+
+    with patch.object(marker_module, "_BATCH_SIZE_PAGES", 3):
+        with pytest.raises(marker_module.MarkerParsePaused):
+            marker_module._parse_in_batches(
+                mock_converter, _PAGE_SEP, pdf_path, total_pages=6,
+                should_pause=pause_after_first_batch,
+            )
+
+    assert mock_converter.call_count == 1  # 第一批已解析完，第二批开始前中断
+
+
+def test_parse_in_batches_no_pause_completes_normally(tmp_path):
+    import pipeline.parse.marker as marker_module
+
+    pdf_path = str(tmp_path / "big.pdf")
+    _make_blank_pdf(pdf_path, 4)
+
+    md = _paginated("One.", "Two.")
+    mock_converter = MagicMock(return_value=_fake_rendered(md))
+
+    with patch.object(marker_module, "_BATCH_SIZE_PAGES", 2):
+        elements = marker_module._parse_in_batches(
+            mock_converter, _PAGE_SEP, pdf_path, total_pages=4,
+            should_pause=lambda: False,
+        )
+
+    assert mock_converter.call_count == 2
+    assert len(elements) == 4
