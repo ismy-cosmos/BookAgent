@@ -33,7 +33,7 @@ from pipeline.parse.audio import AudioParser, AudioParsePaused
 from pipeline.parse.epub import EPUBParser
 from pipeline.parse.figure_batch import resolve_figures
 from pipeline.parse.image import VLMImageParser, _resize_to_limit, load_image_element
-from pipeline.parse.marker import MarkerParser
+from pipeline.parse.marker import MarkerParser, MarkerParsePaused
 from pipeline.store import ChromaStore
 
 _AUDIO_EXTS = {".mp3", ".wav", ".flac"}
@@ -190,6 +190,8 @@ def _parse_file(
     if ext in _IMAGE_EXTS:
         # 独立图片：只读字节不调 VLM，描述在阶段2批量生成
         return [load_image_element(file_path)], None
+    if ext == ".pdf":
+        return MarkerParser().parse(file_path, should_pause=should_pause), None
     parser = _route_parser(file_path)
     return parser.parse(file_path), None
 
@@ -351,6 +353,11 @@ def run_ingest(
             consecutive_failures = 0
         except AudioParsePaused:
             print(f"\n[pause] 音频转写被暂停请求中止：{file_path}")
+            not_attempted = file_paths[idx:]
+            aborted_early = True
+            break
+        except MarkerParsePaused:
+            print(f"\n[pause] PDF 解析被暂停请求中止：{file_path}")
             not_attempted = file_paths[idx:]
             aborted_early = True
             break

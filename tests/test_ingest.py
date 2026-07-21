@@ -18,6 +18,7 @@ from scripts.ingest import (
     _parse_file,
     _store_file,
     _PendingFile,
+    _always_false,
     run_ingest,
     IngestResult,
     main,
@@ -208,17 +209,31 @@ def test_parse_file_image_uses_load_image_element_no_vlm(tmp_path):
     assert chunks is None
 
 
-def test_parse_file_pdf_routes_to_parser(tmp_path):
+def test_parse_file_pdf_uses_marker_parser_with_default_pause(tmp_path):
     f = tmp_path / "ch01.pdf"
     f.write_bytes(b"fake pdf")
     mock_parser = MagicMock()
     mock_parser.parse.return_value = ["element1"]
 
-    with patch("scripts.ingest._route_parser", return_value=mock_parser):
+    with patch("scripts.ingest.MarkerParser", return_value=mock_parser):
         elements, chunks = _parse_file(str(f), "b", "ch01.pdf")
 
     assert elements == ["element1"]
     assert chunks is None
+    mock_parser.parse.assert_called_once_with(str(f), should_pause=_always_false)
+
+
+def test_parse_file_pdf_passes_through_custom_should_pause(tmp_path):
+    f = tmp_path / "ch01.pdf"
+    f.write_bytes(b"fake pdf")
+    mock_parser = MagicMock()
+    mock_parser.parse.return_value = []
+    custom_pause = lambda: True
+
+    with patch("scripts.ingest.MarkerParser", return_value=mock_parser):
+        _parse_file(str(f), "b", "ch01.pdf", should_pause=custom_pause)
+
+    mock_parser.parse.assert_called_once_with(str(f), should_pause=custom_pause)
 
 
 def test_store_file_chunks_elements_and_batches(tmp_path):
@@ -583,6 +598,27 @@ def test_run_ingest_audio_paused_mid_file_treated_as_not_attempted(tmp_path):
         result = run_ingest("b", [str(f1), str(f2)], chroma_dir=str(chroma_dir))
 
     # AudioParsePaused 不是"失败"——不进 failures，整批从这个文件开始都算 not_attempted
+    assert result.failures == []
+    assert result.not_attempted == [str(f1), str(f2)]
+    assert result.aborted_early is True
+
+
+def test_run_ingest_marker_paused_mid_file_treated_as_not_attempted(tmp_path):
+    from pipeline.parse.marker import MarkerParsePaused
+
+    f1 = tmp_path / "a.pdf"; f1.write_bytes(b"one")
+    f2 = tmp_path / "b.pdf"; f2.write_bytes(b"two")
+    chroma_dir = tmp_path / "chroma"
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", side_effect=MarkerParsePaused("killed")), \
+         patch("scripts.ingest._store_file", return_value=1):
+        mock_store_cls.return_value.count.return_value = 0
+        result = run_ingest("b", [str(f1), str(f2)], chroma_dir=str(chroma_dir))
+
     assert result.failures == []
     assert result.not_attempted == [str(f1), str(f2)]
     assert result.aborted_early is True
