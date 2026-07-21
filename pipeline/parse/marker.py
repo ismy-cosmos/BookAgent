@@ -4,10 +4,11 @@ import re
 
 from .base import Element, Parser
 
-# Fallback only — real parsing always derives the separator from the live
-# renderer (see MarkerParser._get_converter). Used by tests that build their
-# own fake paginated markdown and don't go through a real PdfConverter.
-_PAGE_SEP = "-" * 48
+# 自定义分隔符，不用 marker 默认的 "-"*48——真实数据实测发现宽表格自己的
+# 表头分隔行也是一长串短横线，会跟默认分隔符碰撞，导致 markdown 被误切、
+# 页码从碰撞点起系统性漂移（详见 threads-intro.pdf 真实案例）。这个值同时
+# 是测试用假分页 markdown 时的 fallback 分隔符。
+_PAGE_SEP = "@@BOOKAGENT_PAGE_BREAK@@"
 
 
 class MarkerParser(Parser):
@@ -26,7 +27,7 @@ class MarkerParser(Parser):
             from marker.models import create_model_dict
             cls._converter = PdfConverter(
                 artifact_dict=create_model_dict(),
-                config={"paginate_output": True},
+                config={"paginate_output": True, "page_separator": _PAGE_SEP},
             )
             # Read the separator marker actually resolves/uses, rather than
             # assuming it matches our own guess — avoids silently breaking

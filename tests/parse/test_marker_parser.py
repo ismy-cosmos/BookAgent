@@ -328,3 +328,23 @@ def test_release_models_noop_when_not_loaded():
     MarkerParser._converter = None
     MarkerParser.release_models()   # 不抛异常即可
     assert MarkerParser._converter is None
+
+
+# ── 分隔符防碰撞 ────────────────────────────────────────────────────────────
+
+def test_get_converter_configures_custom_page_separator():
+    MarkerParser._converter = None
+    MarkerParser._page_sep = None
+    try:
+        with patch("marker.converters.pdf.PdfConverter") as MockConverterCls, \
+             patch("marker.models.create_model_dict", return_value={}):
+            mock_instance = MockConverterCls.return_value
+            mock_instance.resolve_dependencies.return_value.page_separator = _PAGE_SEP
+            MarkerParser._get_converter()
+
+        _, kwargs = MockConverterCls.call_args
+        assert kwargs["config"]["page_separator"] == _PAGE_SEP
+        assert kwargs["config"]["paginate_output"] is True
+    finally:
+        MarkerParser._converter = None
+        MarkerParser._page_sep = None
