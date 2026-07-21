@@ -25,11 +25,12 @@ CS 学科 60 题真实问答评测（PR #41）跑完后，新增 **issue #40**�
 
 **已完成（续3）**：**CS测试集全量真实审查+扩容至76题**（PR #55，2026-07-20合并）——用真实端到端管线（`book_id=cs-eval`）逐题核验原60题，改判2道question_type、订正2道ground truth（`derive_ground_truth.py`不检查`question_type`导致的脚本bug）；扩容16题（cs-b056~071，覆盖已有PDF补充无答案题、`java-ch1-e2e.epub`新增10题、图片新增3题）；排查并重出9道用了元提问模板/元指代开头的题目。核心指标：Hit@5=98.4%、工具调用率=100%、幻觉率=7.9%全量口径/46.2%无答案题专项口径。详细逐题记录见`docs/test-report-2026-07-20-cs-testset-audit.md`，是issue #40设计阶段的证据基础。审查过程中发现calculate工具在特定英文措辞下会反复触发`_ALLOWED_NODES`白名单拒绝、模型不会调整策略导致`MAX_ROUNDS_EXCEEDED`完全无输出，已拆分为独立 **issue #54**（方案：扩展`_ALLOWED_NODES`支持位移运算+窄口子白名单函数，不引入新依赖，不属于#40范畴）。
 
-1. **下一步：issue #40**（retrieve 无相关性阈值，跨章节内容被误归因产生幻觉）——降幻觉率主线，现在有76题真实评测数据+18条共性发现支撑设计（PR #55 test-report），跟 reranker/#48 混合检索同一批规划，见 `docs/product-positioning.md`。
-2. **之后：测试集扩充**（临床医学 / 法学两个学科，候选书目已定，见"里程碑覆盖度缺口"一节）。
-3. **issue #11 暂缓**（EPUB 容器直接子级裸文本节点丢失）：用真实语料核实过，当前EPUB测试语料（`java-ch1-e2e.epub`）里这个具体bug模式命中0次，是理论缺陷不是已验证的真实问题（跟#19一个性质）。等测试集扩充过程中如果真的撞见这个问题，再回来处理，不主动排期。
-4. **尚未排期**：issue #25（极小行内排版图片被 VLM 过度解读产生幻觉，同批 CS 评测发现，图片理解层问题）、#24（超大 PDF 导致 marker 解析 OOM，当前语料未触发）、#19（Chunker 句子边界判断评估替换为成熟分句库，issue 原文已注明"暂缓"）、**#54**（calculate工具表达式沙箱不支持位移运算，特定英文措辞下模型死循环触发`MAX_ROUNDS_EXCEEDED`，方案已明确，独立于#40，可随时排期）。
+1. **下一步：临床/法学学科测试集构建**（2026-07-21 决策，排在消融之前）——候选书目已定（《Nursing Pharmacology》/《Criminal Procedure》），用当前管线 ingest + 按 CS 76 题方法论出题 + 页码级 GT 核验。先于消融的理由：消融矩阵要调的旋钮全是领域敏感的（#48 BM25 的关键词信号在法律/临床语料里才密集、#40 阈值的 cosine 距离分布随领域漂移），只在 CS 上调参必留返工债；而测试集的耐久资产（出题+页码级 GT）不随 chunker 改动失效，重跑评测有现成脚本，先建的返工成本低。
+2. **之后：三学科消融矩阵**——#40 相关性阈值 + #48 混合检索（BM25+向量）+ rerank 精排 + chunk 结构化，在 CS+临床+法学三套语料上统一做，检索层参数一次定型。
+3. **之后：场景功能+场景测试集**——跨源核对/参数化结构化抽取/calculate 财务健壮性，实现设计已定稿（`docs/superpowers/specs/2026-07-21-scenario-features-design.md`）；场景定位依据 2026-07-21 三簇真实工具生态调研（`docs/product-positioning.md`：锚定法律案件准备+小型 M&A 尽调，临床退出场景叙事降为学科基准）。
+4. **issue #11 暂缓**（EPUB 容器直接子级裸文本节点丢失）：用真实语料核实过，当前EPUB测试语料（`java-ch1-e2e.epub`）里这个具体bug模式命中0次，是理论缺陷不是已验证的真实问题（跟#19一个性质）。等测试集扩充过程中如果真的撞见这个问题，再回来处理，不主动排期。
+5. **尚未排期**：issue #25（极小行内排版图片被 VLM 过度解读产生幻觉，同批 CS 评测发现，图片理解层问题）、#24（超大 PDF 导致 marker 解析 OOM，当前语料未触发）、#19（Chunker 句子边界判断评估替换为成熟分句库，issue 原文已注明"暂缓"）、**#54**（calculate工具表达式沙箱不支持位移运算，特定英文措辞下模型死循环触发`MAX_ROUNDS_EXCEEDED`，方案已明确，独立于#40，可随时排期；2026-07-21 补充了财务场景失败类别，修复方案并入场景功能 spec）、**#56**（AudioParser 无说话人分离，多人录音无法归属说话人，2026-07-21 新提，决定跨源核对的粒度上限）。
 
 ## 里程碑覆盖度缺口
 
-README 目标指标要求 Hit@5 覆盖 **CS / 临床医学 / 法学** 三学科，目前只有 **CS 完整跑完**（`eval/testset/cs/`，76 题 QA + 真实评测，PR #41 首轮60题 → PR #55 全量审查+扩容至76题）。临床医学（候选书目已定：《Nursing Pharmacology》）、法学（候选书目已定：《Criminal Procedure》，CALI eLangdell）两个学科候选书目早已选定（`eval/parser_selection/textbook-candidates.md`），但 ingest/QA 出题/评测三步均未开始，`eval/testset/clinical/`、`eval/testset/law/` 目前只有占位目录。是否现在启动、还是等上面 issue 修完再复制到新学科，待决策。
+README 目标指标要求 Hit@5 覆盖 **CS / 临床医学 / 法学** 三学科，目前只有 **CS 完整跑完**（`eval/testset/cs/`，76 题 QA + 真实评测，PR #41 首轮60题 → PR #55 全量审查+扩容至76题）。临床医学（候选书目已定：《Nursing Pharmacology》）、法学（候选书目已定：《Criminal Procedure》，CALI eLangdell）两个学科候选书目早已选定（`eval/parser_selection/textbook-candidates.md`），但 ingest/QA 出题/评测三步均未开始，`eval/testset/clinical/`、`eval/testset/law/` 目前只有占位目录。**2026-07-21 已决策：现在启动，排在消融矩阵之前**（理由见上方待办第 1 条）。
