@@ -3,6 +3,7 @@ import io
 from unittest.mock import MagicMock, patch
 
 import pytest
+import pypdfium2 as pdfium
 from PIL import Image as PILImage
 
 from pipeline.parse import Element
@@ -348,3 +349,40 @@ def test_get_converter_configures_custom_page_separator():
     finally:
         MarkerParser._converter = None
         MarkerParser._page_sep = None
+
+
+# ── _pdf_page_count / _write_page_range_pdf (real pypdfium2, no marker/ML) ────
+
+def _make_blank_pdf(path: str, num_pages: int) -> None:
+    """构造一个真实、可被 pypdfium2 打开的最小多页 PDF，不依赖任何外部语料文件。"""
+    doc = pdfium.PdfDocument.new()
+    for _ in range(num_pages):
+        doc.new_page(200, 200)
+    with open(path, "wb") as f:
+        doc.save(f)
+    doc.close()
+
+
+def test_pdf_page_count_counts_real_pages(tmp_path):
+    from pipeline.parse.marker import _pdf_page_count
+    pdf_path = str(tmp_path / "blank.pdf")
+    _make_blank_pdf(pdf_path, 7)
+    assert _pdf_page_count(pdf_path) == 7
+
+
+def test_write_page_range_pdf_extracts_correct_page_count(tmp_path):
+    from pipeline.parse.marker import _pdf_page_count, _write_page_range_pdf
+    src_path = str(tmp_path / "blank.pdf")
+    _make_blank_pdf(src_path, 10)
+    dest_path = str(tmp_path / "batch.pdf")
+    _write_page_range_pdf(src_path, 3, 8, dest_path)
+    assert _pdf_page_count(dest_path) == 5
+
+
+def test_write_page_range_pdf_first_batch(tmp_path):
+    from pipeline.parse.marker import _pdf_page_count, _write_page_range_pdf
+    src_path = str(tmp_path / "blank.pdf")
+    _make_blank_pdf(src_path, 6)
+    dest_path = str(tmp_path / "batch0.pdf")
+    _write_page_range_pdf(src_path, 0, 3, dest_path)
+    assert _pdf_page_count(dest_path) == 3

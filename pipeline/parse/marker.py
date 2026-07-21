@@ -1,6 +1,11 @@
 from __future__ import annotations
 import io
 import re
+import tempfile
+from pathlib import Path
+from typing import Callable
+
+import pypdfium2 as pdfium
 
 from .base import Element, Parser
 
@@ -9,6 +14,29 @@ from .base import Element, Parser
 # 页码从碰撞点起系统性漂移（详见 threads-intro.pdf 真实案例）。这个值同时
 # 是测试用假分页 markdown 时的 fallback 分隔符。
 _PAGE_SEP = "@@BOOKAGENT_PAGE_BREAK@@"
+
+
+def _pdf_page_count(pdf_path: str) -> int:
+    """轻量页数读取，不涉及 OCR/layout 模型，用于判断是否需要分批。"""
+    doc = pdfium.PdfDocument(pdf_path)
+    try:
+        return len(doc)
+    finally:
+        doc.close()
+
+
+def _write_page_range_pdf(pdf_path: str, start: int, end: int, dest_path: str) -> None:
+    """把 pdf_path 的 [start, end) 页（0-indexed 半开区间）物理切出，
+    写成一份独立的 PDF 到 dest_path。"""
+    src = pdfium.PdfDocument(pdf_path)
+    dst = pdfium.PdfDocument.new()
+    try:
+        dst.import_pages(src, list(range(start, end)))
+        with open(dest_path, "wb") as f:
+            dst.save(f)
+    finally:
+        dst.close()
+        src.close()
 
 
 class MarkerParser(Parser):
