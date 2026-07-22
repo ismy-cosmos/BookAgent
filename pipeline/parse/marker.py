@@ -1,13 +1,91 @@
 from __future__ import annotations
 import io
 import re
+import tempfile
+from pathlib import Path
+from typing import Callable
+
+import pypdfium2 as pdfium
 
 from .base import Element, Parser
 
-# Fallback only — real parsing always derives the separator from the live
-# renderer (see MarkerParser._get_converter). Used by tests that build their
-# own fake paginated markdown and don't go through a real PdfConverter.
-_PAGE_SEP = "-" * 48
+# 自定义分隔符，不用 marker 默认的 "-"*48——真实数据实测发现宽表格自己的
+# 表头分隔行也是一长串短横线，会跟默认分隔符碰撞，导致 markdown 被误切、
+# 页码从碰撞点起系统性漂移（详见 threads-intro.pdf 真实案例）。这个值同时
+# 是测试用假分页 markdown 时的 fallback 分隔符。
+_PAGE_SEP = "@@BOOKAGENT_PAGE_BREAK@@"
+
+_BATCH_SIZE_PAGES = 100  # 超过这个页数才物理切分；具体数值待用965页真实文件实测内存后定案
+
+
+def _always_false() -> bool:
+    return False
+
+
+class MarkerParsePaused(RuntimeError):
+    """批次间收到暂停请求——已解析完的批次全部丢弃，这个文件的解析工作
+    完全作废，下次从头重新解析（语义同 pipeline.parse.audio.AudioParsePaused）。"""
+
+
+def _pdf_page_count(pdf_path: str) -> int:
+    """轻量页数读取，不涉及 OCR/layout 模型，用于判断是否需要分批。"""
+    doc = pdfium.PdfDocument(pdf_path)
+    try:
+        return len(doc)
+    finally:
+        doc.close()
+
+
+def _write_page_range_pdf(pdf_path: str, start: int, end: int, dest_path: str) -> None:
+    """把 pdf_path 的 [start, end) 页（0-indexed 半开区间）物理切出，
+    写成一份独立的 PDF 到 dest_path。"""
+    src = pdfium.PdfDocument(pdf_path)
+    dst = pdfium.PdfDocument.new()
+    try:
+        dst.import_pages(src, list(range(start, end)))
+        with open(dest_path, "wb") as f:
+            dst.save(f)
+    finally:
+        dst.close()
+        src.close()
+
+
+def _parse_in_batches(
+    converter,
+    page_sep: str,
+    pdf_path: str,
+    total_pages: int,
+    should_pause: Callable[[], bool],
+) -> list[Element]:
+    """把 pdf_path 按 _BATCH_SIZE_PAGES 物理切分、逐份交给 converter 解析，
+    按绝对页码拼接成一条 Element 列表。"""
+    all_elements: list[Element] = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for batch_idx, start in enumerate(range(0, total_pages, _BATCH_SIZE_PAGES)):
+            if should_pause():
+                raise MarkerParsePaused(f"暂停请求中止了 PDF 解析：{pdf_path}")
+
+            end = min(start + _BATCH_SIZE_PAGES, total_pages)
+            batch_path = str(Path(tmpdir) / f"batch_{batch_idx:04d}.pdf")
+            _write_page_range_pdf(pdf_path, start, end, batch_path)
+
+            rendered = converter(batch_path)
+            expected_pages = end - start
+            actual_sections = len(rendered.markdown.split(page_sep)) - 1
+            if actual_sections != expected_pages:
+                print(
+                    f"[warn] MarkerParser 分批解析页码不一致：{pdf_path} "
+                    f"第 {batch_idx + 1} 批（原书第 {start + 1}-{end} 页），"
+                    f"期望 {expected_pages} 页，实际渲染 {actual_sections} 段。"
+                    f"该批页码可能不准确，照常继续解析。"
+                )
+
+            batch_elements = _rendered_to_elements(rendered, page_sep=page_sep)
+            for elem in batch_elements:
+                elem.page_num += start
+            all_elements.extend(batch_elements)
+
+    return all_elements
 
 
 class MarkerParser(Parser):
@@ -26,7 +104,7 @@ class MarkerParser(Parser):
             from marker.models import create_model_dict
             cls._converter = PdfConverter(
                 artifact_dict=create_model_dict(),
-                config={"paginate_output": True},
+                config={"paginate_output": True, "page_separator": _PAGE_SEP},
             )
             # Read the separator marker actually resolves/uses, rather than
             # assuming it matches our own guess — avoids silently breaking
@@ -54,10 +132,13 @@ class MarkerParser(Parser):
         except ImportError:
             pass
 
-    def parse(self, pdf_path: str) -> list[Element]:
+    def parse(self, pdf_path: str, should_pause: Callable[[], bool] = _always_false) -> list[Element]:
         converter = self._get_converter()
-        rendered = converter(pdf_path)
-        return _rendered_to_elements(rendered, page_sep=self._page_sep)
+        total_pages = _pdf_page_count(pdf_path)
+        if total_pages <= _BATCH_SIZE_PAGES:
+            rendered = converter(pdf_path)
+            return _rendered_to_elements(rendered, page_sep=self._page_sep)
+        return _parse_in_batches(converter, self._page_sep, pdf_path, total_pages, should_pause)
 
 
 def _rendered_to_elements(rendered, page_sep: str) -> list[Element]:
