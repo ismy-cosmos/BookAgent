@@ -180,11 +180,12 @@ def _parse_file(
     book_id: str,
     source_file: str,
     should_pause: Callable[[], bool] = _always_false,
+    diarize: bool = False,
 ):
     """阶段1：解析单个文件。返回 (elements, chunks)。"""
     ext = Path(file_path).suffix.lower()
     if ext in _AUDIO_EXTS:
-        chunks = AudioParser().parse_to_chunks(
+        chunks = AudioParser(diarize=diarize).parse_to_chunks(
             file_path, book_id, source_file=source_file, should_pause=should_pause)
         return None, chunks
     if ext in _IMAGE_EXTS:
@@ -284,6 +285,7 @@ def run_ingest(
     on_progress: Callable[[ProgressUpdate], None] = _no_op_progress,
     on_file_committed: Callable[[str], None] = _no_op_file_committed,
     store: ChromaStore | None = None,
+    diarize: bool = False,
 ) -> IngestResult:
     manifest_dir = str(Path(chroma_dir) / ".manifests")
     chunker = Chunker()
@@ -342,7 +344,7 @@ def run_ingest(
                 print("  (解析缓存命中，跳过重新解析)")
             else:
                 elements, chunks = _parse_file(file_path, book_id, source_file,
-                                               should_pause=should_pause)
+                                               should_pause=should_pause, diarize=diarize)
                 _resize_figure_elements(elements)
                 parse_cache.set(chroma_dir, book_id, sha, elements, chunks)
             image_shas = _figure_image_shas(elements)
@@ -475,6 +477,8 @@ def main() -> None:
     parser.add_argument("--dir", help="Directory: ingest all supported files")
     parser.add_argument("--chroma-dir", default=_CHROMA_DIR)
     parser.add_argument("--batch-size", type=int, default=_DEFAULT_BATCH)
+    parser.add_argument("--diarize", action="store_true", default=False,
+                        help="音频按说话人切换打[SPEAKER_XX]内联标签（issue #56），默认关闭")
     args = parser.parse_args()
 
     if not args.files and not args.dir:
@@ -486,7 +490,7 @@ def main() -> None:
         return
 
     result = run_ingest(args.book_id, all_files, chroma_dir=args.chroma_dir,
-                        batch_size=args.batch_size)
+                        batch_size=args.batch_size, diarize=args.diarize)
 
     if result.failures or result.aborted_early:
         sys.exit(1)
