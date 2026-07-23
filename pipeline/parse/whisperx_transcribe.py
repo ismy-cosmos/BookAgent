@@ -2,7 +2,7 @@
 """WhisperX transcription wrapper — must run inside whisperx.venv.
 
 Usage:
-    whisperx.venv/bin/python pipeline/parse/whisperx_transcribe.py <audio_path> [--model MODEL] [--language LANG]
+    whisperx.venv/bin/python pipeline/parse/whisperx_transcribe.py <audio_path> [--model MODEL] [--language LANG] [--diarize]
 """
 from __future__ import annotations
 import argparse
@@ -16,7 +16,7 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
 
-def transcribe(audio_path: str, model_name: str, language: str | None) -> dict:
+def transcribe(audio_path: str, model_name: str, language: str | None, diarize: bool = False) -> dict:
     import torch
     import whisperx
 
@@ -32,6 +32,15 @@ def transcribe(audio_path: str, model_name: str, language: str | None) -> dict:
     )
     aligned = whisperx.align(result["segments"], align_model, align_metadata, audio, device)
 
+    if diarize:
+        # 懒加载：只有真正启用diarize才导入，import whisperx.diarize 会连带
+        # 加载 pyannote.audio，实测约2秒开销，默认路径不能背这个成本。
+        from whisperx.diarize import DiarizationPipeline, assign_word_speakers
+
+        diarize_model = DiarizationPipeline(device=device)
+        diarize_df = diarize_model(audio_path)
+        aligned = assign_word_speakers(diarize_df, aligned, fill_nearest=True)
+
     segments = []
     for seg in aligned["segments"]:
         words = [
@@ -39,12 +48,15 @@ def transcribe(audio_path: str, model_name: str, language: str | None) -> dict:
             for w in seg.get("words", [])
             if "score" in w
         ]
-        segments.append({
+        entry = {
             "start": float(seg["start"]),
             "end": float(seg["end"]),
             "text": seg["text"],
             "words": words,
-        })
+        }
+        if diarize:
+            entry["speaker"] = seg.get("speaker", "SPEAKER_00")
+        segments.append(entry)
     return {"segments": segments}
 
 
@@ -53,11 +65,12 @@ def main() -> None:
     parser.add_argument("audio_path")
     parser.add_argument("--model", default="small")
     parser.add_argument("--language", default=None)
+    parser.add_argument("--diarize", action="store_true", default=False)
     args = parser.parse_args()
 
     try:
         with contextlib.redirect_stdout(sys.stderr):
-            result = transcribe(args.audio_path, args.model, args.language)
+            result = transcribe(args.audio_path, args.model, args.language, diarize=args.diarize)
         print(json.dumps(result, ensure_ascii=False))
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
