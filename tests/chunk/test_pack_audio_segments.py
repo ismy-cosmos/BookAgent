@@ -113,3 +113,60 @@ def test_low_confidence_weighted_by_token_count_not_simple_average():
     chunks = pack_audio_segments(segments, book_id="b", source_file="lecture.mp3")
     assert len(chunks) == 1
     assert chunks[0].low_confidence is False
+
+
+# ── issue #56: 说话人切换内联标签 ────────────────────────────────────────────
+
+def _seg_spk(text, start, end, speaker, score=1.0):
+    return {"text": text, "start": start, "end": end, "score": score, "speaker": speaker}
+
+
+def test_speaker_tag_inserted_on_first_segment():
+    segments = [_seg_spk("Hello.", 0.0, 2.0, "SPEAKER_00")]
+    chunks = pack_audio_segments(segments, book_id="b", source_file="hearing.mp3")
+    assert chunks[0].content == "[SPEAKER_00] Hello."
+
+
+def test_speaker_tag_not_repeated_for_same_speaker_consecutive_segments():
+    segments = [
+        _seg_spk("First sentence.", 0.0, 2.0, "SPEAKER_00"),
+        _seg_spk("Second sentence.", 2.0, 4.0, "SPEAKER_00"),
+    ]
+    chunks = pack_audio_segments(segments, book_id="b", source_file="hearing.mp3")
+    assert chunks[0].content == "[SPEAKER_00] First sentence. Second sentence."
+
+
+def test_speaker_tag_inserted_on_speaker_change():
+    segments = [
+        _seg_spk("Question.", 0.0, 2.0, "SPEAKER_00"),
+        _seg_spk("Answer.", 2.0, 4.0, "SPEAKER_01"),
+        _seg_spk("Follow-up.", 4.0, 6.0, "SPEAKER_00"),
+    ]
+    chunks = pack_audio_segments(segments, book_id="b", source_file="hearing.mp3")
+    assert chunks[0].content == "[SPEAKER_00] Question. [SPEAKER_01] Answer. [SPEAKER_00] Follow-up."
+
+
+def test_no_speaker_info_produces_no_tags_default_behavior_unchanged():
+    segments = [
+        _seg("First.", 0.0, 2.0),
+        _seg("Second.", 2.0, 4.0),
+    ]
+    chunks = pack_audio_segments(segments, book_id="b", source_file="lecture.mp3")
+    assert "[SPEAKER" not in chunks[0].content
+    assert chunks[0].content == "First. Second."
+
+
+def test_speaker_tag_reappears_at_start_of_new_chunk_even_if_same_speaker_continues():
+    """跨chunk边界的关键情况：说话人A被token预算切到两个chunk，
+    第二个chunk开头即使还是A也要重新打标签——每个chunk独立被检索，
+    不能依赖上一个chunk的隐式上下文。"""
+    long_text_a1 = "Speaker A talking at length about the case. " * 15
+    long_text_a2 = "Speaker A continues the same point without interruption. " * 15
+    segments = [
+        _seg_spk(long_text_a1, 0.0, 30.0, "SPEAKER_00"),
+        _seg_spk(long_text_a2, 30.0, 60.0, "SPEAKER_00"),
+    ]
+    chunks = pack_audio_segments(segments, book_id="b", source_file="hearing.mp3", max_tokens=256)
+    assert len(chunks) == 2
+    assert chunks[0].content.startswith("[SPEAKER_00] ")
+    assert chunks[1].content.startswith("[SPEAKER_00] ")

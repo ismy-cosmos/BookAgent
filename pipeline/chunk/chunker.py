@@ -302,8 +302,14 @@ def pack_audio_segments(
 ) -> list[Chunk]:
     """贪心合并 WhisperX segment 成接近 max_tokens 的 Chunk。
 
-    每个 segment: {"text": str, "start": float, "end": float, "score": float}。
+    每个 segment: {"text": str, "start": float, "end": float, "score": float,
+    "speaker": str（可选，diarize=True 时才有）}。
     score 是该 segment 自己的平均置信度（未经 <0.6 阈值判断的原始分数）。
+
+    speaker 信息只影响 content 拼接时的 [SPEAKER_XX] 内联标签，不影响 flush
+    切分时机（切分永远只由 token 预算触发）。每次 flush 后"上一个已标注说话人"
+    状态重置为 None——同一说话人如果因 token 预算被切到两个 chunk，后一个
+    chunk 开头也会重新打标签，因为每个 chunk 是被独立检索、独立读取的。
     """
     chunks: list[Chunk] = []
     buf: list[dict] = []
@@ -314,7 +320,15 @@ def pack_audio_segments(
         nonlocal buf, buf_tok, seq
         if not buf:
             return
-        content = " ".join(s["text"] for s in buf)
+        parts = []
+        last_speaker = None
+        for s in buf:
+            if "speaker" in s and s["speaker"] != last_speaker:
+                parts.append(f"[{s['speaker']}] {s['text']}")
+                last_speaker = s["speaker"]
+            else:
+                parts.append(s["text"])
+        content = " ".join(parts)
         weight_sum = sum(s["tok"] for s in buf)
         weighted_score = (
             sum(s["score"] * s["tok"] for s in buf) / weight_sum
@@ -344,8 +358,11 @@ def pack_audio_segments(
         tok = _token_count(text)
         if buf and buf_tok + tok > max_tokens:
             flush()
-        buf.append({"text": text, "start": seg["start"], "end": seg["end"],
-                     "score": seg.get("score", 1.0), "tok": tok})
+        entry = {"text": text, "start": seg["start"], "end": seg["end"],
+                 "score": seg.get("score", 1.0), "tok": tok}
+        if "speaker" in seg:
+            entry["speaker"] = seg["speaker"]
+        buf.append(entry)
         buf_tok += tok
     flush()
 
