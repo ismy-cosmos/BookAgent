@@ -311,3 +311,57 @@ def test_audio_parser_pause_polls_multiple_times_before_pausing(tmp_path):
                 str(audio), book_id="b", should_pause=fake_should_pause)
 
     assert len(pause_calls) == 2
+
+
+# ── issue #56: diarize 参数透传 ─────────────────────────────────────────────
+
+def test_audio_parser_diarize_flag_passed_to_subprocess(tmp_path):
+    audio = tmp_path / "hearing.mp3"
+    audio.write_bytes(b"fake")
+
+    segments = [{"start": 0.0, "end": 5.0, "text": "Hello.", "speaker": "SPEAKER_00"}]
+    captured_cmd = []
+
+    def fake_popen(cmd, **kwargs):
+        captured_cmd.extend(cmd)
+        return _fake_popen(segments)
+
+    with patch("pipeline.parse.audio.subprocess.Popen", side_effect=fake_popen):
+        AudioParser(diarize=True).parse_to_chunks(str(audio), book_id="law")
+
+    assert "--diarize" in captured_cmd
+
+
+def test_audio_parser_diarize_false_default_no_flag_passed(tmp_path):
+    audio = tmp_path / "lecture.mp3"
+    audio.write_bytes(b"fake")
+
+    segments = [{"start": 0.0, "end": 5.0, "text": "Hello."}]
+    captured_cmd = []
+
+    def fake_popen(cmd, **kwargs):
+        captured_cmd.extend(cmd)
+        return _fake_popen(segments)
+
+    with patch("pipeline.parse.audio.subprocess.Popen", side_effect=fake_popen):
+        AudioParser().parse_to_chunks(str(audio), book_id="ostep")
+
+    assert "--diarize" not in captured_cmd
+
+
+def test_audio_parser_speaker_field_reaches_pack_audio_segments(tmp_path):
+    """speaker 字段要真的传进 pack_audio_segments，体现在 chunk content 的 [SPEAKER_XX] 标签里。"""
+    audio = tmp_path / "hearing.mp3"
+    audio.write_bytes(b"fake")
+
+    segments = [
+        {"start": 0.0, "end": 2.0, "text": "Question one.", "speaker": "SPEAKER_00"},
+        {"start": 2.0, "end": 4.0, "text": "Answer one.", "speaker": "SPEAKER_01"},
+    ]
+
+    with patch("pipeline.parse.audio.subprocess.Popen", return_value=_fake_popen(segments)):
+        chunks = AudioParser(diarize=True).parse_to_chunks(str(audio), book_id="law")
+
+    assert len(chunks) == 1
+    assert "[SPEAKER_00] Question one." in chunks[0].content
+    assert "[SPEAKER_01] Answer one." in chunks[0].content
