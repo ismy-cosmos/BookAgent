@@ -34,11 +34,13 @@ class AudioParser:
         model: str = "small",
         language: Optional[str] = None,
         poll_interval_s: float = _DEFAULT_POLL_INTERVAL_S,
+        diarize: bool = False,
     ):
         self._wx_python = whisperx_python
         self._model = model
         self._lang = language
         self._poll_interval_s = poll_interval_s
+        self._diarize = diarize
 
     def parse_to_chunks(
         self,
@@ -58,6 +60,8 @@ class AudioParser:
         cmd = [self._wx_python, _WHISPERX_WRAPPER, audio_path, "--model", self._model]
         if self._lang is not None:
             cmd.extend(["--language", self._lang])
+        if self._diarize:
+            cmd.append("--diarize")
 
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         while True:
@@ -85,12 +89,15 @@ class AudioParser:
             words = seg.get("words", [])
             scores = [w["score"] for w in words if "score" in w]
             avg_score = sum(scores) / len(scores) if scores else 1.0
-            raw_segments.append({
+            entry = {
                 "text": seg["text"],
                 "start": float(seg["start"]),
                 "end": float(seg["end"]),
                 "score": avg_score,
-            })
+            }
+            if "speaker" in seg:
+                entry["speaker"] = seg["speaker"]
+            raw_segments.append(entry)
         # 延迟到调用时才导入：chunker.py 顶部 import 了 pipeline.parse.base，
         # 而 pipeline/parse/__init__.py 又预加载了本模块（audio.py）——放在
         # 模块顶层会形成循环导入，函数体内导入这时 chunker 模块已经加载完毕。

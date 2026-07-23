@@ -49,6 +49,7 @@ else
 fi
 "$WHISPERX_VENV/bin/pip" install -q -r requirements-whisperx.txt
 echo "Installed whisperx (isolated venv)"
+echo "NOTE: 说话人分离(--diarize)功能需要额外手动下载一次gated模型，见 requirements-whisperx.txt 顶部注释"
 
 # ── 4.6 Frontend (JS deps only — Rust/Tauri 系统依赖不在这一步处理) ──────────
 (cd frontend && pnpm install)
