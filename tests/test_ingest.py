@@ -196,6 +196,31 @@ def test_parse_file_audio_passes_through_custom_should_pause(tmp_path):
         str(f), "b", source_file="lecture.mp3", should_pause=custom_pause)
 
 
+def test_parse_file_audio_diarize_true_passed_to_audio_parser_constructor(tmp_path):
+    """issue #56 落地到scripts/ingest.py：--diarize要真的传到AudioParser构造函数。"""
+    f = tmp_path / "hearing.mp3"
+    f.write_bytes(b"fake audio")
+    mock_parser_cls = MagicMock()
+    mock_parser_cls.return_value.parse_to_chunks.return_value = []
+
+    with patch("scripts.ingest.AudioParser", mock_parser_cls):
+        _parse_file(str(f), "b", "hearing.mp3", diarize=True)
+
+    mock_parser_cls.assert_called_once_with(diarize=True)
+
+
+def test_parse_file_audio_diarize_false_default_matches_current_behavior(tmp_path):
+    f = tmp_path / "lecture.mp3"
+    f.write_bytes(b"fake audio")
+    mock_parser_cls = MagicMock()
+    mock_parser_cls.return_value.parse_to_chunks.return_value = []
+
+    with patch("scripts.ingest.AudioParser", mock_parser_cls):
+        _parse_file(str(f), "b", "lecture.mp3")
+
+    mock_parser_cls.assert_called_once_with(diarize=False)
+
+
 def test_parse_file_image_uses_load_image_element_no_vlm(tmp_path):
     f = tmp_path / "fig.png"
     f.write_bytes(b"\x89PNG fake")
@@ -434,6 +459,26 @@ def test_run_ingest_cache_miss_calls_parse_file_and_writes_cache(tmp_path):
     mock_parse_file.assert_called_once()
     cached_elements, _ = parse_cache.get(str(chroma_dir), "b", sha)
     assert cached_elements == [elem]
+
+
+def test_run_ingest_diarize_true_passed_through_to_parse_file(tmp_path):
+    """issue #56：run_ingest的diarize参数要真的传到_parse_file，不能停在半路。"""
+    f = tmp_path / "hearing.mp3"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+    elem = Element(type="text", content="fresh", page_num=1)
+
+    with patch("scripts.ingest.Chunker"), patch("scripts.ingest.Embedder"), \
+         patch("scripts.ingest.ChromaStore") as mock_store_cls, \
+         patch("scripts.ingest.resolve_figures", return_value=MagicMock(
+             described=0, degraded=0, no_bytes=0, breaker_tripped=False)), \
+         patch("scripts.ingest._parse_file", return_value=([elem], None)) as mock_parse_file, \
+         patch("scripts.ingest._store_file", side_effect=RuntimeError("boom")):
+        mock_store_cls.return_value.count.return_value = 0
+        run_ingest("b", [str(f)], chroma_dir=str(chroma_dir), diarize=True)
+
+    _, kwargs = mock_parse_file.call_args
+    assert kwargs["diarize"] is True
 
 
 def test_run_ingest_resizes_figure_bytes_before_caching(tmp_path):
@@ -979,6 +1024,40 @@ def test_main_success_writes_manifest_and_empty_failures_json(tmp_path, monkeypa
     assert failures_data["failures"] == []
     assert failures_data["aborted_early"] is False
     assert failures_data["not_attempted"] == []
+
+
+def test_main_diarize_flag_reaches_run_ingest(tmp_path, monkeypatch):
+    """issue #56：CLI的--diarize要真的传到run_ingest，是这个功能唯一的真实入口。"""
+    f = tmp_path / "hearing.mp3"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--file", str(f), "--chroma-dir", str(chroma_dir),
+        "--diarize",
+    ])
+    with patch("scripts.ingest.run_ingest", wraps=lambda *a, **kw: IngestResult(
+            total_chunks=0, failures=[], not_attempted=[], aborted_early=False)) as mock_run:
+        main()
+
+    _, kwargs = mock_run.call_args
+    assert kwargs["diarize"] is True
+
+
+def test_main_no_diarize_flag_defaults_false(tmp_path, monkeypatch):
+    f = tmp_path / "lecture.mp3"
+    f.write_bytes(b"content")
+    chroma_dir = tmp_path / "chroma"
+
+    monkeypatch.setattr(sys, "argv", [
+        "ingest.py", "--book-id", "b", "--file", str(f), "--chroma-dir", str(chroma_dir),
+    ])
+    with patch("scripts.ingest.run_ingest", wraps=lambda *a, **kw: IngestResult(
+            total_chunks=0, failures=[], not_attempted=[], aborted_early=False)) as mock_run:
+        main()
+
+    _, kwargs = mock_run.call_args
+    assert kwargs["diarize"] is False
 
 
 def test_main_one_file_fails_others_continue_and_exits_nonzero(tmp_path, monkeypatch, capsys):

@@ -129,6 +129,16 @@ class ChromaStore:
     def list_books(self) -> list[str]:
         return [_decode_collection_name(c.name) for c in self._client.list_collections()]
 
+    def list_source_files(self, book_id: str) -> list[str]:
+        """Return distinct source filenames already present in a collection.
+
+        This is intentionally metadata-only: it lets callers recover a file
+        listing when an older or externally restored database lacks its ingest
+        manifest, without changing any stored chunks.
+        """
+        raw = self._collection(book_id).get(include=["metadatas"])
+        return sorted({m.get("source_file") for m in raw["metadatas"] if m.get("source_file")})
+
     def delete_collection(self, book_id: str) -> None:
         self._client.delete_collection(name=_encode_collection_name(book_id))
 

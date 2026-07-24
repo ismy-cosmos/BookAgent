@@ -2,19 +2,25 @@ import json
 import pytest
 from pathlib import Path
 
-QA_PATH = Path("eval/testset/cs/qa/qa.jsonl")
 VALID_TYPES = {"事实题", "计算题", "无答案题", "音频题"}
 VALID_SUBJECTS = {"cs", "clinical", "law"}
 
+# 学科测试集陆续建成，qa.jsonl 还不存在的学科不参与校验——不需要每加一个
+# 学科就回来改这个文件，文件一旦落地会自动被下面这轮扫描捡到。
+QA_PATHS = [
+    p for p in (Path(f"eval/testset/{s}/qa/qa.jsonl") for s in sorted(VALID_SUBJECTS))
+    if p.exists()
+]
 
-def load_qa():
-    lines = QA_PATH.read_text(encoding="utf-8").strip().splitlines()
+
+def load_qa(path: Path):
+    lines = path.read_text(encoding="utf-8").strip().splitlines()
     return [json.loads(ln) for ln in lines if ln.strip()]
 
 
-@pytest.fixture
-def qa_list():
-    return load_qa()
+@pytest.fixture(params=QA_PATHS, ids=[str(p) for p in QA_PATHS])
+def qa_list(request):
+    return load_qa(request.param)
 
 
 def test_required_fields(qa_list):

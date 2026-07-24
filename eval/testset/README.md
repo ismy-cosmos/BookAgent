@@ -50,3 +50,19 @@
 | **合计** | **76** | 100% |
 
 来源分布：cpu-intro.pdf(7)、cpu-api.pdf(7)、cpu-sched.pdf(9)、cpu-sched-multi.pdf(6)、threads-intro.pdf(7)、threads-api.pdf(6)、vm-paging.pdf(9，含新增1题)、vm-segmentation.pdf(7)、音频segment-01(5)、java-ch1-e2e.epub(10，全部新增)、图片cs_p1~p3.png(3，全部新增)。
+
+## 临床医学测试集题量分布原则（2026-07-22 构建完成后）
+
+延续CS那套方法论：每道题都跑真实端到端管线核验，无答案题占比对齐issue #40幻觉诊断目标，音频/图片题数量由内容本身能撑住多少道高质量题决定，不强行凑固定比例或类型配比——比如ch18（抗高血压）全章没有mg/kg剂量数据就不出计算题，cli_p1.png（政府宣传页）没有实质临床知识点就不出题。逐题的检索query、score、能否支撑答案、回答准确性、幻觉判定见`docs/test-report-2026-07-22-clinical-testset-audit.md`，构建过程中发现的真实管线缺陷（幻觉案例、检索miss、MAX_ROUNDS_EXCEEDED、题面措辞导致模型跳过检索等）汇总在该文档的"缺陷清单"一节。
+
+**最终实际题量分布**（89题）：
+
+| 类型 | 数量 | 占比 |
+|---|---|---|
+| 事实题 | 60 | 67.4% |
+| 音频题 | 11 | 12.4% |
+| 无答案题 | 13 | 14.6% |
+| 计算题 | 5 | 5.6% |
+| **合计** | **89** | 100% |
+
+来源分布：openstax-pharm-ch07-antiinfective.pdf(22)、openstax-pharm-ch13-psychopharm.pdf(20)、openstax-pharm-ch18-antihypertensive.pdf(15)、openstax-pharm-ch28-diabetic.pdf(16)、音频6段cardiac pharmacology网课(13)、图片cli_p2/p3.png(3，cli_p1.png未出题)。

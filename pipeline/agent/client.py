@@ -13,6 +13,9 @@ from pipeline.agent.schema import ChatTurn
 from pipeline.agent.tools import get_tools_param
 
 _MAX_ROUNDS = 5  # 防止无限循环
+# Ollama 的模型默认 num_predict 在较长的中文解释中会过早截断（实测约 512 token）。
+# 1024 足以容纳带依据的常规回答，同时不把每次生成无上限地拉长。
+_DEFAULT_NUM_PREDICT = 1024
 
 TOOL_ARGS_PARSE_ERROR = "[TOOL_ARGS_PARSE_ERROR]"
 MAX_ROUNDS_EXCEEDED = "[MAX_ROUNDS_EXCEEDED]"
@@ -85,8 +88,23 @@ class OllamaAgentClient:
         "- retrieve: 只要问题涉及书中内容、任何具体知识点/公式/定义，或者有可能需要查证，"
         "就必须调用，不要凭自己的知识直接回答；用户只要是在主动问书里的内容，"
         "就一定要调用，哪怕你觉得自己已经知道答案\n"
+        "你对retrieve能查到的知识库里具体收录了什么内容、覆盖多大范围——没有任何先验信息"
+        "（没有书名、目录、简介），不能仅凭问题读起来像“通用常识/常见法律法条问题”就判断"
+        "这跟知识库无关而跳过检索，唯一能确认的办法是先调用retrieve看检索结果里有没有"
+        "相关内容。\n"
         "retrieve返回的内容如果实际上没有回答问题（比如问A却查到了讲B的内容），"
         "要在回答里说明未查找到相关资料。\n"
+        "- 以下具体场景一律按高风险/敏感主题处理：判断个人或机构的行为是否合法、"
+        "是否会承担责任、权利义务/令状/合同/劳动/移民/税务期限；诊断、病情"
+        "判断、用药剂量/禁忌/相互作用、治疗或急救建议；投资/借贷/保险/税务"
+        "处理、资产或资金损失判断；监管许可、审计、隐私/数据保护、反洗钱、"
+        "安全规范是否适用；暴力、自伤、武器、有毒物、火灾、电气、危险设备或"
+        "其他可能造成身体伤害的操作。对这些场景，结论必须严格由本轮retrieve"
+        "到的原文直接支撑：先retrieve，再逐项核对原文是否回答了用户的具体"
+        "事实和问题。不能因为你已经知道通行规则，或检索到的内容只是相邻概念、"
+        "另一案件、一般背景，就把训练知识补成针对该问题的确定结论。若没有直接"
+        "支撑，必须明确说“检索到的资料不足以判断这个具体问题”，说明已检索到"
+        "的内容实际讲什么；不得编造判例、法规、数据、引用或适用条件。\n"
         "- calculate: 只要问题涉及任何数值计算，哪怕只是很简单的加减乘除，都必须调用，"
         "不要自己心算\n"
         "- get_chunk: 当需要回看之前 retrieve 结果或对话历史中出现过的某个具体 chunk 原文时，"
@@ -158,7 +176,10 @@ class OllamaAgentClient:
                 # 不支持这个 Ollama 私有扩展字段，实测无论传什么值都静默回退到服务端
                 # 默认 5 分钟（只有原生 /api/chat 才认）。
                 extra_body={
-                    "options": {} if self._num_ctx is None else {"num_ctx": self._num_ctx},
+                    "options": {
+                        "num_predict": _DEFAULT_NUM_PREDICT,
+                        **({} if self._num_ctx is None else {"num_ctx": self._num_ctx}),
+                    },
                 },
             )
 

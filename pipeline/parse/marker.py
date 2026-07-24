@@ -2,9 +2,11 @@ from __future__ import annotations
 import io
 import re
 import tempfile
+import threading
 from pathlib import Path
 from typing import Callable
 
+import pypdf
 import pypdfium2 as pdfium
 
 from .base import Element, Parser
@@ -16,6 +18,17 @@ from .base import Element, Parser
 _PAGE_SEP = "@@BOOKAGENT_PAGE_BREAK@@"
 
 _BATCH_SIZE_PAGES = 100  # 超过这个页数才物理切分；具体数值待用965页真实文件实测内存后定案
+
+# pdfium 官方文档明确声明：不允许跨线程同时调用 pdfium 函数，哪怕操作的是
+# 不同的文档实例——内部有进程级共享状态，撞在一起会段错误。解析工作跑在
+# ImportQueue 的独立 worker 线程，跟 FastAPI 主线程真实并发，converter()
+# 内部（marker/pdftext 自己的 pdfium 调用，我们改不了）必须靠这把锁串行化。
+# 注：物理切分页面范围（_write_page_range_pdf/_pdf_page_count）已经改用
+# 纯 Python 的 pypdf 实现，不再触碰 pdfium，不需要这把锁；2026-07-22 真实
+# 崩溃（gdb 定位到 CPDF_Document 析构 SIGSEGV）排查详见 issue 记录——四轮
+# 隔离复现（纯pdfium循环/加图片渲染/加pdftext抽取/加CUDA上下文）均未复现，
+# 说明问题出在 marker/pdftext 自己的 pdfium 用法上，不是这两个函数本身。
+_PDFIUM_LOCK = threading.Lock()
 
 
 def _always_false() -> bool:
@@ -29,25 +42,23 @@ class MarkerParsePaused(RuntimeError):
 
 def _pdf_page_count(pdf_path: str) -> int:
     """轻量页数读取，不涉及 OCR/layout 模型，用于判断是否需要分批。"""
-    doc = pdfium.PdfDocument(pdf_path)
+    reader = pypdf.PdfReader(pdf_path)
     try:
-        return len(doc)
+        return len(reader.pages)
     finally:
-        doc.close()
+        reader.close()
 
 
 def _write_page_range_pdf(pdf_path: str, start: int, end: int, dest_path: str) -> None:
     """把 pdf_path 的 [start, end) 页（0-indexed 半开区间）物理切出，
     写成一份独立的 PDF 到 dest_path。"""
-    src = pdfium.PdfDocument(pdf_path)
-    dst = pdfium.PdfDocument.new()
+    writer = pypdf.PdfWriter()
     try:
-        dst.import_pages(src, list(range(start, end)))
+        writer.append(pdf_path, pages=(start, end))
         with open(dest_path, "wb") as f:
-            dst.save(f)
+            writer.write(f)
     finally:
-        dst.close()
-        src.close()
+        writer.close()
 
 
 def _parse_in_batches(
@@ -69,7 +80,8 @@ def _parse_in_batches(
             batch_path = str(Path(tmpdir) / f"batch_{batch_idx:04d}.pdf")
             _write_page_range_pdf(pdf_path, start, end, batch_path)
 
-            rendered = converter(batch_path)
+            with _PDFIUM_LOCK:
+                rendered = converter(batch_path)
             expected_pages = end - start
             actual_sections = len(rendered.markdown.split(page_sep)) - 1
             if actual_sections != expected_pages:
@@ -104,7 +116,18 @@ class MarkerParser(Parser):
             from marker.models import create_model_dict
             cls._converter = PdfConverter(
                 artifact_dict=create_model_dict(),
-                config={"paginate_output": True, "page_separator": _PAGE_SEP},
+                # pdftext_workers 默认是 4——pdftext 会为此起 ProcessPoolExecutor
+                # 起子进程。CUDA 已经初始化过的进程里用 fork/forkserver 起子进程
+                # 是已知会挂起的组合（marker 自己的 CLI scripts/convert.py 也确认
+                # 了这一点，用 disable_multiprocessing 强制单进程）。真实案例：
+                # 2026-07-22 law 导入卡死在 pdftext 的 ProcessPoolExecutor.shutdown()
+                # 上，forkserver 子进程一直没跑起来。改成 1 走单进程路径，彻底
+                # 不建进程池——这一步只是文本层抽取，不是 GPU 瓶颈，单进程够用。
+                config={
+                    "paginate_output": True,
+                    "page_separator": _PAGE_SEP,
+                    "pdftext_workers": 1,
+                },
             )
             # Read the separator marker actually resolves/uses, rather than
             # assuming it matches our own guess — avoids silently breaking
@@ -136,7 +159,8 @@ class MarkerParser(Parser):
         converter = self._get_converter()
         total_pages = _pdf_page_count(pdf_path)
         if total_pages <= _BATCH_SIZE_PAGES:
-            rendered = converter(pdf_path)
+            with _PDFIUM_LOCK:
+                rendered = converter(pdf_path)
             return _rendered_to_elements(rendered, page_sep=self._page_sep)
         return _parse_in_batches(converter, self._page_sep, pdf_path, total_pages, should_pause)
 
