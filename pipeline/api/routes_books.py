@@ -94,7 +94,14 @@ def list_files(book_id: str) -> dict:
 
     manifest_dir = str(Path(get_chroma_dir()) / ".manifests")
     manifest = _load_manifest(manifest_dir, book_id)
-    return {"files": list(manifest["sha256_to_file"].values())}
+    files = list(manifest["sha256_to_file"].values())
+    # Collections created before manifest persistence (or restored without its
+    # sidecar files) are still valid knowledge bases.  Expose their real
+    # source files from chunk metadata instead of rendering a misleading empty
+    # file list.
+    if not files:
+        files = store.list_source_files(book_id)
+    return {"files": files}
 
 
 @router.delete("/books/{book_id}/files/{source_file}")

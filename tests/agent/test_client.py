@@ -73,6 +73,17 @@ def test_no_tool_call_returns_direct_answer(mock_openai_cls):
     assert "助手" in turn.final_answer
 
 
+def test_system_prompt_requires_evidence_for_sensitive_topics():
+    from pipeline.agent.client import OllamaAgentClient
+
+    prompt = OllamaAgentClient._SYSTEM_PROMPT
+    assert "判断个人或机构的行为是否合法" in prompt
+    assert "用药剂量/禁忌/相互作用" in prompt
+    assert "暴力、自伤、武器、有毒物、火灾、电气、危险设备" in prompt
+    assert "检索到的资料不足以判断这个具体问题" in prompt
+    assert "不得编造判例、法规、数据、引用或适用条件" in prompt
+
+
 @patch("pipeline.agent.client.OpenAI")
 def test_calculate_tool_call_executes_and_fills(mock_openai_cls):
     from pipeline.agent.client import OllamaAgentClient
@@ -169,7 +180,21 @@ def test_extra_body_passes_num_ctx(mock_openai_cls):
     client.run("question")
     kwargs = mock_create.call_args[1]
     assert kwargs["extra_body"]["options"]["num_ctx"] == 4096
+    assert kwargs["extra_body"]["options"]["num_predict"] == 1024
     assert "keep_alive" not in kwargs["extra_body"]
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_extra_body_sets_a_safe_completion_limit(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("ok")
+
+    OllamaAgentClient(model="test-model", executor=StubExecutor()).run("question")
+
+    kwargs = mock_create.call_args[1]
+    assert kwargs["extra_body"]["options"] == {"num_predict": 1024}
 
 
 @patch("pipeline.agent.client.OpenAI")

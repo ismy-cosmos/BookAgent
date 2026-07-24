@@ -94,7 +94,7 @@
 |---|---|---|
 | CS | OSTEP | 已完成(76题,`eval/testset/cs/`) |
 | 法学 | Criminal Procedure | 待出题(教材 QA,同 CS 方法论) |
-| 临床 | ~~Nursing Pharmacology~~ → OpenStax《Pharmacology for Nurses》选4章(Ch.7/13/18/28,裁掉每章末尾Chapter Summary/Review Questions后合计130页) | 2026-07-21 重新选定。原书因 Pressbooks 导出平台通病（表格解析系统性错误）放弃；新选 OpenStax（Prince XML 排版,非同源风险)整书1229页中的4个高质量章节,已实测 marker 解析无崩溃、表格识别正确。音频候选:Medicosis Perfectionalis《General Pharmacology》(6h4m,待用户核实)。详见 `eval/parser_selection/textbook-candidates.md` |
+| 临床 | 换书（非改名，两本完全不同的书）：放弃《Nursing Pharmacology》（NCBI Bookshelf，965页），改用《Pharmacology for Nurses》（OpenStax，不同出版方，整书1229页，选其中 Ch.7/13/18/28 共4章，裁掉每章末尾Chapter Summary/Review Questions后合计130页） | 2026-07-21 重新选定。原书因 Pressbooks 导出平台通病（表格解析系统性错误）放弃；新选 OpenStax（Prince XML 排版,非同源风险)已实测 marker 解析无崩溃、表格识别正确。音频候选:Medicosis Perfectionalis《Cardiac Pharmacology》系列6集(80.6分钟,已下载确认)。详见 `eval/parser_selection/textbook-candidates.md` |
 
 候选书目见 `eval/parser_selection/textbook-candidates.md`。
 
