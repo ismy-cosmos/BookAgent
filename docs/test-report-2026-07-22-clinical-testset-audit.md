@@ -1029,7 +1029,7 @@
 
 **具体分析**：目标chunk排名第2，排名第1是同一话题的重复表述（未含具体药名），两者互相印证，检索质量好。
 
-### clinical-b056（无答案题，EN）—— **系统提示词修改后已修复，经真实后端API确认**
+### clinical-b056（无答案题，EN）—— **连续3次GPU复测均完整披露资料不足**
 
 **题目**："What is the mechanism of action of hydralazine as an antihypertensive, and why is it typically reserved as a second- or third-line agent?"
 
@@ -1043,9 +1043,9 @@
 | `openstax-pharm-ch13-psychopharm.pdf/p0040/0158`（可乐定/维洛沙秦，跨章节污染） | 0.4549 | 不能 |
 | `openstax-pharm-ch18-antihypertensive.pdf/p0009/0040`（ACE抑制剂人种差异，非本题） | 0.4559 | 不能 |
 
-**回答是否准确：准确（诚实披露）**。1次retrieve后，模型正确回答"The provided search results do not contain specific information regarding the mechanism of action of hydralazine as an antihypertensive or why it is typically reserved for second- or third-line therapy."，随后清楚标注补充内容来自通用药理学知识，不再是无限重试后`MAX_ROUNDS_EXCEEDED`。经真实后端API复测确认一致。
+**回答是否准确：核心结论准确（诚实披露），但夹带块外补充。** 2026-07-29使用`Embedder()`自动GPU路径跑真实`answer()`连续3次，3次均只调用1次retrieve，均明确说明检索结果没有hydralazine作用机制或二、三线用药原因的具体信息；3次均有完整文本、未触发兜底。随后补充的血管舒张机制、具体副作用和二、三线原因均不由这5个chunk支撑，属于明确披露后的通用药理学补充。
 
-**具体分析**：原提示词下，模型5次换角度重新表述query反复检索，25个citation里没有一个提到hydralazine，但没有在任何一轮止损披露"未找到"，而是持续重试直到耗尽`_MAX_ROUNDS`（5轮），最终`[MAX_ROUNDS_EXCEEDED]`，没有产生任何文本回答，已提issue #60记录。系统提示词修改（详见`docs/test-report-2026-07-23-law-testset-audit.md`"系统提示词改动"一节）后，模型不再无限换角度重试，1次retrieve后即判断检索不到相关内容并诚实披露，问题解决。
+**具体分析**：原提示词下，模型5次换角度重新表述query反复检索，25个citation里没有一个提到hydralazine，并持续重试至耗尽轮次。当前GPU复测的3次retrieve query逐字相同，均在第1次retrieve后停止重试并完整披露资料不足；因此本题当前结论是"稳定有结果、诚实披露，但有未检索验证的补充内容"。
 
 ### clinical-b057（无答案题，ZH）
 
@@ -1071,7 +1071,7 @@
 
 - 15题（13事实题+2无答案题），中英文各占一半（EN 8/ZH 7）。
 - Hit@5（13道事实题适用）：**13/13（100%）**。
-- 幻觉（2道无答案题适用）：**0/2**。clinical-b056原提示词下触发`MAX_ROUNDS_EXCEEDED`真实管线缺陷（已提issue #60），**2026-07-23更新**：系统提示词修改后经真实后端API复测确认已修复，1次retrieve+诚实披露，详见该题分析。
+- 幻觉（2道无答案题适用）：**0/2**。clinical-b056在2026-07-29自动GPU路径连续3次均为1次retrieve+完整披露资料不足；3次均夹带未由检索内容支撑的通用药理补充，但按既定“先明确披露则不计幻觉”口径不计入分子，详见该题分析。
 - 观察到的现象：中文query下跨来源污染（尤其是命中同一个"Cardiac Pharmacology"网课音频系列）比例明显更高（clinical-b044/b054），跟此前ch07/ch13批次观察到的跨语言检索质量差异现象一致。
 - clinical-b048、clinical-b052两题延续了此前批次观察到的"核心结论准确，但补充检索内容未涵盖的具体延伸说明"模式。
 
@@ -1684,12 +1684,12 @@
 
 ### 生成流程缺陷（已提issue #60）
 
-4. **clinical-b056**（hydralazine机制，ch18）：模型5次换角度重新表述query反复检索hydralazine相关内容，25个citation里没有一个提到hydralazine，但模型没有在任何一轮止损披露"未找到"，而是持续重试直到耗尽`_MAX_ROUNDS`（5轮），最终返回`[MAX_ROUNDS_EXCEEDED]`，没有产生任何文本回答。https://github.com/ismy-cosmos/BookAgent/issues/60 **——2026-07-23系统提示词修改后已修复，经真实后端API确认，详见该题条目。**
+4. **clinical-b056**（hydralazine机制，ch18）：旧版本曾5次换角度重新表述query，25个citation均未提到hydralazine并耗尽轮次。2026-07-29自动GPU路径连续3次复测均只调用1次retrieve后完整披露资料不足，未再出现无结果；但3次均继续补充未由检索内容支撑的通用药理内容。https://github.com/ismy-cosmos/BookAgent/issues/60 **——当前结论为稳定有结果、诚实披露，详见该题条目。**
 
 
 ### 训练知识补充但未经检索验证（较软的观察，不算错误）
 
-6. 多次观察到模型在核心结论准确的前提下，额外补充检索内容没有明确涵盖的具体细节：clinical-b024（"neuroleptic"词源学）、clinical-b026（REMS执行细节）、clinical-b029（三类药物具体分子机制）、clinical-b034（神经可塑性延伸）、clinical-b048（情绪障碍筛查建议）、clinical-b052（草药列举）。这些补充都没有跟检索内容矛盾、不算幻觉，但反映模型有稳定的"用训练知识补全细节"倾向，即使检索本身命中良好，值得在设计issue #40后续方案时参考。
+6. 多次观察到模型在核心结论准确的前提下，额外补充检索内容没有明确涵盖的具体细节：clinical-b024（"neuroleptic"词源学）、clinical-b026（REMS执行细节）、clinical-b029（三类药物具体分子机制）、clinical-b034（神经可塑性延伸）、clinical-b048（情绪障碍筛查建议）、clinical-b052（草药列举）、clinical-b056（hydralazine机制/副作用/二三线原因）。这些补充都没有跟检索内容矛盾、不算幻觉，但反映模型有稳定的"用训练知识补全细节"倾向，即使检索本身命中良好，值得在设计issue #40后续方案时参考。
 
 ### 语料本身的特性（非模型缺陷，方法论提醒）
 
@@ -1700,9 +1700,8 @@
 
 全部89题（书本76题+音频13题：事实题60、计算题5、音频题11、无答案题13）。
 
-以下是2026-07-23系统提示词修改（`pipeline/agent/client.py`）后的当前数字。只有clinical-b004、clinical-b036这2题被针对性复测过（各测了8次），其余87题维持原提示词下的结果，没有全量重新核对，所以下面这组数字不是"重跑89题后的全量真实结果"，是"87题旧数字+2题新数字"的混合数字，仅供当前参考。
+以下是系统提示词修改后的当前数字。只有clinical-b004、clinical-b036、clinical-b056这3题被针对性复测过（b004/b036各测了8次；b056于2026-07-29自动GPU路径测了3次），其余86题维持原提示词下的结果，没有全量重新核对，所以下面这组数字不是"重跑89题后的全量真实结果"，是"86题旧数字+3题新数字"的混合数字，仅供当前参考。
 
 - **Hit@5**：76/77 = **98.7%**（77道有答案题适用）。clinical-b004从未命中改判为命中——`audit_question.py`复测8次，7次命中、1次未命中，多数情况命中，按多数结果计入分子；这道题的Hit@5不是100%稳定，约1/8的概率会退回未命中。
-- **幻觉率**：0/89 = **0%**（全量口径），0/13 = **0%**（无答案题口径）。clinical-b036从幻觉改判为诚实披露——`audit_question.py`用紧凑循环连续复测时曾多次退回原来的幻觉，但经真实后端API（跟用户实际使用的是同一进程）复测、以及用户自己独立复测，结果稳定给出诚实披露，按真实使用场景的结果计入。clinical-b056原提示词下是`MAX_ROUNDS_EXCEEDED`（issue #60），不产生任何断言性内容，不适合并入分子分母；系统提示词修改后已修复（1次retrieve+诚实披露，经真实后端API确认），现在可以正常计入0/13、0/89这两个分母里、不计入分子。
+- **幻觉率**：0/89 = **0%**（全量口径），0/13 = **0%**（无答案题口径）。clinical-b036从幻觉改判为诚实披露——`audit_question.py`用紧凑循环连续复测时曾多次退回原来的幻觉，但经真实后端API（跟用户实际使用的是同一进程）复测、以及用户自己独立复测，结果稳定给出诚实披露，按真实使用场景的结果计入。clinical-b056在2026-07-29自动GPU复测3次均为1次retrieve+完整披露，能正常计入0/13、0/89这两个分母里、不计入分子；其块外通用药理补充另在题目条目和“训练知识补充”中记录。
 
-这是按题目逐个人工核对后的统计，其中87题是初版核对时的数字，clinical-b004/clinical-b036这2题是2026-07-23复测后的数字。要拿到完全可信的全量数字，需要用新提示词把89题重新走一遍`audit_question.py`，这个工作目前还没有做。
