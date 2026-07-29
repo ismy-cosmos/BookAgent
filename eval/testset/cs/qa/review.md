@@ -84,7 +84,7 @@
 | cs-b044 | 事实题 | 中 | 为什么书中说最朴素的分页机制会让内存访问变慢？ | vm-paging.pdf p8-p9 Paging: Also Too Slow |
 | cs-b045 | 事实题 | EN | What fragmentation-related advantage does paging have over previous approaches like segmentation, and why? | vm-paging.pdf p12 Summary |
 | cs-b046 | 计算题 | 中 | 系统使用 32 位虚拟地址，页大小 4KB（2^12 字节），按书中地址划分方法，VPN 占多少位？页表最多需… | vm-paging.pdf p3 地址划分方法（推导题） |
-| cs-b047 | 计算题 | EN | Following the same style as the book's example: 64-byte virtual address space, 16-byte pages, virtual address 21 (binary 010101) — VPN/offset and physical address given PFN=5? | vm-paging.pdf p3-p4 地址转换示例（沿用书中数值；见"遇到的问题"新增条目——英文措辞下calculate工具死循环导致MAX_ROUNDS_EXCEEDED，中文版正常） |
+| cs-b047 | 计算题 | EN | Following the same style as the book's example: 64-byte virtual address space, 16-byte pages, virtual address 21 (binary 010101) — VPN/offset and physical address given PFN=5? | vm-paging.pdf p3-p4 地址转换示例（沿用书中数值；2026-07-29自动GPU路径模型热身后连续3次正确作答） |
 | cs-b048 | 事实题（原无答案题，已改判） | 中 | 为什么页表不直接存放在 MMU 芯片上的专用硬件里，而是存放在内存中？书中提到的最简单的页表组织形式是怎样工作的？ | vm-paging.pdf p6 页表的存放位置与组织方式 |
 | cs-b058 | 无答案题 | EN | To avoid paying the extra memory access needed to walk the page table on every single memory reference, does the hardware use a small on-chip cache that holds recently used virtual-to-physical translations, and if so, how does it decide when a cached translation can still be reused versus when it needs to be re-fetched from the page table? | vm-paging.pdf（全文未讲解TLB工作原理；"TLB"/"Translation Lookaside Buffer"在vm-paging.pdf全文0命中，仅在cpu-sched.pdf、cpu-sched-multi.pdf各一笔带过） |
 
@@ -132,4 +132,3 @@
 | cs-b069 | 无答案题 | 中 | RAG新闻分析报告流程里，"Core RAG"和"Ranking"两个阶段具体各自用的是哪个AI模型？ | 图片 cs_p1.png（图中只有流程步骤和挑战/建议文字，全程未提及任何具体AI模型名称） |
 | cs-b070 | 事实题 | 中 | 大语言模型训练过程中的强化学习（RLHF）阶段，具体是通过什么方式让模型的回答更符合人类偏好的？ | 图片 cs_p2.png 第6步「强化学习（RLHF）」 |
 | cs-b071 | 事实题 | EN | DeepMind's Nature cover article used graph neural networks to speed up optimization for proving or refining what kind of mathematical problems? | 图片 cs_p3.png 正文第二段 |
-

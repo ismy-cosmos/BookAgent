@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from pipeline.agent.answer import answer
-from pipeline.agent.client import OllamaAgentClient
+from pipeline.agent.client import MAX_ROUNDS_EXCEEDED, OllamaAgentClient
 from pipeline.agent.executor import RealExecutor
 from pipeline.embed import Embedder
 from pipeline.store import ChromaStore
@@ -32,7 +32,7 @@ def main() -> None:
     exceeded = 0
     for i in range(1, _N_RUNS + 1):
         result = answer(_Q, history=[], client=client)
-        is_exceeded = "[MAX_ROUNDS_EXCEEDED]" in result.answer
+        is_exceeded = result.answer == MAX_ROUNDS_EXCEEDED
         exceeded += is_exceeded
         print(f"[run {i}/{_N_RUNS}] {'MAX_ROUNDS_EXCEEDED' if is_exceeded else 'OK'} "
               f"tokens={result.total_tokens} latency={result.latency_s:.1f}s "
