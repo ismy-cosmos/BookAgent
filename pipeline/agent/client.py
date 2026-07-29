@@ -18,7 +18,14 @@ _MAX_ROUNDS = 5  # 防止无限循环
 _DEFAULT_NUM_PREDICT = 1024
 
 TOOL_ARGS_PARSE_ERROR = "[TOOL_ARGS_PARSE_ERROR]"
-MAX_ROUNDS_EXCEEDED = "[MAX_ROUNDS_EXCEEDED]"
+MAX_ROUNDS_EXCEEDED = (
+    "抱歉，我多次检索了知识库，但未能找到与您问题直接相关的内容。\n\n"
+    "建议您尝试：\n"
+    "- 换一种表述方式重新提问\n"
+    "- 提供更多上下文，如章节名称、关键术语、页码\n"
+    "- 如果问题涉及书中某个具体概念，试试用该概念的原文术语检索\n"
+    "- 确认问题涉及的内容是否在当前这本书的范围内"
+)
 
 # 由 pipeline/agent/answer.py 按真实工具调用强制拼在答案末尾的标记——
 # 回放历史时必须剥掉（见 _strip_known_tags），不然模型会把自己"说过"的
