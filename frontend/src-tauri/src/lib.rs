@@ -25,7 +25,7 @@ pub fn run() {
         return;
       }
       if let tauri::WindowEvent::Destroyed = event {
-        sidecar::kill_backend();
+        sidecar::shutdown_backend_and_models();
         // 主窗口没了，把其余还开着的子窗口也一起关掉——Tauri 默认是"所有窗口
         // 都关了才退出"，这里反过来："主窗口一关就该退出"，不等其他窗口。
         for w in window.app_handle().webview_windows().values() {

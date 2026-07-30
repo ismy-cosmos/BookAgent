@@ -4,8 +4,9 @@ from pydantic import BaseModel
 from pipeline.agent.answer import answer
 from pipeline.api import busy_state
 from pipeline.api import conversations as conv_store
-from pipeline.api.agent_registry import get_client
+from pipeline.api.agent_registry import get_client, get_model_name
 from pipeline.api.config import get_chroma_dir
+from pipeline.ollama_utils import OLLAMA_BASE_URL, ensure_model_loaded
 from pipeline.store.chroma_store import get_store
 
 router = APIRouter()
@@ -61,6 +62,14 @@ def ask(book_id: str, conversation_id: str, body: AskRequest) -> dict:
             raise HTTPException(status_code=400, detail=f"book '{book_id}' 还没有可用内容")
 
         history = conv_store.history_from_record(record)
+        try:
+            ensure_model_loaded(OLLAMA_BASE_URL, get_model_name())
+        except Exception as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"无法连接本地模型服务，请检查 Ollama 是否已启动（{type(e).__name__}: {e}）",
+            )
+
         client = get_client(book_id)
         try:
             result = answer(body.question, history=history, client=client)

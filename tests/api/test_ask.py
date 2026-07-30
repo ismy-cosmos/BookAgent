@@ -1,11 +1,23 @@
 from unittest.mock import MagicMock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from pipeline.api.app import app
 from pipeline.chunk.schema import Chunk
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def model_ready(monkeypatch):
+    ready = MagicMock()
+    monkeypatch.setattr("pipeline.api.routes_conversations.ensure_model_loaded", ready)
+    monkeypatch.setattr(
+        "pipeline.api.routes_conversations.get_model_name",
+        lambda: "qwen3:q4km",
+    )
+    return ready
 
 
 def _fake_turn(final_answer="答案", triggered_tool=None, retrieved_chunks=None,
@@ -29,13 +41,14 @@ def _make_one_chunk() -> list[Chunk]:
     )]
 
 
-def test_ask_conversation_not_found(tmp_path, monkeypatch):
+def test_ask_conversation_not_found(tmp_path, monkeypatch, model_ready):
     monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
     resp = client.post("/books/ostep/conversations/does-not-exist/ask", json={"question": "Q"})
     assert resp.status_code == 404
+    model_ready.assert_not_called()
 
 
-def test_ask_book_has_no_chunks_returns_400(tmp_path, monkeypatch):
+def test_ask_book_has_no_chunks_returns_400(tmp_path, monkeypatch, model_ready):
     monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
     conv_id = client.post("/books/ostep/conversations").json()["id"]
     # book_id 存在于 ChromaStore（get_or_create_collection 会自动建空 collection），
@@ -46,6 +59,76 @@ def test_ask_book_has_no_chunks_returns_400(tmp_path, monkeypatch):
     )
     assert resp.status_code == 400
     assert "没有可用内容" in resp.json()["detail"]
+    model_ready.assert_not_called()
+
+
+def test_ask_checks_model_before_answer_and_append(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    conv_id = client.post("/books/ostep/conversations").json()["id"]
+
+    from pipeline.store.chroma_store import ChromaStore
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store.add_chunks("ostep", _make_one_chunk(), embeddings=[[0.0] * 8])
+
+    order = []
+    fake_client = MagicMock()
+    fake_client.run.side_effect = lambda *args, **kwargs: (
+        order.append("answer") or _fake_turn(final_answer="ok")
+    )
+    monkeypatch.setattr(
+        "pipeline.api.routes_conversations.ensure_model_loaded",
+        lambda base_url, model: order.append(("ensure", base_url, model)),
+    )
+    monkeypatch.setattr(
+        "pipeline.api.routes_conversations.get_client",
+        lambda book_id: fake_client,
+    )
+    from pipeline.api import routes_conversations
+    real_append = routes_conversations.conv_store.append_turn
+
+    def recording_append(*args, **kwargs):
+        order.append("append")
+        return real_append(*args, **kwargs)
+
+    monkeypatch.setattr(routes_conversations.conv_store, "append_turn", recording_append)
+
+    resp = client.post(
+        f"/books/ostep/conversations/{conv_id}/ask",
+        json={"question": "Q"},
+    )
+
+    assert resp.status_code == 200
+    assert order[0][0] == "ensure"
+    assert order[0][2] == "qwen3:q4km"
+    assert order[1:] == ["answer", "append"]
+
+
+def test_ask_model_check_failure_returns_503_without_answer_or_history(
+    tmp_path, monkeypatch, model_ready,
+):
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
+    conv_id = client.post("/books/ostep/conversations").json()["id"]
+
+    from pipeline.store.chroma_store import ChromaStore
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store.add_chunks("ostep", _make_one_chunk(), embeddings=[[0.0] * 8])
+
+    model_ready.side_effect = RuntimeError("probe failed")
+    get_client = MagicMock()
+    monkeypatch.setattr("pipeline.api.routes_conversations.get_client", get_client)
+
+    from pipeline.api import busy_state
+    resp = client.post(
+        f"/books/ostep/conversations/{conv_id}/ask",
+        json={"question": "Q"},
+    )
+
+    assert resp.status_code == 503
+    assert "Ollama" in resp.json()["detail"]
+    get_client.assert_not_called()
+    record = client.get(f"/books/ostep/conversations/{conv_id}").json()
+    assert record["turns"] == []
+    assert busy_state.get_state() is None
 
 
 def test_ask_ollama_unreachable_returns_503(tmp_path, monkeypatch):
@@ -109,7 +192,9 @@ def test_ask_returns_answer_and_citations(tmp_path, monkeypatch):
     assert record["turns"][0]["question"] == "fork() 是什么？"
 
 
-def test_ask_rejected_while_another_book_is_importing(tmp_path, monkeypatch):
+def test_ask_rejected_while_another_book_is_importing(
+    tmp_path, monkeypatch, model_ready,
+):
     monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
     conv_id = client.post("/books/ostep/conversations").json()["id"]
 
@@ -122,11 +207,14 @@ def test_ask_rejected_while_another_book_is_importing(tmp_path, monkeypatch):
         )
         assert resp.status_code == 409
         assert "正在导入书籍" in resp.json()["detail"]
+        model_ready.assert_not_called()
     finally:
         busy_state.release()
 
 
-def test_ask_rejected_while_another_book_is_being_answered(tmp_path, monkeypatch):
+def test_ask_rejected_while_another_book_is_being_answered(
+    tmp_path, monkeypatch, model_ready,
+):
     monkeypatch.setenv("CHROMA_DIR", str(tmp_path))
     conv_id = client.post("/books/ostep/conversations").json()["id"]
 
@@ -139,6 +227,7 @@ def test_ask_rejected_while_another_book_is_being_answered(tmp_path, monkeypatch
         )
         assert resp.status_code == 409
         assert "其他对话正在处理中" in resp.json()["detail"]
+        model_ready.assert_not_called()
     finally:
         busy_state.release()
 
