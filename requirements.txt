@@ -16,7 +16,7 @@ chromadb>=0.6,<2.0
 # FlagEmbedding 1.4.0 在 AutoModel.from_pretrained() 调用中传入了 dtype 参数，
 # 该参数在所有 transformers 4.x 版本下都不被 XLMRobertaModel 接受。
 # 1.3.5 是最后一个无此问题的版本。
-transformers>=4.44,<4.48
+transformers>=4.45.2,<4.48
 FlagEmbedding>=1.3,<1.4
 
 # W2: Document parsing utilities
