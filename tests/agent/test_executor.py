@@ -72,6 +72,102 @@ def test_safe_calculate_no_scientific_notation():
     assert Decimal(result) == Decimal("0.3")
 
 
+# ── _normalize_expression ──────────────────────────────────────────────────────
+
+def test_normalize_strips_thousands_commas():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("1,234,567 + 1") == "1234567 + 1"
+
+
+def test_normalize_strips_multiple_comma_groups():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("1,234,567 + 999,888") == "1234567 + 999888"
+
+
+def test_normalize_preserves_argument_commas():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("max(1, 2, 3)") == "max(1, 2, 3)"
+
+
+def test_normalize_strips_single_comma_group():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("1,234 + 5,678") == "1234 + 5678"
+
+
+def test_normalize_percentage():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("15% * 1000") == "(15/100) * 1000"
+
+
+def test_normalize_percentage_preserves_modulo():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("15 % 3") == "15 % 3"
+
+
+def test_normalize_currency_dollar():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("$120 * 0.15") == "120 * 0.15"
+
+
+def test_normalize_currency_multi():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("¥500 + €100 + £50") == "500 + 100 + 50"
+
+
+# ── safe_calculate bitwise ops ─────────────────────────────────────────────────
+
+def test_safe_calculate_right_shift():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("0b010101 >> 4") == "1"
+
+
+def test_safe_calculate_left_shift():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("1 << 4") == "16"
+
+
+def test_safe_calculate_bitwise_and():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("5 & 3") == "1"
+
+
+def test_safe_calculate_bitwise_or():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("5 | 2") == "7"
+
+
+def test_safe_calculate_bitwise_xor():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("5 ^ 3") == "6"
+
+
+def test_safe_calculate_bitwise_invert():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("~0") == "-1"
+
+
+def test_safe_calculate_rejects_float_bitwise():
+    from pipeline.agent.executor import safe_calculate
+    with pytest.raises(ValueError, match="要求整数"):
+        safe_calculate("3.5 << 1")
+
+
+def test_safe_calculate_rejects_float_rvalue_bitwise():
+    from pipeline.agent.executor import safe_calculate
+    with pytest.raises(ValueError, match="要求整数"):
+        safe_calculate("8 >> 1.5")
+
+
+def test_safe_calculate_normalize_comma_then_bitwise():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("1,234 >> 2") == "308"
+
+
+def test_safe_calculate_normalize_percentage_expression():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("15% * 200") == "30"
+
+
 # ── ChunkResult ───────────────────────────────────────────────────────────────
 
 def test_chunk_result_has_all_required_fields():
