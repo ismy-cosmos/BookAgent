@@ -1,5 +1,6 @@
 from __future__ import annotations
 import io
+import os
 import re
 import tempfile
 import threading
@@ -28,6 +29,10 @@ _BATCH_SIZE_PAGES = 100  # 超过这个页数才物理切分；具体数值待�
 # 崩溃（gdb 定位到 CPDF_Document 析构 SIGSEGV）排查详见 issue 记录——四轮
 # 隔离复现（纯pdfium循环/加图片渲染/加pdftext抽取/加CUDA上下文）均未复现，
 # 说明问题出在 marker/pdftext 自己的 pdfium 用法上，不是这两个函数本身。
+#
+# 2026-07-30 issue #59: default path isolates marker parsing in a recyclable
+# worker subprocess. _PDFIUM_LOCK and _converter are only used when
+# MARKER_WORKER_DISABLED=1 (debug / A/B comparison escape hatch).
 _PDFIUM_LOCK = threading.Lock()
 
 
@@ -62,14 +67,19 @@ def _write_page_range_pdf(pdf_path: str, start: int, end: int, dest_path: str) -
 
 
 def _parse_in_batches(
-    converter,
-    page_sep: str,
+    render_batch,         # (pdf_path: str, expected_pages: int) -> (list[Element], int)
     pdf_path: str,
     total_pages: int,
     should_pause: Callable[[], bool],
 ) -> list[Element]:
-    """把 pdf_path 按 _BATCH_SIZE_PAGES 物理切分、逐份交给 converter 解析，
-    按绝对页码拼接成一条 Element 列表。"""
+    """Split pdf_path into _BATCH_SIZE_PAGES chunks, render each via
+    render_batch, reassemble with absolute page numbers.
+
+    render_batch is injected by the caller:
+      - worker path: calls MarkerWorkerClient.submit()
+      - in-process path: converter + _rendered_to_elements
+      - tests: fake callable returning preset elements
+    """
     all_elements: list[Element] = []
     with tempfile.TemporaryDirectory() as tmpdir:
         for batch_idx, start in enumerate(range(0, total_pages, _BATCH_SIZE_PAGES)):
@@ -80,19 +90,17 @@ def _parse_in_batches(
             batch_path = str(Path(tmpdir) / f"batch_{batch_idx:04d}.pdf")
             _write_page_range_pdf(pdf_path, start, end, batch_path)
 
-            with _PDFIUM_LOCK:
-                rendered = converter(batch_path)
             expected_pages = end - start
-            actual_sections = len(rendered.markdown.split(page_sep)) - 1
-            if actual_sections != expected_pages:
+            batch_elements, section_count = render_batch(batch_path, expected_pages)
+
+            if section_count != expected_pages:
                 print(
                     f"[warn] MarkerParser 分批解析页码不一致：{pdf_path} "
                     f"第 {batch_idx + 1} 批（原书第 {start + 1}-{end} 页），"
-                    f"期望 {expected_pages} 页，实际渲染 {actual_sections} 段。"
+                    f"期望 {expected_pages} 页，实际渲染 {section_count} 段。"
                     f"该批页码可能不准确，照常继续解析。"
                 )
 
-            batch_elements = _rendered_to_elements(rendered, page_sep=page_sep)
             for elem in batch_elements:
                 elem.page_num += start
             all_elements.extend(batch_elements)
@@ -106,6 +114,8 @@ class MarkerParser(Parser):
     Model weights are loaded once at class level and reused across instances.
     """
 
+    # Cached PdfConverter — only used when MARKER_WORKER_DISABLED=1.
+    # In the default worker path, the converter lives in the subprocess.
     _converter = None
     _page_sep = None
 
@@ -138,12 +148,9 @@ class MarkerParser(Parser):
 
     @classmethod
     def release_models(cls) -> None:
-        """卸载缓存的 PdfConverter（layout/OCR 权重）并清空 CUDA 缓存。
-        ingest 在 VLM 批量阶段前调用——8GB 卡装不下 marker 模型残留
-        与 Ollama VLM 同时驻留。下次 parse() 会重新懒加载。"""
-        if cls._converter is None:
-            cls._page_sep = None
-            return
+        from pipeline.parse.marker_worker_client import MarkerWorkerClient
+        MarkerWorkerClient.shutdown()
+
         cls._converter = None
         cls._page_sep = None
         import gc
@@ -156,13 +163,37 @@ class MarkerParser(Parser):
             pass
 
     def parse(self, pdf_path: str, should_pause: Callable[[], bool] = _always_false) -> list[Element]:
-        converter = self._get_converter()
         total_pages = _pdf_page_count(pdf_path)
+
+        if os.environ.get("MARKER_WORKER_DISABLED") == "1":
+            converter = self._get_converter()
+            if total_pages <= _BATCH_SIZE_PAGES:
+                with _PDFIUM_LOCK:
+                    rendered = converter(pdf_path)
+                return _rendered_to_elements(rendered, page_sep=self._page_sep)
+
+            def _render_in_process(batch_path: str, _expected_pages: int) -> tuple[list, int]:
+                with _PDFIUM_LOCK:
+                    rendered = converter(batch_path)
+                elements = _rendered_to_elements(rendered, page_sep=self._page_sep)
+                sc = len(rendered.markdown.split(self._page_sep)) - 1 if getattr(rendered, 'markdown', '') else 0
+                return elements, sc
+
+            return _parse_in_batches(_render_in_process, pdf_path, total_pages, should_pause)
+
+        # Default: worker subprocess path
+        from pipeline.parse.marker_worker_client import MarkerWorkerClient
+
+        # Small files: submit directly — no temp copy, matches current fast path.
         if total_pages <= _BATCH_SIZE_PAGES:
-            with _PDFIUM_LOCK:
-                rendered = converter(pdf_path)
-            return _rendered_to_elements(rendered, page_sep=self._page_sep)
-        return _parse_in_batches(converter, self._page_sep, pdf_path, total_pages, should_pause)
+            elements, _section_count = MarkerWorkerClient.submit(pdf_path, total_pages, should_pause)
+            return elements
+
+        # Large files: physical split into batches.
+        def _render_via_worker(batch_path: str, expected_pages: int) -> tuple[list, int]:
+            return MarkerWorkerClient.submit(batch_path, expected_pages, should_pause)
+
+        return _parse_in_batches(_render_via_worker, pdf_path, total_pages, should_pause)
 
 
 def _rendered_to_elements(rendered, page_sep: str) -> list[Element]:
