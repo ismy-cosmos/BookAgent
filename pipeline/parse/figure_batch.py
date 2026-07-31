@@ -29,6 +29,7 @@ from pipeline.parse.image import (
     _VLM_MODEL,
     describe_image,
 )
+from pipeline.parse.surya_ocr import ocr_image
 
 _DEFAULT_MAX_CONSECUTIVE_FAILURES = 3
 _ALT_RE = re.compile(r"^!\[([^\]]*)\]")
@@ -108,7 +109,24 @@ def resolve_figures(
                 print(f"\n  [pause] 收到暂停请求，VLM 批量描述在第 {n}/{len(targets)} 张图边界停止。")
                 break
             if stats.breaker_tripped:
-                _mark_degraded(elem, stats)
+                # Breaker tripped: skip VLM, run surya-OCR (CPU) directly
+                image_bytes = elem.metadata.get("image_bytes")
+                if image_bytes:
+                    ocr_text = ocr_image(image_bytes, device="cpu")
+                    if ocr_text:
+                        alt_m = _ALT_RE.match(elem.content)
+                        alt = alt_m.group(1).strip() if alt_m else ""
+                        elem.content = (
+                            f"[alt: {alt}] [ocr] {ocr_text}" if alt
+                            else f"[ocr] {ocr_text}"
+                        )
+                        elem.metadata["vlm_status"] = "ocr"
+                        elem.metadata.pop("image_bytes", None)
+                        stats.degraded += 1
+                    else:
+                        _mark_degraded(elem, stats)
+                else:
+                    _mark_degraded(elem, stats)
                 continue
             image_bytes = elem.metadata["image_bytes"]
             image_sha = hashlib.sha256(image_bytes).hexdigest()
@@ -135,13 +153,27 @@ def resolve_figures(
             except (OpenAIError, ValueError) as e:
                 dt = time.perf_counter() - t_img
                 stats.per_image_s.append(dt)
-                print(f"  [warn] 第 {n}/{len(targets)} 张图 VLM 描述失败（{dt:.1f}s），已降级为占位符: {e}")
-                _mark_degraded(elem, stats)
+                # Try surya-OCR (CPU) fallback before degrading to placeholder
+                ocr_text = ocr_image(image_bytes, device="cpu")
+                if ocr_text:
+                    alt_m = _ALT_RE.match(elem.content)
+                    alt = alt_m.group(1).strip() if alt_m else ""
+                    elem.content = (
+                        f"[alt: {alt}] [ocr] {ocr_text}" if alt
+                        else f"[ocr] {ocr_text}"
+                    )
+                    elem.metadata["vlm_status"] = "ocr"
+                    elem.metadata.pop("image_bytes", None)
+                    stats.degraded += 1
+                    print(f"  [warn] 第 {n}/{len(targets)} 张图 VLM 失败（{dt:.1f}s），surya-OCR 已兜底: {e}")
+                else:
+                    _mark_degraded(elem, stats)
+                    print(f"  [warn] 第 {n}/{len(targets)} 张图 VLM 失败（{dt:.1f}s），OCR 也失败，已降级为占位符: {e}")
                 consecutive += 1
                 if max_fail and consecutive >= max_fail:
                     stats.breaker_tripped = True
                     print(f"  [warn] 连续 {consecutive} 张图 VLM 调用失败，"
-                          f"疑似 Ollama 不可用，剩余 {len(targets) - n} 张图全部降级。")
+                          f"疑似 Ollama 不可用，剩余 {len(targets) - n} 张图全部跳过 VLM 走 OCR。")
                 continue
             dt = time.perf_counter() - t_img
             stats.per_image_s.append(dt)
