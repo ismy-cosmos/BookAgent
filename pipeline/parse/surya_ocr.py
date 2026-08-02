@@ -50,14 +50,12 @@ def ocr_image(image_bytes: bytes, device: str | None = None) -> str:
 
     Returns empty string if no text detected or OCR fails.
     """
-    dev = _get_device(device)
-    det, rec = _get_predictors(dev)
-
-    img = Image.open(io.BytesIO(image_bytes))
-    if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")
-
     try:
+        dev = _get_device(device)
+        det, rec = _get_predictors(dev)
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
         result = rec([img], [None], det_predictor=det, highres_images=[img])
     except Exception:
         return ""

@@ -417,9 +417,9 @@ def run_ingest(
             ext = Path(p.file_path).suffix.lower()
             if ext in _IMAGE_EXTS:
                 elem = p.elements[0]
-                if elem.metadata.get("vlm_status") != "described":
+                if elem.metadata.get("vlm_status") not in ("described", "ocr"):
                     raise RuntimeError(
-                        "VLM 描述失败——独立图片文件没有占位符可回退，整个文件视为失败")
+                        "图片描述失败——独立图片文件没有占位符可回退，整个文件视为失败")
             n = _store_file(p, book_id, chunker, embedder, store, batch_size)
             manifest = _load_manifest(manifest_dir, book_id)
             manifest["sha256_to_file"][p.sha] = p.source_file
