@@ -48,6 +48,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+docs/codex-logs-*.md
 
 # Parser selection raw source PDFs (too large for git)
 eval/parser_selection/fixtures/raw/
