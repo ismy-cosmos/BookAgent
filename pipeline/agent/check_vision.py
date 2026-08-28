@@ -10,11 +10,14 @@ from __future__ import annotations
 import argparse
 import base64
 import io
-import subprocess
 import sys
 import time
+from typing import Optional
 
 import httpx
+from openai import OpenAI, OpenAIError
+
+from pipeline.parse.image import describe_image
 
 try:
     from PIL import Image, ImageDraw
@@ -22,7 +25,6 @@ try:
 except ImportError:
     _PIL_AVAILABLE = False
 
-_PASS_VRAM_MIB = 4000
 _PASS_LATENCY_S = 60.0
 
 
@@ -44,64 +46,51 @@ def _create_test_image() -> bytes:
     return buf.getvalue()
 
 
-def _get_vram_free_mib() -> int | None:
+def _model_vram_residency(model: str, ollama_base: str) -> Optional[bool]:
+    """Query Ollama's /api/ps for `model`: True if fully resident in VRAM
+    (size_vram >= size), False if partially/not resident, None if unknown
+    (model not in the running list, or /api/ps unreachable)."""
     try:
-        out = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=memory.free",
-             "--format=csv,noheader,nounits"],
-            text=True, timeout=5,
-        )
-        return int(out.strip().split("\n")[0])
-    except Exception:
+        resp = httpx.get(f"{ollama_base}/api/ps", timeout=10.0)
+        resp.raise_for_status()
+    except httpx.HTTPError:
         return None
+    for m in resp.json().get("models", []):
+        if m.get("model") == model:
+            size = m.get("size")
+            size_vram = m.get("size_vram")
+            if size and size_vram is not None:
+                return size_vram >= size
+    return None
 
 
 def _check_model(model: str, image_bytes: bytes, ollama_base: str) -> bool:
     b64 = base64.b64encode(image_bytes).decode()
-    vram_before = _get_vram_free_mib()
+    client = OpenAI(base_url=f"{ollama_base}/v1", api_key="ollama", timeout=120.0)
 
     t0 = time.perf_counter()
     try:
-        resp = httpx.post(
-            f"{ollama_base}/api/chat",
-            json={
-                "model": model,
-                "messages": [{
-                    "role": "user",
-                    "content": "Describe what you see in this image in one sentence.",
-                    "images": [b64],
-                }],
-                "stream": False,
-                "keep_alive": 1200,
-            },
-            timeout=120.0,
+        answer = describe_image(
+            client, model, b64,
+            prompt="Describe what you see in this image in one sentence.",
         )
-    except httpx.ConnectError as e:
-        print(f"  ✗ Cannot connect to Ollama: {e}")
+    except (OpenAIError, ValueError) as e:
+        print(f"  ✗ Vision call failed: {e}")
         return False
 
     latency = time.perf_counter() - t0
-    vram_after = _get_vram_free_mib()
-
-    if resp.status_code != 200:
-        print(f"  ✗ HTTP {resp.status_code}: {resp.text[:200]}")
-        return False
-
-    answer = resp.json().get("message", {}).get("content", "").strip()
+    gpu_resident = _model_vram_residency(model, ollama_base)
     ok = True
 
-    print(f"  Response : {answer[:120]}")
-    print(f"  Latency  : {latency:.1f}s  (limit {_PASS_LATENCY_S}s)")
-    print(f"  VRAM free: {vram_before} → {vram_after} MiB  (limit >{_PASS_VRAM_MIB})")
+    print(f"  Response     : {answer[:120]}")
+    print(f"  Latency      : {latency:.1f}s  (limit {_PASS_LATENCY_S}s)")
+    print(f"  GPU resident : {gpu_resident}  (via /api/ps size_vram >= size)")
 
-    if not answer:
-        print("  ✗ Empty response")
-        ok = False
     if latency > _PASS_LATENCY_S:
         print(f"  ✗ Latency too high — likely CPU fallback")
         ok = False
-    if vram_after is not None and vram_after < _PASS_VRAM_MIB:
-        print(f"  ✗ VRAM free too low — model not GPU-resident")
+    if gpu_resident is not True:
+        print(f"  ✗ Model not confirmed fully GPU-resident")
         ok = False
 
     return ok

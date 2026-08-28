@@ -2,6 +2,12 @@ import pytest
 from unittest.mock import MagicMock, patch
 from pipeline.chunk.schema import Chunk
 from pipeline.store import ChromaStore
+from pipeline.store.chroma_store import (
+    get_store,
+    reset_store_cache,
+    _encode_collection_name,
+    _decode_collection_name,
+)
 
 
 def _chunk(chunk_id="b/f/p0001/0000", page_start=1, page_end=1, start_sec=None, end_sec=None):
@@ -216,3 +222,149 @@ def test_add_chunks_duplicate_id_does_not_raise(mock_chroma):
     store.add_chunks("b", [chunk], embeddings)
     store.add_chunks("b", [chunk], embeddings)  # 同一 id 再次添加
     assert mock_col.add.call_count == 2  # 两次都调了 add，Chroma 自行覆盖
+
+
+def test_delete_by_source_removes_only_matching_file(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    keep = Chunk(
+        chunk_id="book1/keep.pdf/p0001/0000", book_id="book1", source_file="keep.pdf",
+        element_type="text", content="keep this", token_count=2,
+    )
+    remove = Chunk(
+        chunk_id="book1/remove.pdf/p0001/0000", book_id="book1", source_file="remove.pdf",
+        element_type="text", content="remove this", token_count=2,
+    )
+    store.add_chunks("book1", [keep, remove], [[0.1] * 1024, [0.2] * 1024])
+    assert store.count("book1") == 2
+
+    store.delete_by_source("book1", "remove.pdf")
+
+    assert store.count("book1") == 1
+    remaining = store.get("book1", ["book1/keep.pdf/p0001/0000", "book1/remove.pdf/p0001/0000"])
+    assert [r["chunk_id"] for r in remaining] == ["book1/keep.pdf/p0001/0000"]
+
+
+def test_delete_by_source_no_matching_file_is_noop(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    chunk = Chunk(
+        chunk_id="book1/keep.pdf/p0001/0000", book_id="book1", source_file="keep.pdf",
+        element_type="text", content="keep this", token_count=2,
+    )
+    store.add_chunks("book1", [chunk], [[0.1] * 1024])
+
+    store.delete_by_source("book1", "does-not-exist.pdf")
+
+    assert store.count("book1") == 1
+
+
+def test_list_books_empty(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    assert store.list_books() == []
+
+
+def test_list_books_after_create(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store._collection("ostep")
+    store._collection("civil-law")
+    assert sorted(store.list_books()) == ["civil-law", "ostep"]
+
+
+def test_delete_collection_removes_book(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store._collection("ostep")
+    assert "ostep" in store.list_books()
+    store.delete_collection("ostep")
+    assert "ostep" not in store.list_books()
+
+
+def test_get_store_same_path_returns_same_instance(tmp_path):
+    reset_store_cache()
+    a = get_store(str(tmp_path))
+    b = get_store(str(tmp_path))
+    assert a is b
+
+
+def test_get_store_different_paths_return_different_instances(tmp_path):
+    reset_store_cache()
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+    a = get_store(str(dir_a))
+    b = get_store(str(dir_b))
+    assert a is not b
+
+
+def test_get_store_concurrent_first_access_constructs_only_once(tmp_path):
+    """并发第一次访问同一路径时，底层 PersistentClient 只能被构造一次；
+    多构造一次就会撞上 chromadb 的 SharedSystemClient 注册表并发损坏问题。"""
+    import threading
+
+    reset_store_cache()
+    barrier = threading.Barrier(20)
+
+    def worker():
+        barrier.wait()  # 让所有线程尽量同时冲进 get_store
+        return get_store(str(tmp_path))
+
+    with patch("pipeline.store.chroma_store.chromadb.PersistentClient") as mock_cls:
+        mock_cls.return_value = MagicMock()
+        threads = [threading.Thread(target=worker) for _ in range(20)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+    mock_cls.assert_called_once()
+
+
+def test_rename_collection_calls_modify(mock_chroma):
+    _, mock_col, tmp = mock_chroma
+    store = ChromaStore(persist_dir=str(tmp))
+    store.rename_collection("old-id", "new-id")
+    mock_col.modify.assert_called_once_with(name=_encode_collection_name("new-id"))
+
+
+def test_encode_decode_collection_name_round_trip():
+    for book_id in ["b", "1", "ab", "红楼梦", "book id", "book_id!", "a" * 300]:
+        assert _decode_collection_name(_encode_collection_name(book_id)) == book_id
+
+
+def test_encode_collection_name_satisfies_chroma_naming_rules():
+    import re
+    for book_id in ["b", "1", "ab", "红楼梦", "book id", "book_id!", "..", "192.168.1.1"]:
+        name = _encode_collection_name(book_id)
+        assert 3 <= len(name) <= 512
+        assert re.fullmatch(r"[a-zA-Z0-9._-]+", name)
+        assert name[0].isalnum() and name[-1].isalnum()
+        assert ".." not in name
+
+
+def test_short_book_id_can_be_stored_and_queried(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    chunk = Chunk(
+        chunk_id="1/f/p0001/0000", book_id="1", source_file="f.pdf",
+        element_type="text", content="short id content", token_count=3,
+    )
+    store.add_chunks("1", [chunk], [[0.1] * 1024])
+    assert store.count("1") == 1
+    assert "1" in store.list_books()
+
+
+def test_non_ascii_book_id_can_be_stored_and_queried(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    chunk = Chunk(
+        chunk_id="红楼梦/f/p0001/0000", book_id="红楼梦", source_file="f.pdf",
+        element_type="text", content="中文书名内容", token_count=3,
+    )
+    store.add_chunks("红楼梦", [chunk], [[0.1] * 1024])
+    assert store.count("红楼梦") == 1
+    assert "红楼梦" in store.list_books()
+
+
+def test_list_books_returns_decoded_book_ids(tmp_path):
+    store = ChromaStore(persist_dir=str(tmp_path))
+    store._collection("ostep")
+    store._collection("1")
+    store._collection("红楼梦")
+    assert sorted(store.list_books()) == sorted(["ostep", "1", "红楼梦"])

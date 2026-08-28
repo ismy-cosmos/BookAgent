@@ -72,6 +72,102 @@ def test_safe_calculate_no_scientific_notation():
     assert Decimal(result) == Decimal("0.3")
 
 
+# ── _normalize_expression ──────────────────────────────────────────────────────
+
+def test_normalize_strips_thousands_commas():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("1,234,567 + 1") == "1234567 + 1"
+
+
+def test_normalize_strips_multiple_comma_groups():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("1,234,567 + 999,888") == "1234567 + 999888"
+
+
+def test_normalize_preserves_argument_commas():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("max(1, 2, 3)") == "max(1, 2, 3)"
+
+
+def test_normalize_strips_single_comma_group():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("1,234 + 5,678") == "1234 + 5678"
+
+
+def test_normalize_percentage():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("15% * 1000") == "(15/100) * 1000"
+
+
+def test_normalize_percentage_preserves_modulo():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("15 % 3") == "15 % 3"
+
+
+def test_normalize_currency_dollar():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("$120 * 0.15") == "120 * 0.15"
+
+
+def test_normalize_currency_multi():
+    from pipeline.agent.executor import _normalize_expression
+    assert _normalize_expression("¥500 + €100 + £50") == "500 + 100 + 50"
+
+
+# ── safe_calculate bitwise ops ─────────────────────────────────────────────────
+
+def test_safe_calculate_right_shift():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("0b010101 >> 4") == "1"
+
+
+def test_safe_calculate_left_shift():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("1 << 4") == "16"
+
+
+def test_safe_calculate_bitwise_and():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("5 & 3") == "1"
+
+
+def test_safe_calculate_bitwise_or():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("5 | 2") == "7"
+
+
+def test_safe_calculate_bitwise_xor():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("5 ^ 3") == "6"
+
+
+def test_safe_calculate_bitwise_invert():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("~0") == "-1"
+
+
+def test_safe_calculate_rejects_float_bitwise():
+    from pipeline.agent.executor import safe_calculate
+    with pytest.raises(ValueError, match="要求整数"):
+        safe_calculate("3.5 << 1")
+
+
+def test_safe_calculate_rejects_float_rvalue_bitwise():
+    from pipeline.agent.executor import safe_calculate
+    with pytest.raises(ValueError, match="要求整数"):
+        safe_calculate("8 >> 1.5")
+
+
+def test_safe_calculate_normalize_comma_then_bitwise():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("1,234 >> 2") == "308"
+
+
+def test_safe_calculate_normalize_percentage_expression():
+    from pipeline.agent.executor import safe_calculate
+    assert safe_calculate("15% * 200") == "30"
+
+
 # ── ChunkResult ───────────────────────────────────────────────────────────────
 
 def test_chunk_result_has_all_required_fields():
@@ -236,13 +332,22 @@ def test_real_executor_retrieve_citation_page_range(real_store):
     assert data[0]["citation"] == "f.pdf p.5-6"
 
 
-def test_real_executor_retrieve_citation_audio_mmss(real_store):
+def test_real_executor_retrieve_citation_audio_timestamp(real_store):
     from pipeline.agent.executor import RealExecutor
     _seed_chunk(real_store, chunk_id="b/a/0000", element_type="audio",
                 page_start=None, page_end=None, start_sec=75.0, end_sec=101.0)
     ex = RealExecutor(book_id="test-book", embedder=_FakeEmbedder(), store=real_store)
     data = json.loads(ex.execute("retrieve", {"query": "q"}))
-    assert data[0]["citation"] == "f.pdf 01:15-01:41"
+    assert data[0]["citation"] == "f.pdf 0:01:15-0:01:41"
+
+
+def test_real_executor_retrieve_citation_audio_over_one_hour(real_store):
+    from pipeline.agent.executor import RealExecutor
+    _seed_chunk(real_store, chunk_id="b/a/0000", element_type="audio",
+                page_start=None, page_end=None, start_sec=5430.0, end_sec=5445.5)
+    ex = RealExecutor(book_id="test-book", embedder=_FakeEmbedder(), store=real_store)
+    data = json.loads(ex.execute("retrieve", {"query": "q"}))
+    assert data[0]["citation"] == "f.pdf 1:30:30-1:30:45"
 
 
 def test_real_executor_retrieve_citation_no_location(real_store):

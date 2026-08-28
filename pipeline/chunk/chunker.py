@@ -5,13 +5,24 @@ from typing import Optional
 
 import tiktoken
 
-from pipeline.parse.base import Element
+from pipeline.parse.base import CAPTION_RE, Element
 from .schema import Chunk
 
 _MAX_TOKENS = 512  # 不含 overlap 前缀的目标 token 上限
 _OVERLAP_TOKENS = 50
 _ATOMIC_TYPES = {"table", "formula", "code", "figure"}
 _ENC = None
+
+# marker对PDF按视觉样式（字体大小/加粗）猜测标题，会把这些侧边栏框/警示框
+# 误判成真实的markdown标题（issue #49）。清单基于8本真实教材人工审查
+# （TIP/CRUX/ASIDE）+ 风险不对称原则（WARNING/CAUTION/SIDEBAR：误排除真标题
+# 只会降低chunk内容聚焦度，代价远低于漏判导致的句子截断）。以后遇到新的
+# 真实案例，往这个列表里加一个词即可，不用碰下面的正则。
+_CALLOUT_BOX_PREFIXES = ("TIP", "CRUX", "ASIDE", "WARNING", "CAUTION", "SIDEBAR")
+_CALLOUT_BOX_RE = re.compile(
+    r"#{1,6}\s(?!(?:" + "|".join(_CALLOUT_BOX_PREFIXES) + r")\b)",
+    re.IGNORECASE,
+)
 
 
 def _get_enc():
@@ -196,7 +207,7 @@ class Chunker:
             elem = elements[i]
             is_heading = (
                 elem.type == "text"
-                and bool(re.match(r"#{1,6}\s", elem.content.strip()))
+                and bool(_CALLOUT_BOX_RE.match(elem.content.strip()))
             )
             is_boundary = is_heading or elem.type == "section_break"
             is_atomic = elem.type in _ATOMIC_TYPES
@@ -214,6 +225,15 @@ class Chunker:
                     last_sent = _last_sentence(chunks[-1].content)
                     if last_sent.endswith((':', '：')):
                         prefix_sentence = last_sent
+                        # 拉到 atomic 上的这句话不能继续留在原 chunk 里，否则同一句话
+                        # 会在语料库里重复出现两次（真实数据审计发现的 bug）。
+                        idx = chunks[-1].content.rfind(last_sent)
+                        remaining = chunks[-1].content[:idx].strip()
+                        if remaining:
+                            chunks[-1].content = remaining
+                            chunks[-1].token_count = _token_count(remaining)
+                        else:
+                            chunks.pop()
 
                 # Cross-page table split: merge header-only first half with body second half
                 cont_elem = None
@@ -234,7 +254,7 @@ class Chunker:
                 caption_elem = None
                 if (i + 1 < len(elements)
                         and elements[i + 1].type == "text"
-                        and re.match(r"^(Figure|Table)\s+[\d.]+\s*:", elements[i + 1].content, re.IGNORECASE)):
+                        and CAPTION_RE.match(elements[i + 1].content)):
                     caption_elem = elements[i + 1]
                     i += 1  # 消费 caption
 
@@ -269,3 +289,81 @@ class Chunker:
 
         flush()
         return chunks
+
+
+_AUDIO_MAX_TOKENS = 256  # 音频chunk目标token上限，不同于文本的512——见spec
+
+
+def pack_audio_segments(
+    segments: list[dict],
+    book_id: str,
+    source_file: str,
+    max_tokens: int = _AUDIO_MAX_TOKENS,
+) -> list[Chunk]:
+    """贪心合并 WhisperX segment 成接近 max_tokens 的 Chunk。
+
+    每个 segment: {"text": str, "start": float, "end": float, "score": float,
+    "speaker": str（可选，diarize=True 时才有）}。
+    score 是该 segment 自己的平均置信度（未经 <0.6 阈值判断的原始分数）。
+
+    speaker 信息只影响 content 拼接时的 [SPEAKER_XX] 内联标签，不影响 flush
+    切分时机（切分永远只由 token 预算触发）。每次 flush 后"上一个已标注说话人"
+    状态重置为 None——同一说话人如果因 token 预算被切到两个 chunk，后一个
+    chunk 开头也会重新打标签，因为每个 chunk 是被独立检索、独立读取的。
+    """
+    chunks: list[Chunk] = []
+    buf: list[dict] = []
+    buf_tok = 0
+    seq = 0
+
+    def flush() -> None:
+        nonlocal buf, buf_tok, seq
+        if not buf:
+            return
+        parts = []
+        last_speaker = None
+        for s in buf:
+            if "speaker" in s and s["speaker"] != last_speaker:
+                parts.append(f"[{s['speaker']}] {s['text']}")
+                last_speaker = s["speaker"]
+            else:
+                parts.append(s["text"])
+        content = " ".join(parts)
+        weight_sum = sum(s["tok"] for s in buf)
+        weighted_score = (
+            sum(s["score"] * s["tok"] for s in buf) / weight_sum
+            if weight_sum else 1.0
+        )
+        chunks.append(Chunk(
+            chunk_id=f"{book_id}/{Path(source_file).name}/{seq:04d}",
+            book_id=book_id,
+            source_file=source_file,
+            element_type="audio",
+            content=content,
+            token_count=_token_count(content),
+            page_start=None,
+            page_end=None,
+            start_sec=buf[0]["start"],
+            end_sec=buf[-1]["end"],
+            low_confidence=weighted_score < 0.6,
+        ))
+        seq += 1
+        buf = []
+        buf_tok = 0
+
+    for seg in segments:
+        text = seg["text"].strip()
+        if not text:
+            continue
+        tok = _token_count(text)
+        if buf and buf_tok + tok > max_tokens:
+            flush()
+        entry = {"text": text, "start": seg["start"], "end": seg["end"],
+                 "score": seg.get("score", 1.0), "tok": tok}
+        if "speaker" in seg:
+            entry["speaker"] = seg["speaker"]
+        buf.append(entry)
+        buf_tok += tok
+    flush()
+
+    return chunks

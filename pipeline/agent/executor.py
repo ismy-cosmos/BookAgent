@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 import dataclasses
 import json
+import re
+import operator
 from decimal import Decimal, InvalidOperation
 from typing import Protocol, runtime_checkable
 
@@ -120,17 +122,86 @@ _STUB_CHUNKS = [
 
 # ── safe_calculate ────────────────────────────────────────────────────────────
 
+def _normalize_expression(expression: str) -> str:
+    """Normalize human-written math expressions before ast.parse.
+
+    Handles three cases that cause ast.parse failures:
+    - Thousands commas: 1,234,567 → 1234567
+    - Percentage: 15% → (15/100)
+    - Currency symbols before numbers: $120 → 120, ¥500 → 500
+    """
+    # 1. Strip thousands commas — only commas between digits where
+    #    exactly 3 digit characters follow (before a non-digit or EOS).
+    expression = re.sub(r"(?<=\d),(?=\d{3}(?:[^\d]|$))", "", expression)
+    # 2. Percentage: N% → (N/100) — only when % immediately follows digits
+    expression = re.sub(r"(\d+)%", r"(\1/100)", expression)
+    # 3. Currency symbols before numbers — strip $ ¥ € £ wherever they
+    #    immediately precede a digit (not only at expression start).
+    expression = re.sub(r"[$¥€£](?=\d)", "", expression)
+    return expression
+
+
+def _raise_zero():
+    raise ValueError("除以零")
+
+
+def _raise_int_required(op_name: str):
+    raise ValueError(f"{op_name}要求整数操作数")
+
+
+_BINOP = {
+    ast.Add:      operator.add,
+    ast.Sub:      operator.sub,
+    ast.Mult:     operator.mul,
+    ast.Div:      lambda a, b: (a / b) if b != 0 else _raise_zero(),
+    ast.FloorDiv: lambda a, b: (a // b) if b != 0 else _raise_zero(),
+    ast.Mod:      operator.mod,
+    ast.Pow:      operator.pow,
+    ast.LShift:   lambda a, b: (
+                      Decimal(str(int(a) << int(b)))
+                      if int(a) == a and int(b) == b
+                      else _raise_int_required("左移")
+                  ),
+    ast.RShift:   lambda a, b: (
+                      Decimal(str(int(a) >> int(b)))
+                      if int(a) == a and int(b) == b
+                      else _raise_int_required("右移")
+                  ),
+    ast.BitAnd:   lambda a, b: (
+                      Decimal(str(int(a) & int(b)))
+                      if int(a) == a and int(b) == b
+                      else _raise_int_required("按位与")
+                  ),
+    ast.BitOr:    lambda a, b: (
+                      Decimal(str(int(a) | int(b)))
+                      if int(a) == a and int(b) == b
+                      else _raise_int_required("按位或")
+                  ),
+    ast.BitXor:   lambda a, b: (
+                      Decimal(str(int(a) ^ int(b)))
+                      if int(a) == a and int(b) == b
+                      else _raise_int_required("按位异或")
+                  ),
+}
+
+_UNOP = {
+    ast.USub:   operator.neg,
+    ast.UAdd:   operator.pos,
+    ast.Invert: lambda a: (
+                    Decimal(str(~int(a)))
+                    if int(a) == a
+                    else _raise_int_required("按位取反")
+                ),
+}
+
 _ALLOWED_NODES = (
-    ast.Expression,
-    ast.BinOp,
-    ast.UnaryOp,
-    ast.Constant,
-    ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
-    ast.USub, ast.UAdd,
+    ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant,
+    *_BINOP, *_UNOP,
 )
 
 
 def _eval_ast(node: ast.AST) -> Decimal:
+    """Recursively evaluate a white-listed AST subtree using Decimal arithmetic."""
     if isinstance(node, ast.Constant):
         try:
             return Decimal(str(node.value))
@@ -139,31 +210,16 @@ def _eval_ast(node: ast.AST) -> Decimal:
     if isinstance(node, ast.BinOp):
         left = _eval_ast(node.left)
         right = _eval_ast(node.right)
-        if isinstance(node.op, ast.Add):
-            return left + right
-        if isinstance(node.op, ast.Sub):
-            return left - right
-        if isinstance(node.op, ast.Mult):
-            return left * right
-        if isinstance(node.op, ast.Div):
-            if right == 0:
-                raise ValueError("除以零")
-            return left / right
-        if isinstance(node.op, ast.FloorDiv):
-            if right == 0:
-                raise ValueError("除以零")
-            return left // right
-        if isinstance(node.op, ast.Mod):
-            return left % right
-        if isinstance(node.op, ast.Pow):
-            return left ** right
+        handler = _BINOP.get(type(node.op))
+        if handler is None:
+            raise ValueError(f"不允许的操作节点: {type(node.op).__name__}")
+        return handler(left, right)
     if isinstance(node, ast.UnaryOp):
         operand = _eval_ast(node.operand)
-        if isinstance(node.op, ast.USub):
-            return -operand
-        if isinstance(node.op, ast.UAdd):
-            return +operand
-    raise ValueError(f"不允许的操作节点: {type(node).__name__}")
+        handler = _UNOP.get(type(node.op))
+        if handler is None:
+            raise ValueError(f"不允许的操作节点: {type(node.op).__name__}")
+        return handler(operand)
 
 
 def safe_calculate(expression: str) -> str:
@@ -171,7 +227,7 @@ def safe_calculate(expression: str) -> str:
 
     Raises ValueError for unsafe or invalid input.
     """
-    expression = expression.strip()
+    expression = _normalize_expression(expression.strip())
     try:
         tree = ast.parse(expression, mode="eval")
     except SyntaxError as e:
@@ -182,13 +238,30 @@ def safe_calculate(expression: str) -> str:
             raise ValueError(f"不允许的操作: {type(node).__name__}")
 
     result = _eval_ast(tree.body)
-    # Remove trailing zeros for clean display
+    # Build the output string carefully:
+    # - For integers (exp >= 0): reconstruct directly from the tuple to avoid
+    #   normalize() clipping values exceeding context precision (default 28
+    #   digits).  Large bitwise results (e.g. 1 << 100) would lose their least
+    #   significant digits otherwise.
+    # - For fractional values: normalize() strips trailing zeros, but may
+    #   produce E-notation for values like 18000.00 → 1.8E+4.  Handle that
+    #   with the same integer-reconstruction path.
+    sign, digits, exp = result.as_tuple()
+    if exp >= 0:
+        coeff = ''.join(str(d) for d in digits)
+        if sign:
+            coeff = '-' + coeff
+        if exp == 0:
+            return coeff
+        return coeff + '0' * exp
     normalized = result.normalize()
-    # Decimal.normalize() uses E-notation for trailing-zero integers (e.g. 1E+3).
-    # Convert those back to plain integer strings.
-    sign, digits, exp = normalized.as_tuple()
-    if exp > 0:
-        normalized = normalized.quantize(Decimal(1))
+    nsign, ndigits, nexp = normalized.as_tuple()
+    if nexp > 0:
+        # normalize() produced E-notation for a trailing-zero integer.
+        coeff = ''.join(str(d) for d in ndigits)
+        if nsign:
+            coeff = '-' + coeff
+        return coeff + '0' * nexp
     return str(normalized)
 
 
@@ -297,9 +370,11 @@ class StubExecutor:
 
 # ── RealExecutor ──────────────────────────────────────────────────────────────
 
-def _format_mmss(seconds: float) -> str:
+def _format_timestamp(seconds: float) -> str:
     total = int(seconds)
-    return f"{total // 60:02d}:{total % 60:02d}"
+    hours, rem = divmod(total, 3600)
+    minutes, secs = divmod(rem, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}"
 
 
 def _format_citation(
@@ -314,15 +389,15 @@ def _format_citation(
             return f"{source_file} p.{page_start}-{page_end}"
         return f"{source_file} p.{page_start}"
     if start_sec is not None and end_sec is not None:
-        return f"{source_file} {_format_mmss(start_sec)}-{_format_mmss(end_sec)}"
+        return f"{source_file} {_format_timestamp(start_sec)}-{_format_timestamp(end_sec)}"
     return source_file
 
 
 def _to_record(raw: dict) -> dict:
+    # source_file/citation 排在 content 前面：模型读到出处在读到正文之前，
+    # 降低"记混来源"的概率（issue #40 的失败案例是内容用对了、来源挂错了）。
     return {
         "chunk_id": raw["chunk_id"],
-        "content": raw["content"],
-        "element_type": raw.get("element_type"),
         "source_file": raw.get("source_file"),
         "citation": _format_citation(
             raw.get("source_file"),
@@ -331,6 +406,8 @@ def _to_record(raw: dict) -> dict:
             raw.get("start_sec"),
             raw.get("end_sec"),
         ),
+        "content": raw["content"],
+        "element_type": raw.get("element_type"),
         "low_confidence": raw.get("low_confidence", False),
         "score": raw.get("score"),
     }

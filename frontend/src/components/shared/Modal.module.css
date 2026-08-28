@@ -1,0 +1,79 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 32, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.card {
+  width: 320px;
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-container);
+  box-shadow: var(--shadow-l3);
+  padding: var(--space-5);
+  color: var(--text-primary);
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-button);
+  border: 1px solid var(--input-border);
+  background: var(--bg-grad-start);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+}
+
+.inputRow {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 1.2em;
+  margin-top: var(--space-3);
+}
+
+.duplicateWarning {
+  color: var(--accent-red);
+  font-size: var(--font-meta);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.secondaryButton {
+  flex: 1;
+  padding: 6px 0;
+  background: transparent;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-button);
+  color: var(--text-primary);
+}
+
+.primaryButton {
+  flex: 1;
+  padding: 6px 0;
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-button);
+}
+
+.primaryButton:disabled {
+  opacity: .5;
+}
+
+.dangerButton {
+  flex: 1;
+  padding: 6px 0;
+  background: var(--accent-red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-button);
+}

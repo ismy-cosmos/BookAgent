@@ -1,0 +1,715 @@
+{
+  "cs-a01": {
+    "support_chunks": [
+      "data/segment-01.mp3:t72.3-74.4",
+      "data/segment-01.mp3:t74.9-78.4",
+      "data/segment-01.mp3:t78.8-82.9",
+      "data/segment-01.mp3:t82.9-87.3",
+      "data/segment-01.mp3:t87.4-88.6",
+      "data/segment-01.mp3:t88.6-91.8",
+      "data/segment-01.mp3:t92.2-93.3",
+      "data/segment-01.mp3:t93.6-96.1",
+      "data/segment-01.mp3:t96.5-101.0"
+    ],
+    "method": "audio_overlap"
+  },
+  "cs-a02": {
+    "support_chunks": [
+      "data/segment-01.mp3:t199.2-200.6",
+      "data/segment-01.mp3:t201.6-203.6",
+      "data/segment-01.mp3:t204.1-205.3",
+      "data/segment-01.mp3:t205.5-207.5",
+      "data/segment-01.mp3:t207.9-218.4"
+    ],
+    "method": "audio_overlap"
+  },
+  "cs-a03": {
+    "support_chunks": [
+      "data/segment-01.mp3:t136.5-139.4",
+      "data/segment-01.mp3:t139.9-145.0",
+      "data/segment-01.mp3:t145.4-149.5",
+      "data/segment-01.mp3:t149.6-156.8",
+      "data/segment-01.mp3:t157.8-165.7",
+      "data/segment-01.mp3:t165.7-169.2"
+    ],
+    "method": "audio_overlap"
+  },
+  "cs-a04": {
+    "support_chunks": [
+      "data/segment-01.mp3:t247.0-248.3",
+      "data/segment-01.mp3:t248.8-254.1",
+      "data/segment-01.mp3:t254.5-261.1",
+      "data/segment-01.mp3:t261.2-263.6",
+      "data/segment-01.mp3:t263.6-265.4",
+      "data/segment-01.mp3:t265.4-265.6",
+      "data/segment-01.mp3:t266.1-267.0"
+    ],
+    "method": "audio_overlap"
+  },
+  "cs-a05": {
+    "support_chunks": [],
+    "method": "no_location_expected"
+  },
+  "cs-b001": {
+    "support_chunks": [
+      "data/cpu-intro.pdf:p0@0",
+      "data/cpu-intro.pdf:p0@1408",
+      "data/cpu-intro.pdf:p0@1868",
+      "data/cpu-intro.pdf:p0@488",
+      "data/cpu-intro.pdf:p0@955"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b002": {
+    "support_chunks": [
+      "data/cpu-intro.pdf:p0@0",
+      "data/cpu-intro.pdf:p0@1408",
+      "data/cpu-intro.pdf:p0@1868",
+      "data/cpu-intro.pdf:p0@488",
+      "data/cpu-intro.pdf:p0@955",
+      "data/cpu-intro.pdf:p1@0",
+      "data/cpu-intro.pdf:p1@1401",
+      "data/cpu-intro.pdf:p1@1862",
+      "data/cpu-intro.pdf:p1@2311",
+      "data/cpu-intro.pdf:p1@2782",
+      "data/cpu-intro.pdf:p1@452",
+      "data/cpu-intro.pdf:p1@900"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b003": {
+    "support_chunks": [
+      "data/cpu-intro.pdf:p0@0",
+      "data/cpu-intro.pdf:p0@1408",
+      "data/cpu-intro.pdf:p0@1868",
+      "data/cpu-intro.pdf:p0@488",
+      "data/cpu-intro.pdf:p0@955",
+      "data/cpu-intro.pdf:p1@0",
+      "data/cpu-intro.pdf:p1@1401",
+      "data/cpu-intro.pdf:p1@1862",
+      "data/cpu-intro.pdf:p1@2311",
+      "data/cpu-intro.pdf:p1@2782",
+      "data/cpu-intro.pdf:p1@452",
+      "data/cpu-intro.pdf:p1@900"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b004": {
+    "support_chunks": [
+      "data/cpu-intro.pdf:p3@0",
+      "data/cpu-intro.pdf:p3@414",
+      "data/cpu-intro.pdf:p3@904",
+      "data/cpu-intro.pdf:p4@0",
+      "data/cpu-intro.pdf:p4@1493",
+      "data/cpu-intro.pdf:p4@2003",
+      "data/cpu-intro.pdf:p4@2381",
+      "data/cpu-intro.pdf:p4@2820",
+      "data/cpu-intro.pdf:p4@511",
+      "data/cpu-intro.pdf:p4@998"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b005": {
+    "support_chunks": [
+      "data/cpu-intro.pdf:p5@0",
+      "data/cpu-intro.pdf:p5@1451",
+      "data/cpu-intro.pdf:p5@499",
+      "data/cpu-intro.pdf:p5@999"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b006": {
+    "support_chunks": [
+      "data/cpu-intro.pdf:p5@0",
+      "data/cpu-intro.pdf:p5@1451",
+      "data/cpu-intro.pdf:p5@499",
+      "data/cpu-intro.pdf:p5@999",
+      "data/cpu-intro.pdf:p6@0",
+      "data/cpu-intro.pdf:p6@1439",
+      "data/cpu-intro.pdf:p6@1894",
+      "data/cpu-intro.pdf:p6@2368",
+      "data/cpu-intro.pdf:p6@453",
+      "data/cpu-intro.pdf:p6@950"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b007": {
+    "support_chunks": [],
+    "method": "no_location_expected"
+  },
+  "cs-b008": {
+    "support_chunks": [
+      "data/cpu-api.pdf:p0@945",
+      "data/cpu-api.pdf:p10@0",
+      "data/cpu-api.pdf:p4@1304"
+    ],
+    "method": "section_search"
+  },
+  "cs-b009": {
+    "support_chunks": [
+      "data/cpu-api.pdf:p3@1408"
+    ],
+    "method": "section_search"
+  },
+  "cs-b010": {
+    "support_chunks": [
+      "data/cpu-api.pdf:p3@0",
+      "data/cpu-api.pdf:p3@1408",
+      "data/cpu-api.pdf:p3@1916",
+      "data/cpu-api.pdf:p3@480",
+      "data/cpu-api.pdf:p3@955",
+      "data/cpu-intro.pdf:p8@0",
+      "data/cpu-intro.pdf:p8@1393",
+      "data/cpu-intro.pdf:p8@1833",
+      "data/cpu-intro.pdf:p8@448",
+      "data/cpu-intro.pdf:p8@956"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b011": {
+    "support_chunks": [
+      "data/cpu-api.pdf:p5@0",
+      "data/cpu-api.pdf:p5@1456",
+      "data/cpu-api.pdf:p5@1932",
+      "data/cpu-api.pdf:p5@2350",
+      "data/cpu-api.pdf:p5@505",
+      "data/cpu-api.pdf:p5@980",
+      "data/cpu-api.pdf:p6@0",
+      "data/cpu-api.pdf:p6@1366",
+      "data/cpu-api.pdf:p6@1871",
+      "data/cpu-api.pdf:p6@2380",
+      "data/cpu-api.pdf:p6@2860",
+      "data/cpu-api.pdf:p6@458",
+      "data/cpu-api.pdf:p6@913"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b012": {
+    "support_chunks": [
+      "data/cpu-api.pdf:p5@0",
+      "data/cpu-api.pdf:p5@1456",
+      "data/cpu-api.pdf:p5@1932",
+      "data/cpu-api.pdf:p5@2350",
+      "data/cpu-api.pdf:p5@505",
+      "data/cpu-api.pdf:p5@980",
+      "data/cpu-api.pdf:p6@0",
+      "data/cpu-api.pdf:p6@1366",
+      "data/cpu-api.pdf:p6@1871",
+      "data/cpu-api.pdf:p6@2380",
+      "data/cpu-api.pdf:p6@2860",
+      "data/cpu-api.pdf:p6@458",
+      "data/cpu-api.pdf:p6@913"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b013": {
+    "support_chunks": [
+      "data/cpu-api.pdf:p0@945",
+      "data/cpu-api.pdf:p10@0",
+      "data/cpu-api.pdf:p4@1304"
+    ],
+    "method": "section_search"
+  },
+  "cs-b014": {
+    "support_chunks": [],
+    "method": "no_location_expected"
+  },
+  "cs-b015": {
+    "support_chunks": [
+      "data/cpu-sched.pdf:p1@0",
+      "data/cpu-sched.pdf:p1@1415",
+      "data/cpu-sched.pdf:p1@1863",
+      "data/cpu-sched.pdf:p1@2348",
+      "data/cpu-sched.pdf:p1@485",
+      "data/cpu-sched.pdf:p1@985"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b016": {
+    "support_chunks": [
+      "data/cpu-sched.pdf:p2@0",
+      "data/cpu-sched.pdf:p2@1381",
+      "data/cpu-sched.pdf:p2@1887",
+      "data/cpu-sched.pdf:p2@461",
+      "data/cpu-sched.pdf:p2@913"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b017": {
+    "support_chunks": [
+      "data/cpu-sched.pdf:p3@0",
+      "data/cpu-sched.pdf:p3@1005",
+      "data/cpu-sched.pdf:p3@1480",
+      "data/cpu-sched.pdf:p3@1880",
+      "data/cpu-sched.pdf:p3@502"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b018": {
+    "support_chunks": [
+      "data/cpu-sched.pdf:p4@0",
+      "data/cpu-sched.pdf:p4@1437",
+      "data/cpu-sched.pdf:p4@1937",
+      "data/cpu-sched.pdf:p4@490",
+      "data/cpu-sched.pdf:p4@977"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b019": {
+    "support_chunks": [
+      "data/cpu-sched.pdf:p5@0",
+      "data/cpu-sched.pdf:p5@1449",
+      "data/cpu-sched.pdf:p5@1948",
+      "data/cpu-sched.pdf:p5@487",
+      "data/cpu-sched.pdf:p5@951",
+      "data/cpu-sched.pdf:p6@0",
+      "data/cpu-sched.pdf:p6@1369",
+      "data/cpu-sched.pdf:p6@1851",
+      "data/cpu-sched.pdf:p6@466",
+      "data/cpu-sched.pdf:p6@918",
+      "data/cpu-sched.pdf:p7@0",
+      "data/cpu-sched.pdf:p7@1424",
+      "data/cpu-sched.pdf:p7@1911",
+      "data/cpu-sched.pdf:p7@2358",
+      "data/cpu-sched.pdf:p7@2838",
+      "data/cpu-sched.pdf:p7@510",
+      "data/cpu-sched.pdf:p7@923"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b020": {
+    "support_chunks": [
+      "data/cpu-sched.pdf:p8@0",
+      "data/cpu-sched.pdf:p8@1432",
+      "data/cpu-sched.pdf:p8@1935",
+      "data/cpu-sched.pdf:p8@2388",
+      "data/cpu-sched.pdf:p8@502",
+      "data/cpu-sched.pdf:p8@935",
+      "data/cpu-sched.pdf:p9@0",
+      "data/cpu-sched.pdf:p9@1364",
+      "data/cpu-sched.pdf:p9@1804",
+      "data/cpu-sched.pdf:p9@470",
+      "data/cpu-sched.pdf:p9@911"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b021": {
+    "support_chunks": [
+      "data/cpu-sched.pdf:p2@0",
+      "data/cpu-sched.pdf:p2@1381",
+      "data/cpu-sched.pdf:p2@1887",
+      "data/cpu-sched.pdf:p2@461",
+      "data/cpu-sched.pdf:p2@913"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b022": {
+    "support_chunks": [
+      "data/cpu-sched.pdf:p3@0",
+      "data/cpu-sched.pdf:p3@1005",
+      "data/cpu-sched.pdf:p3@1480",
+      "data/cpu-sched.pdf:p3@1880",
+      "data/cpu-sched.pdf:p3@502"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b023": {
+    "support_chunks": [],
+    "method": "no_location_expected"
+  },
+  "cs-b024": {
+    "support_chunks": [
+      "data/cpu-sched-multi.pdf:p4@0",
+      "data/cpu-sched-multi.pdf:p4@1355",
+      "data/cpu-sched-multi.pdf:p4@1856",
+      "data/cpu-sched-multi.pdf:p4@2308",
+      "data/cpu-sched-multi.pdf:p4@456",
+      "data/cpu-sched-multi.pdf:p4@898"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b025": {
+    "support_chunks": [
+      "data/cpu-sched-multi.pdf:p5@0",
+      "data/cpu-sched-multi.pdf:p5@1462",
+      "data/cpu-sched-multi.pdf:p5@1936",
+      "data/cpu-sched-multi.pdf:p5@500",
+      "data/cpu-sched-multi.pdf:p5@965"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b026": {
+    "support_chunks": [
+      "data/cpu-sched-multi.pdf:p6@0",
+      "data/cpu-sched-multi.pdf:p6@1451",
+      "data/cpu-sched-multi.pdf:p6@1912",
+      "data/cpu-sched-multi.pdf:p6@510",
+      "data/cpu-sched-multi.pdf:p6@990",
+      "data/cpu-sched-multi.pdf:p7@0",
+      "data/cpu-sched-multi.pdf:p7@1396",
+      "data/cpu-sched-multi.pdf:p7@459",
+      "data/cpu-sched-multi.pdf:p7@905",
+      "data/cpu-sched-multi.pdf:p8@0",
+      "data/cpu-sched-multi.pdf:p8@1364",
+      "data/cpu-sched-multi.pdf:p8@1826",
+      "data/cpu-sched-multi.pdf:p8@416",
+      "data/cpu-sched-multi.pdf:p8@896",
+      "data/cpu-sched-multi.pdf:p9@0",
+      "data/cpu-sched-multi.pdf:p9@1388",
+      "data/cpu-sched-multi.pdf:p9@1839",
+      "data/cpu-sched-multi.pdf:p9@2294",
+      "data/cpu-sched-multi.pdf:p9@2800",
+      "data/cpu-sched-multi.pdf:p9@476",
+      "data/cpu-sched-multi.pdf:p9@882"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b027": {
+    "support_chunks": [
+      "data/cpu-sched-multi.pdf:p6@0",
+      "data/cpu-sched-multi.pdf:p6@1451",
+      "data/cpu-sched-multi.pdf:p6@1912",
+      "data/cpu-sched-multi.pdf:p6@510",
+      "data/cpu-sched-multi.pdf:p6@990",
+      "data/cpu-sched-multi.pdf:p7@0",
+      "data/cpu-sched-multi.pdf:p7@1396",
+      "data/cpu-sched-multi.pdf:p7@459",
+      "data/cpu-sched-multi.pdf:p7@905",
+      "data/cpu-sched-multi.pdf:p8@0",
+      "data/cpu-sched-multi.pdf:p8@1364",
+      "data/cpu-sched-multi.pdf:p8@1826",
+      "data/cpu-sched-multi.pdf:p8@416",
+      "data/cpu-sched-multi.pdf:p8@896"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b028": {
+    "support_chunks": [
+      "data/threads-intro.pdf:p0@0",
+      "data/threads-intro.pdf:p0@1456",
+      "data/threads-intro.pdf:p0@1891",
+      "data/threads-intro.pdf:p0@468",
+      "data/threads-intro.pdf:p0@949",
+      "data/threads-intro.pdf:p1@0",
+      "data/threads-intro.pdf:p1@1358",
+      "data/threads-intro.pdf:p1@1855",
+      "data/threads-intro.pdf:p1@400",
+      "data/threads-intro.pdf:p1@905"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b029": {
+    "support_chunks": [
+      "data/threads-intro.pdf:p2@0",
+      "data/threads-intro.pdf:p2@1384",
+      "data/threads-intro.pdf:p2@1880",
+      "data/threads-intro.pdf:p2@2311",
+      "data/threads-intro.pdf:p2@2782",
+      "data/threads-intro.pdf:p2@466",
+      "data/threads-intro.pdf:p2@900"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b030": {
+    "support_chunks": [
+      "data/threads-intro.pdf:p10@0",
+      "data/threads-intro.pdf:p10@1408",
+      "data/threads-intro.pdf:p10@1849",
+      "data/threads-intro.pdf:p10@2276",
+      "data/threads-intro.pdf:p10@513",
+      "data/threads-intro.pdf:p10@961"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b031": {
+    "support_chunks": [
+      "data/threads-intro.pdf:p10@0",
+      "data/threads-intro.pdf:p10@1408",
+      "data/threads-intro.pdf:p10@1849",
+      "data/threads-intro.pdf:p10@2276",
+      "data/threads-intro.pdf:p10@513",
+      "data/threads-intro.pdf:p10@961"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b032": {
+    "support_chunks": [
+      "data/threads-intro.pdf:p8@0",
+      "data/threads-intro.pdf:p8@1414",
+      "data/threads-intro.pdf:p8@1912",
+      "data/threads-intro.pdf:p8@2376",
+      "data/threads-intro.pdf:p8@2843",
+      "data/threads-intro.pdf:p8@478",
+      "data/threads-intro.pdf:p8@936",
+      "data/threads-intro.pdf:p9@0",
+      "data/threads-intro.pdf:p9@1360",
+      "data/threads-intro.pdf:p9@1841",
+      "data/threads-intro.pdf:p9@429",
+      "data/threads-intro.pdf:p9@882"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b033": {
+    "support_chunks": [
+      "data/threads-intro.pdf:p10@0",
+      "data/threads-intro.pdf:p10@1408",
+      "data/threads-intro.pdf:p10@1849",
+      "data/threads-intro.pdf:p10@2276",
+      "data/threads-intro.pdf:p10@513",
+      "data/threads-intro.pdf:p10@961",
+      "data/threads-intro.pdf:p8@0",
+      "data/threads-intro.pdf:p8@1414",
+      "data/threads-intro.pdf:p8@1912",
+      "data/threads-intro.pdf:p8@2376",
+      "data/threads-intro.pdf:p8@2843",
+      "data/threads-intro.pdf:p8@478",
+      "data/threads-intro.pdf:p8@936",
+      "data/threads-intro.pdf:p9@0",
+      "data/threads-intro.pdf:p9@1360",
+      "data/threads-intro.pdf:p9@1841",
+      "data/threads-intro.pdf:p9@429",
+      "data/threads-intro.pdf:p9@882"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b034": {
+    "support_chunks": [],
+    "method": "no_location_expected"
+  },
+  "cs-b035": {
+    "support_chunks": [
+      "data/threads-api.pdf:p0@0",
+      "data/threads-api.pdf:p0@459",
+      "data/threads-api.pdf:p0@886"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b036": {
+    "support_chunks": [
+      "data/threads-api.pdf:p1@0",
+      "data/threads-api.pdf:p1@1229",
+      "data/threads-api.pdf:p1@1739",
+      "data/threads-api.pdf:p1@2169",
+      "data/threads-api.pdf:p1@391",
+      "data/threads-api.pdf:p1@805",
+      "data/threads-api.pdf:p2@0",
+      "data/threads-api.pdf:p2@1425",
+      "data/threads-api.pdf:p2@1931",
+      "data/threads-api.pdf:p2@501",
+      "data/threads-api.pdf:p2@972"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b037": {
+    "support_chunks": [
+      "data/threads-api.pdf:p7@0",
+      "data/threads-api.pdf:p7@1377",
+      "data/threads-api.pdf:p7@1818",
+      "data/threads-api.pdf:p7@2270",
+      "data/threads-api.pdf:p7@414",
+      "data/threads-api.pdf:p7@866"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b038": {
+    "support_chunks": [
+      "data/threads-api.pdf:p5@0",
+      "data/threads-api.pdf:p5@1382",
+      "data/threads-api.pdf:p5@1849",
+      "data/threads-api.pdf:p5@2346",
+      "data/threads-api.pdf:p5@475",
+      "data/threads-api.pdf:p5@923"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b039": {
+    "support_chunks": [
+      "data/threads-api.pdf:p5@0",
+      "data/threads-api.pdf:p5@1382",
+      "data/threads-api.pdf:p5@1849",
+      "data/threads-api.pdf:p5@2346",
+      "data/threads-api.pdf:p5@475",
+      "data/threads-api.pdf:p5@923"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b040": {
+    "support_chunks": [],
+    "method": "no_location_expected"
+  },
+  "cs-b041": {
+    "support_chunks": [
+      "data/vm-paging.pdf:p0@0",
+      "data/vm-paging.pdf:p0@1433",
+      "data/vm-paging.pdf:p0@1872",
+      "data/vm-paging.pdf:p0@453",
+      "data/vm-paging.pdf:p0@927",
+      "data/vm-paging.pdf:p1@0",
+      "data/vm-paging.pdf:p1@507",
+      "data/vm-paging.pdf:p1@976"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b042": {
+    "support_chunks": [
+      "data/vm-paging.pdf:p2@0",
+      "data/vm-paging.pdf:p2@1444",
+      "data/vm-paging.pdf:p2@1903",
+      "data/vm-paging.pdf:p2@2322",
+      "data/vm-paging.pdf:p2@470",
+      "data/vm-paging.pdf:p2@961"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b043": {
+    "support_chunks": [
+      "data/vm-paging.pdf:p5@0",
+      "data/vm-paging.pdf:p5@1414",
+      "data/vm-paging.pdf:p5@1867",
+      "data/vm-paging.pdf:p5@2373",
+      "data/vm-paging.pdf:p5@2885",
+      "data/vm-paging.pdf:p5@500",
+      "data/vm-paging.pdf:p5@976"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b044": {
+    "support_chunks": [
+      "data/vm-paging.pdf:p7@0",
+      "data/vm-paging.pdf:p7@1453",
+      "data/vm-paging.pdf:p7@1919",
+      "data/vm-paging.pdf:p7@2408",
+      "data/vm-paging.pdf:p7@453",
+      "data/vm-paging.pdf:p7@964",
+      "data/vm-paging.pdf:p8@0",
+      "data/vm-paging.pdf:p8@1384",
+      "data/vm-paging.pdf:p8@419",
+      "data/vm-paging.pdf:p8@872"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b045": {
+    "support_chunks": [
+      "data/vm-paging.pdf:p11@0",
+      "data/vm-paging.pdf:p11@1354",
+      "data/vm-paging.pdf:p11@491",
+      "data/vm-paging.pdf:p11@989"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b046": {
+    "support_chunks": [
+      "data/vm-paging.pdf:p2@0",
+      "data/vm-paging.pdf:p2@1444",
+      "data/vm-paging.pdf:p2@1903",
+      "data/vm-paging.pdf:p2@2322",
+      "data/vm-paging.pdf:p2@470",
+      "data/vm-paging.pdf:p2@961"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b047": {
+    "support_chunks": [
+      "data/vm-paging.pdf:p2@0",
+      "data/vm-paging.pdf:p2@1444",
+      "data/vm-paging.pdf:p2@1903",
+      "data/vm-paging.pdf:p2@2322",
+      "data/vm-paging.pdf:p2@470",
+      "data/vm-paging.pdf:p2@961",
+      "data/vm-paging.pdf:p3@0",
+      "data/vm-paging.pdf:p3@480",
+      "data/vm-paging.pdf:p3@964"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b048": {
+    "support_chunks": [
+      "data/vm-paging.pdf:p5@0",
+      "data/vm-paging.pdf:p5@1414",
+      "data/vm-paging.pdf:p5@1867",
+      "data/vm-paging.pdf:p5@2373",
+      "data/vm-paging.pdf:p5@2885",
+      "data/vm-paging.pdf:p5@500",
+      "data/vm-paging.pdf:p5@976"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b049": {
+    "support_chunks": [
+      "data/vm-segmentation.pdf:p0@0",
+      "data/vm-segmentation.pdf:p0@1344",
+      "data/vm-segmentation.pdf:p0@463",
+      "data/vm-segmentation.pdf:p0@895",
+      "data/vm-segmentation.pdf:p1@0",
+      "data/vm-segmentation.pdf:p1@474",
+      "data/vm-segmentation.pdf:p2@0",
+      "data/vm-segmentation.pdf:p2@1353",
+      "data/vm-segmentation.pdf:p2@457",
+      "data/vm-segmentation.pdf:p2@903",
+      "data/vm-segmentation.pdf:p3@0",
+      "data/vm-segmentation.pdf:p3@1434",
+      "data/vm-segmentation.pdf:p3@1910",
+      "data/vm-segmentation.pdf:p3@2341",
+      "data/vm-segmentation.pdf:p3@487",
+      "data/vm-segmentation.pdf:p3@984"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b050": {
+    "support_chunks": [
+      "data/vm-segmentation.pdf:p8@0",
+      "data/vm-segmentation.pdf:p8@1395",
+      "data/vm-segmentation.pdf:p8@1851",
+      "data/vm-segmentation.pdf:p8@2324",
+      "data/vm-segmentation.pdf:p8@2806",
+      "data/vm-segmentation.pdf:p8@440",
+      "data/vm-segmentation.pdf:p8@926"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b051": {
+    "support_chunks": [
+      "data/vm-segmentation.pdf:p0@0",
+      "data/vm-segmentation.pdf:p0@1344",
+      "data/vm-segmentation.pdf:p0@463",
+      "data/vm-segmentation.pdf:p0@895",
+      "data/vm-segmentation.pdf:p1@0",
+      "data/vm-segmentation.pdf:p1@474"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b052": {
+    "support_chunks": [
+      "data/vm-segmentation.pdf:p0@0",
+      "data/vm-segmentation.pdf:p0@1344",
+      "data/vm-segmentation.pdf:p0@463",
+      "data/vm-segmentation.pdf:p0@895"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b053": {
+    "support_chunks": [
+      "data/vm-segmentation.pdf:p2@0",
+      "data/vm-segmentation.pdf:p2@1353",
+      "data/vm-segmentation.pdf:p2@457",
+      "data/vm-segmentation.pdf:p2@903"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b054": {
+    "support_chunks": [],
+    "method": "no_location_expected"
+  },
+  "cs-b055": {
+    "support_chunks": [
+      "data/vm-segmentation.pdf:p8@0",
+      "data/vm-segmentation.pdf:p8@1395",
+      "data/vm-segmentation.pdf:p8@1851",
+      "data/vm-segmentation.pdf:p8@2324",
+      "data/vm-segmentation.pdf:p8@2806",
+      "data/vm-segmentation.pdf:p8@440",
+      "data/vm-segmentation.pdf:p8@926"
+    ],
+    "method": "page_exact"
+  }
+}

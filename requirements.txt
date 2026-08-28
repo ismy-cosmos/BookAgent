@@ -1,32 +1,45 @@
 # Runtime dependencies — Python 3.12
 # torch is installed separately in setup.sh (requires --index-url for cu128)
+#
+# 版本约束策略：本项目是独立部署的应用（非库），所有直接依赖都锁死上限，
+# 防止 pip 静默升级到不兼容的新版。上限统一设为"下个主版本"，
 
 # W1: Agent / tool calling
-openai>=1.0
-httpx>=0.27
-python-dotenv>=1.0.0
+openai>=1.0,<2.0
+httpx>=0.27,<1.0
+python-dotenv>=1.0,<2.0
 
 # W2: Vector store
-chromadb>=0.6.3
+chromadb>=0.6,<2.0
 
 # W2: Embeddings + rerank (bge-m3, bge-reranker-v2-m3)
-FlagEmbedding>=1.3
+# FlagEmbedding 1.4.0 在 AutoModel.from_pretrained() 调用中传入了 dtype 参数，
+# 该参数在所有 transformers 4.x 版本下都不被 XLMRobertaModel 接受。
+# 1.3.5 是最后一个无此问题的版本。
+transformers>=4.45.2,<4.48
+FlagEmbedding>=1.3,<1.4
 
 # W2: Document parsing utilities
-pypdf>=5.4.0
-Pillow>=10.0.0
+pypdf>=5.4,<7.0
+Pillow>=10.0,<11.0
 
 # W2: Parser — marker-pdf selected (W1 benchmark)
-marker-pdf>=1.6           # GPL/cc-by-nc-sa, requires Python <=3.12
+# marker-pdf 1.7+ 会把 surya-ocr 升级到需要 transformers>=4.56 的新版，
+# 与上方 transformers 上限冲突，锁死。
+marker-pdf>=1.6,<1.7      # GPL/cc-by-nc-sa, requires Python <=3.12
 # unstructured[pdf]>=0.16  # not selected; kept for reference
 
 # W2: Token counting for chunker
-tiktoken>=0.7
+tiktoken>=0.7,<1.0
 
 # W2: EPUB parsing
-ebooklib>=0.18
-beautifulsoup4>=4.12
-lxml>=5.0
+ebooklib>=0.18,<1.0
+beautifulsoup4>=4.12,<5.0
+lxml>=5.0,<7.0
 
 # W2: VLM image parsing
-cairosvg>=2.7
+cairosvg>=2.7,<3.0
+
+# W4: 本地 HTTP API（前端 Tauri sidecar 用）
+fastapi>=0.115,<1.0
+uvicorn>=0.30,<1.0

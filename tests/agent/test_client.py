@@ -73,6 +73,17 @@ def test_no_tool_call_returns_direct_answer(mock_openai_cls):
     assert "助手" in turn.final_answer
 
 
+def test_system_prompt_requires_evidence_for_sensitive_topics():
+    from pipeline.agent.client import OllamaAgentClient
+
+    prompt = OllamaAgentClient._SYSTEM_PROMPT
+    assert "判断个人或机构的行为是否合法" in prompt
+    assert "用药剂量/禁忌/相互作用" in prompt
+    assert "暴力、自伤、武器、有毒物、火灾、电气、危险设备" in prompt
+    assert "检索到的资料不足以判断这个具体问题" in prompt
+    assert "不得编造判例、法规、数据、引用或适用条件" in prompt
+
+
 @patch("pipeline.agent.client.OpenAI")
 def test_calculate_tool_call_executes_and_fills(mock_openai_cls):
     from pipeline.agent.client import OllamaAgentClient
@@ -159,25 +170,31 @@ def test_latency_and_tokens_are_recorded(mock_openai_cls):
 
 
 @patch("pipeline.agent.client.OpenAI")
-def test_keep_alive_default_is_1200(mock_openai_cls):
-    from pipeline.agent.client import OllamaAgentClient
-    from pipeline.agent.executor import StubExecutor
-    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
-    assert client._keep_alive == 1200
-
-
-@patch("pipeline.agent.client.OpenAI")
-def test_extra_body_passes_num_ctx_and_keep_alive(mock_openai_cls):
+def test_extra_body_passes_num_ctx(mock_openai_cls):
     from pipeline.agent.client import OllamaAgentClient
     from pipeline.agent.executor import StubExecutor
     mock_create = mock_openai_cls.return_value.chat.completions.create
     mock_create.return_value = _make_text_response("ok")
     client = OllamaAgentClient(model="test-model", executor=StubExecutor(),
-                               num_ctx=4096, keep_alive=600)
+                               num_ctx=4096)
     client.run("question")
     kwargs = mock_create.call_args[1]
     assert kwargs["extra_body"]["options"]["num_ctx"] == 4096
-    assert kwargs["extra_body"]["keep_alive"] == 600
+    assert kwargs["extra_body"]["options"]["num_predict"] == 1024
+    assert "keep_alive" not in kwargs["extra_body"]
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_extra_body_sets_a_safe_completion_limit(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("ok")
+
+    OllamaAgentClient(model="test-model", executor=StubExecutor()).run("question")
+
+    kwargs = mock_create.call_args[1]
+    assert kwargs["extra_body"]["options"] == {"num_predict": 1024}
 
 
 @patch("pipeline.agent.client.OpenAI")
@@ -216,10 +233,61 @@ def test_history_replay_includes_compact_handle_list(mock_openai_cls):
     client.run("追问", history=history)
 
     messages = mock_create.call_args.kwargs["messages"]
-    replayed_assistant = messages[2]["content"]
-    assert "答案" in replayed_assistant
-    assert "f.pdf p.1" in replayed_assistant
-    assert "chunk_id=b/f/p0001/0000" in replayed_assistant
+    # citation 句柄必须放在独立的 system 消息里，不能粘在 assistant 的原话
+    # 后面——不然模型容易把这段拼接文本误当成自己该输出的格式抄一遍
+    # （复现过：同一问题在同一对话里问第二遍时，模型会把这段文本原样
+    # 抄进新回答，即使这轮根本没有真实检索）。
+    assert messages[2] == {"role": "assistant", "content": "答案"}
+    handle_message = messages[3]["content"]
+    assert messages[3]["role"] == "system"
+    assert "f.pdf p.1" in handle_message
+    assert "chunk_id=b/f/p0001/0000" in handle_message
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_history_replay_strips_deterministic_tags_from_answer(mock_openai_cls):
+    """turn.answer 落盘时已经被 answer.py 拼上了强制标记（见 pipeline/agent/answer.py）。
+    回放历史时必须把这些标记条剥掉，不然模型会看到自己"说过"的标记文本，
+    在没有真实检索/计算的新一轮里原样抄一遍（复现过：同一问题问第二遍）。"""
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+    from pipeline.agent.schema import ChatTurn, Citation
+
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("好的")
+
+    citation = Citation(chunk_id="b/f/p0001/0000", source_file="f.pdf",
+                         element_type="text", citation="f.pdf p.1", score=0.1)
+    history = [ChatTurn(
+        question="问题",
+        answer="答案正文\n[引用来源：f.pdf p.1]",
+        citations=[citation],
+    )]
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    client.run("追问", history=history)
+
+    messages = mock_create.call_args.kwargs["messages"]
+    assert messages[2] == {"role": "assistant", "content": "答案正文"}
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_history_replay_strips_no_citation_and_calculate_tags(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+    from pipeline.agent.schema import ChatTurn
+
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_text_response("好的")
+
+    history = [ChatTurn(
+        question="1+1等于几",
+        answer="等于2\n[未找到参考资料]\n[已使用计算工具]",
+    )]
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    client.run("追问", history=history)
+
+    messages = mock_create.call_args.kwargs["messages"]
+    assert messages[2] == {"role": "assistant", "content": "等于2"}
 
 
 @patch("pipeline.agent.client.OpenAI")
@@ -294,3 +362,44 @@ def test_agent_turn_has_token_split(mock_openai_cls):
     assert turn.prompt_tokens == 40
     assert turn.completion_tokens == 20
     assert turn.total_tokens == 60
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_attempted_retrieve_true_even_when_retrieve_returns_no_chunks(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import RealExecutor
+
+    class _FakeEmbedder:
+        def embed_query(self, text):
+            return [0.1] * 4
+
+    class _EmptyStore:
+        def query(self, book_id, vector, n_results=5):
+            return []
+
+    mock_openai_cls.return_value.chat.completions.create.side_effect = [
+        _make_tool_response("retrieve", '{"query": "测试", "k": 3}'),
+        _make_text_response("答案"),
+    ]
+
+    executor = RealExecutor(book_id="test-book", embedder=_FakeEmbedder(), store=_EmptyStore())
+    client = OllamaAgentClient(model="test-model", executor=executor)
+    turn = client.run("问题")
+
+    # 调用过 retrieve 但没查到内容，跟"压根没调用 retrieve"要能区分开——
+    # 前者是"书里真没有"，后者是"这轮没查"，两种在 UI 上文案不一样。
+    assert turn.attempted_retrieve is True
+    assert turn.retrieved_chunks == []
+
+
+@patch("pipeline.agent.client.OpenAI")
+def test_attempted_retrieve_false_when_no_retrieve_call(mock_openai_cls):
+    from pipeline.agent.client import OllamaAgentClient
+    from pipeline.agent.executor import StubExecutor
+
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_text_response("直接回答")
+    )
+    client = OllamaAgentClient(model="test-model", executor=StubExecutor())
+    turn = client.run("你好")
+    assert turn.attempted_retrieve is False

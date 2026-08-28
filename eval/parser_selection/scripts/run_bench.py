@@ -2,9 +2,18 @@
 from __future__ import annotations
 import csv
 import json
+import os
 import time
 import traceback
 from pathlib import Path
+
+# 强制离线：Marker 底层走 huggingface_hub/transformers，默认会在加载模型时
+# 联网检查版本/配置，没有任何离线兜底或超时——一旦连不上会无限期挂起。这个
+# 脚本刻意不依赖 pipeline 包（直接比较 unstructured/marker 两个库本身），
+# 所以不复用 pipeline/offline_mode.py，原地设一遍同样的两个环境变量。用
+# setdefault 不硬覆盖调用方显式设过的值。
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 _SCRIPTS = Path(__file__).parent
 ROOT = _SCRIPTS.parent

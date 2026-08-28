@@ -13,6 +13,26 @@ from pipeline.agent.schema import ChatTurn
 from pipeline.agent.tools import get_tools_param
 
 _MAX_ROUNDS = 5  # 防止无限循环
+# Ollama 的模型默认 num_predict 在较长的中文解释中会过早截断（实测约 512 token）。
+# 1024 足以容纳带依据的常规回答，同时不把每次生成无上限地拉长。
+_DEFAULT_NUM_PREDICT = 1024
+
+TOOL_ARGS_PARSE_ERROR = "[TOOL_ARGS_PARSE_ERROR]"
+MAX_ROUNDS_EXCEEDED = (
+    "抱歉，我多次检索了知识库，但未能找到与您问题直接相关的内容。\n\n"
+    "建议您尝试：\n"
+    "- 换一种表述方式重新提问\n"
+    "- 提供更多上下文，如章节名称、关键术语、页码\n"
+    "- 如果问题涉及书中某个具体概念，试试用该概念的原文术语检索\n"
+    "- 确认问题涉及的内容是否在当前这本书的范围内"
+)
+
+# 由 pipeline/agent/answer.py 按真实工具调用强制拼在答案末尾的标记——
+# 回放历史时必须剥掉（见 _strip_known_tags），不然模型会把自己"说过"的
+# 标记文本原样抄进没有真实检索/计算的新一轮。
+NO_CITATION_TAG = "[未找到参考资料]"
+USED_CALCULATE_TAG = "[已使用计算工具]"
+CITATION_TAG_PREFIX = "[引用来源："
 
 
 @dataclasses.dataclass
@@ -28,14 +48,39 @@ class AgentTurn:
     completion_tokens: int
     latency_s: float
     retrieved_chunks: list = dataclasses.field(default_factory=list)  # 本轮 retrieve 命中的记录（RealExecutor honest 形状）
+    used_calculate: bool = False        # 本轮是否调用过 calculate
+    attempted_retrieve: bool = False    # 本轮是否调用过 retrieve（不管有没有查到内容）
 
 
-def _format_turn_for_replay(turn: ChatTurn) -> str:
-    """把历史轮次压成回放给模型的文本：答案 + 紧凑句柄清单（不含原文）。"""
-    if not turn.citations:
-        return turn.answer
-    handles = "；".join(f"{c.citation}(chunk_id={c.chunk_id})" for c in turn.citations)
-    return f"{turn.answer}\n[本轮引用: {handles}]"
+def _strip_known_tags(text: str) -> str:
+    """去掉 answer.py 强制拼在末尾的标记行，只留模型自己的原话。"""
+    lines = text.split("\n")
+    while lines and (
+        lines[-1] == NO_CITATION_TAG
+        or lines[-1] == USED_CALCULATE_TAG
+        or lines[-1].startswith(CITATION_TAG_PREFIX)
+    ):
+        lines.pop()
+    return "\n".join(lines)
+
+
+def _format_turn_for_replay(turn: ChatTurn) -> list[dict]:
+    """把一个历史轮次压成回放给模型的消息列表。
+
+    citation 句柄单独放进一条 system 消息，不粘在 assistant 的原话后面——
+    粘在一起时模型容易把这段拼接格式误当成自己该输出的东西，在没有真实
+    检索的新一轮里原样抄一遍（复现：同一问题在同一对话里问第二遍）。回放
+    的 assistant 内容本身也要先剥掉强制拼上的标记行，理由相同。
+    """
+    messages = [{"role": "assistant", "content": _strip_known_tags(turn.answer)}]
+    if turn.citations:
+        handles = "；".join(f"{c.citation}(chunk_id={c.chunk_id})" for c in turn.citations)
+        messages.append({
+            "role": "system",
+            "content": f"（你上一轮 retrieve 到的原文出处：{handles}；"
+                       f"需要回看原文用 get_chunk 取对应 chunk_id 即可）",
+        })
+    return messages
 
 
 class OllamaAgentClient:
@@ -47,12 +92,42 @@ class OllamaAgentClient:
 
     _SYSTEM_PROMPT = (
         "你是一位严谨的学术助手，配有以下工具：\n"
-        "- retrieve: 当需要查阅书中具体知识、公式、定义时调用\n"
-        "- calculate: 当需要进行精确数值运算时调用（如乘除法、百分比、幂次）\n"
+        "- retrieve: 只要问题涉及书中内容、任何具体知识点/公式/定义，或者有可能需要查证，"
+        "就必须调用，不要凭自己的知识直接回答；用户只要是在主动问书里的内容，"
+        "就一定要调用，哪怕你觉得自己已经知道答案\n"
+        "你对retrieve能查到的知识库里具体收录了什么内容、覆盖多大范围——没有任何先验信息"
+        "（没有书名、目录、简介），不能仅凭问题读起来像“通用常识/常见法律法条问题”就判断"
+        "这跟知识库无关而跳过检索，唯一能确认的办法是先调用retrieve看检索结果里有没有"
+        "相关内容。\n"
+        "retrieve返回的内容如果实际上没有回答问题（比如问A却查到了讲B的内容），"
+        "要在回答里说明未查找到相关资料。\n"
+        "- 以下具体场景一律按高风险/敏感主题处理：判断个人或机构的行为是否合法、"
+        "是否会承担责任、权利义务/令状/合同/劳动/移民/税务期限；诊断、病情"
+        "判断、用药剂量/禁忌/相互作用、治疗或急救建议；投资/借贷/保险/税务"
+        "处理、资产或资金损失判断；监管许可、审计、隐私/数据保护、反洗钱、"
+        "安全规范是否适用；暴力、自伤、武器、有毒物、火灾、电气、危险设备或"
+        "其他可能造成身体伤害的操作。对这些场景，结论必须严格由本轮retrieve"
+        "到的原文直接支撑：先retrieve，再逐项核对原文是否回答了用户的具体"
+        "事实和问题。不能因为你已经知道通行规则，或检索到的内容只是相邻概念、"
+        "另一案件、一般背景，就把训练知识补成针对该问题的确定结论。若没有直接"
+        "支撑，必须明确说“检索到的资料不足以判断这个具体问题”，说明已检索到"
+        "的内容实际讲什么；不得编造判例、法规、数据、引用或适用条件。\n"
+        "- calculate: 只要问题涉及任何数值计算，哪怕只是很简单的加减乘除，都必须调用。"
+        "不要把检索到的资料里出现的数字随意拼凑成算式——"
+        "只有当回答问题确实需要做数值运算时才调用\n"
         "- get_chunk: 当需要回看之前 retrieve 结果或对话历史中出现过的某个具体 chunk 原文时，"
         "用其 chunk_id 直接取回；探索新话题仍应使用 retrieve\n"
-        "对于普通对话或无需查阅/计算的问题，直接回答，不调用任何工具。\n"
-        "回答必须有据可查，检索不到相关内容时输出 [未找到参考资料]。"
+        "题目既涉及数值计算、又提到书中的场景/公式/术语时，正确顺序是先 retrieve 查证书里的"
+        "表述和公式约定，再用查到的数字/公式调用 calculate，最后综合两者作答——不是先自己心算"
+        "出数字再考虑要不要查。例如问题是"
+        "“三个任务A(5ms)/B(10ms)/C(15ms)按FIFO调度，平均周转时间是多少”，"
+        "“FIFO调度”“周转时间”是书里的术语，正确流程是先调用 retrieve 查这两个概念在书中的"
+        "定义和计算公式，再调用 calculate 代入数字算出结果，不能跳过 retrieve 直接算。\n"
+        "只有纯打招呼、寒暄这类跟书本内容和计算完全无关的对话，才可以不调用任何工具直接回答；"
+        "拿不准该不该调用时，优先调用 retrieve。\n"
+        "禁止自己编造任何形如 [xxx] 的引用/来源/未找到参考资料/计算工具标记——"
+        "系统会在你回答之后，根据你这一轮有没有真的调用 retrieve、有没有真的"
+        "调用 calculate，自动附加准确的标记，你自己写的不算数、也不需要写。"
     )
 
     def __init__(
@@ -62,13 +137,11 @@ class OllamaAgentClient:
         base_url: str = "http://localhost:11434/v1",
         num_ctx: Optional[int] = None,  # None = 走模型默认（Modelfile num_ctx）；仅诊断时显式覆盖
         temperature: float = 0.0,
-        keep_alive: int = 1200,
     ) -> None:
         self._model = model
         self._executor = executor
         self._num_ctx = num_ctx
         self._temperature = temperature
-        self._keep_alive = keep_alive
         # trust_env=False 防止系统代理（如 socks://）干扰本地 Ollama 连接
         self._openai = OpenAI(
             base_url=base_url,
@@ -88,7 +161,7 @@ class OllamaAgentClient:
         ]
         for turn in history or []:
             messages.append({"role": "user", "content": turn.question})
-            messages.append({"role": "assistant", "content": _format_turn_for_replay(turn)})
+            messages.extend(_format_turn_for_replay(turn))
         messages.append({"role": "user", "content": question})
 
         triggered_tool: Optional[str] = None
@@ -98,6 +171,8 @@ class OllamaAgentClient:
         prompt_tokens: int = 0
         completion_tokens: int = 0
         retrieved_chunks: list = []
+        used_calculate = False
+        attempted_retrieve = False
 
         for _ in range(_MAX_ROUNDS):
             response = self._openai.chat.completions.create(
@@ -105,9 +180,14 @@ class OllamaAgentClient:
                 messages=messages,
                 tools=get_tools_param(),
                 temperature=self._temperature,
+                # keep_alive 故意不传：Ollama /v1/chat/completions（OpenAI 兼容接口）
+                # 不支持这个 Ollama 私有扩展字段，实测无论传什么值都静默回退到服务端
+                # 默认 5 分钟（只有原生 /api/chat 才认）。
                 extra_body={
-                    "options": {} if self._num_ctx is None else {"num_ctx": self._num_ctx},
-                    "keep_alive": self._keep_alive,
+                    "options": {
+                        "num_predict": _DEFAULT_NUM_PREDICT,
+                        **({} if self._num_ctx is None else {"num_ctx": self._num_ctx}),
+                    },
                 },
             )
 
@@ -133,12 +213,14 @@ class OllamaAgentClient:
                         tool_args=None,
                         format_ok=False,
                         fill_ok=None,
-                        final_answer="[TOOL_ARGS_PARSE_ERROR]",
+                        final_answer=TOOL_ARGS_PARSE_ERROR,
                         total_tokens=total_tokens,
                         prompt_tokens=prompt_tokens,
                         completion_tokens=completion_tokens,
                         latency_s=time.perf_counter() - t0,
                         retrieved_chunks=retrieved_chunks,
+                        used_calculate=used_calculate,
+                        attempted_retrieve=attempted_retrieve,
                     )
 
                 triggered_tool = tool_name
@@ -148,12 +230,15 @@ class OllamaAgentClient:
                 messages.append(choice.message)
                 result = self._executor.execute(tool_name, args)
                 if tool_name == "retrieve":
+                    attempted_retrieve = True
                     try:
                         parsed = json.loads(result)
                         if isinstance(parsed, list):
                             retrieved_chunks.extend(parsed)
                     except json.JSONDecodeError:
                         pass
+                elif tool_name == "calculate":
+                    used_calculate = True
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
@@ -175,6 +260,8 @@ class OllamaAgentClient:
                     completion_tokens=completion_tokens,
                     latency_s=time.perf_counter() - t0,
                     retrieved_chunks=retrieved_chunks,
+                    used_calculate=used_calculate,
+                    attempted_retrieve=attempted_retrieve,
                 )
 
         # Max rounds exceeded
@@ -184,10 +271,12 @@ class OllamaAgentClient:
             tool_args=tool_args,
             format_ok=format_ok,
             fill_ok=None,
-            final_answer="[MAX_ROUNDS_EXCEEDED]",
+            final_answer=MAX_ROUNDS_EXCEEDED,
             total_tokens=total_tokens,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             latency_s=time.perf_counter() - t0,
             retrieved_chunks=retrieved_chunks,
+            used_calculate=used_calculate,
+            attempted_retrieve=attempted_retrieve,
         )

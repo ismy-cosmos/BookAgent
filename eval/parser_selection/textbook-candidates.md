@@ -11,7 +11,7 @@
 | 学科 | 书目 | 状态 |
 |---|---|---|
 | CS | OSTEP — Operating Systems: Three Easy Pieces | ✅ 选定 |
-| 临床医学 | Nursing Pharmacology（NCBI Bookshelf） | ✅ 选定（药理学代表学科） |
+| 临床医学 | ~~Nursing Pharmacology（NCBI Bookshelf）~~ → OpenStax《Pharmacology for Nurses》选4章 | ✅ 2026-07-21 重新选定，原因见下 |
 | 法学 | Criminal Procedure（CALI eLangdell） | ✅ 选定（刑事诉讼） |
 
 ---
@@ -35,26 +35,37 @@
 
 ## 临床医学候选
 
-### ✅ Nursing Pharmacology（NCBI Bookshelf）
+### ❌ Nursing Pharmacology（NCBI Bookshelf）——已放弃（2026-07-21）
 - **来源**：[ncbi.nlm.nih.gov/books/NBK595000/](https://www.ncbi.nlm.nih.gov/books/NBK595000/)
 - **许可**：CC-BY 4.0
-- **内容**：药代动力学公式（Vd、CL、t½）、给药方案表、剂量计算、药物分类、副作用
-- **解析挑战覆盖**：药代动力学公式（含分数/指数）、多列剂量表、概念图
-- **限制**：护理层级，非内科/诊断级别；无原生音频
-- **音频**：需配开放课程讲座（如 Yale 医学/药理相关录音）
-- **备注**：用户确认接受药理学作为临床医学代表学科
+- **放弃原因**：965页真实 ingest 测试中，issue #24（大PDF分批解析）反复 OOM，排查发现是该书本身 PDF 质量问题——多处药物分类表格（Penicillin、Sulfonamides 等章节）被 marker 解析成散乱文本而非表格结构，确认至少2个独立实例（原书第198、208页），非孤立个案。该书源自 `wtcs.pressbooks.pub/pharmacology2e`（Pressbooks 平台导出），怀疑是这类 OER 导出平台的通病。批大小从100调到25页仍无法稳定绕开，判定不可靠，改换材料
 
-### 🔍 Fundamentals of Nursing Pharmacology（BC Open）
+### ✅ OpenStax《Pharmacology for Nurses》——选4章，2026-07-21 选定
+- **来源**：[openstax.org/details/books/pharmacology](https://openstax.org/details/books/pharmacology)，直接PDF：[assets.openstax.org/.../Pharmacology-WEB.pdf](https://assets.openstax.org/oscms-prodcms/media/documents/Pharmacology-WEB.pdf)
+- **许可**：CC BY-NC-SA 4.0
+- **整书**：1229页，Prince XML 排版（非 Pressbooks 家族，排版质量与 Nursing Pharmacology 不同源）
+- **选定4章**（不用整本，实测每章表格解析质量后选定，覆盖4个不同身体系统；已裁掉每章末尾 Chapter Summary/Key Terms/Review Questions 这类无答案的冗余材料，合计130页）：
+
+| 文件（`eval/testset/clinical/raw/book/`） | 章节 | 原始PDF页码 | 裁剪后页数 | 含表格页数(裁剪前统计) |
+|---|---|---|---|---|
+| openstax-pharm-ch07-antiinfective.pdf | Ch.7 抗感染药物 | 207-244(原207-248,删去239-248) | 38 | 18/42 |
+| openstax-pharm-ch13-psychopharm.pdf | Ch.13 精神药物 | 407-448(原407-452,删去449-452) | 42 | 25/46 |
+| openstax-pharm-ch18-antihypertensive.pdf | Ch.18 抗高血压/抗心绞痛药物 | 537-563(原537-566,删去564-566) | 27 | 16/30 |
+| openstax-pharm-ch28-diabetic.pdf | Ch.28 糖尿病药物 | 783-805(原783-808,删去806-808) | 23 | 8/26 |
+
+- **实测验证**：4章均用真实 marker 全量跑过 layout+OCR+table，无崩溃；抽查多页表格（Table 7.1 抗生素分类表、Table 13.9 抗抑郁药分类表等）均正确识别为 Table block，肉眼核对内容清晰，未复现 Nursing Pharmacology 的表格误判问题
+- **解析挑战覆盖**：同款"Drug Class/Mechanism/Dosage/Nursing Considerations/Adverse Effects"多列药物分类表、剂量计算、跨身体系统覆盖（感染/精神/心血管/内分泌）
+- **音频**：见下方"音频资源待定"
+
+### 🔍 Fundamentals of Nursing Pharmacology（BC Open）——不再考虑
 - **来源**：[opentextbc.ca/nursingpharmacology/](https://opentextbc.ca/nursingpharmacology/)
 - **许可**：CC-BY 4.0
-- **内容**：与 NCBI 版本类似，含药物分类表、副作用矩阵、测验和概念图
-- **状态**：备选，NCBI 版本优先
+- **状态**：2026-07-21 真实调研确认属于 Pressbooks/BC Open 生态（跟 Nursing Pharmacology 同源风险），未做提取验证即排除，不再作为备选
 
-### 🔍 Clinical Pharmacology（archive.org 旧版教材）
+### 🔍 Clinical Pharmacology（archive.org 旧版教材）——不再考虑
 - **来源**：[archive.org/details/ClinicalPharmacology](https://archive.org/details/ClinicalPharmacology)
 - **许可**：archive.org 托管，版权状态需确认
-- **内容**：传统临床药理学教材，更接近"临床"层级
-- **状态**：备用（若 Nursing Pharmacology 解析难度不足）
+- **状态**：OpenStax 方案已验证可用，不再需要此备选
 
 ---
 
@@ -88,7 +99,7 @@
 | 学科 | 音频候选方向 | 状态 |
 |---|---|---|
 | CS | MIT OCW 6.S081（YouTube，公开讲座） | 待确认可下载 MP3 |
-| 临床医学 | Yale Open Courses 药理学相关；Khan Academy | 待搜寻 |
+| 临床医学 | ✅ 已下载：Medicosis Perfectionalis《Cardiac Pharmacology》系列6集（心血管药物：Fenoldopam/Reserpine/Niacin/Bempedoic Acid/Ivabradine/多巴胺-多巴酚丁胺），来自[频道](https://www.youtube.com/@MedicosisPerfectionalis)播放列表，总时长80.6分钟(约1.34小时)，已存`eval/testset/clinical/raw/audio/` | 2026-07-21 确定。主题跟已选定的 Ch.18 抗高血压/抗心绞痛章节直接对应，比通用《General Pharmacology》系列更贴题 |
 | 法学 | 法学院公开课 podcast；Yale Law 讲座 | 待搜寻 |
 
 ---
@@ -100,3 +111,5 @@
 | 2026-06-26 | OSTEP 内容核实 | ✅ 通过全部 CS 材料要求 |
 | 2026-06-26 | 临床医学开放教材（含公式+表格+许可） | 找到 Nursing Pharmacology × 2；archive.org 旧版备用 |
 | 2026-06-26 | 法学开放案例教材（CALI eLangdell） | 找到 Criminal Procedure + Torts 7th Ed |
+| 2026-07-21 | Nursing Pharmacology 965页真实ingest测试 | 发现表格解析系统性质量问题（Pressbooks导出通病），放弃该书 |
+| 2026-07-21 | 页数更少+质量可靠的替代临床教材 | 调研多个候选均无法同时满足全部要求（页数/许可/表格复杂度/非Pressbooks/配套音频）；改路线：从确认无风险的 OpenStax 整书（1229页）里选取4个高质量章节（144页），实测验证通过 |

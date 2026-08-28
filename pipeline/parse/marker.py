@@ -1,12 +1,111 @@
 from __future__ import annotations
+import io
+import os
 import re
+import tempfile
+import threading
+from pathlib import Path
+from typing import Callable
+
+import pypdf
+import pypdfium2 as pdfium
 
 from .base import Element, Parser
 
-# Fallback only — real parsing always derives the separator from the live
-# renderer (see MarkerParser._get_converter). Used by tests that build their
-# own fake paginated markdown and don't go through a real PdfConverter.
-_PAGE_SEP = "-" * 48
+# 自定义分隔符，不用 marker 默认的 "-"*48——真实数据实测发现宽表格自己的
+# 表头分隔行也是一长串短横线，会跟默认分隔符碰撞，导致 markdown 被误切、
+# 页码从碰撞点起系统性漂移（详见 threads-intro.pdf 真实案例）。这个值同时
+# 是测试用假分页 markdown 时的 fallback 分隔符。
+_PAGE_SEP = "@@BOOKAGENT_PAGE_BREAK@@"
+
+_BATCH_SIZE_PAGES = 100  # 超过这个页数才物理切分；具体数值待用965页真实文件实测内存后定案
+
+# pdfium 官方文档明确声明：不允许跨线程同时调用 pdfium 函数，哪怕操作的是
+# 不同的文档实例——内部有进程级共享状态，撞在一起会段错误。解析工作跑在
+# ImportQueue 的独立 worker 线程，跟 FastAPI 主线程真实并发，converter()
+# 内部（marker/pdftext 自己的 pdfium 调用，我们改不了）必须靠这把锁串行化。
+# 注：物理切分页面范围（_write_page_range_pdf/_pdf_page_count）已经改用
+# 纯 Python 的 pypdf 实现，不再触碰 pdfium，不需要这把锁；2026-07-22 真实
+# 崩溃（gdb 定位到 CPDF_Document 析构 SIGSEGV）排查详见 issue 记录——四轮
+# 隔离复现（纯pdfium循环/加图片渲染/加pdftext抽取/加CUDA上下文）均未复现，
+# 说明问题出在 marker/pdftext 自己的 pdfium 用法上，不是这两个函数本身。
+#
+# 2026-07-30 issue #59: default path isolates marker parsing in a recyclable
+# worker subprocess. _PDFIUM_LOCK and _converter are only used when
+# MARKER_WORKER_DISABLED=1 (debug / A/B comparison escape hatch).
+_PDFIUM_LOCK = threading.Lock()
+
+
+def _always_false() -> bool:
+    return False
+
+
+class MarkerParsePaused(RuntimeError):
+    """批次间收到暂停请求——已解析完的批次全部丢弃，这个文件的解析工作
+    完全作废，下次从头重新解析（语义同 pipeline.parse.audio.AudioParsePaused）。"""
+
+
+def _pdf_page_count(pdf_path: str) -> int:
+    """轻量页数读取，不涉及 OCR/layout 模型，用于判断是否需要分批。"""
+    reader = pypdf.PdfReader(pdf_path)
+    try:
+        return len(reader.pages)
+    finally:
+        reader.close()
+
+
+def _write_page_range_pdf(pdf_path: str, start: int, end: int, dest_path: str) -> None:
+    """把 pdf_path 的 [start, end) 页（0-indexed 半开区间）物理切出，
+    写成一份独立的 PDF 到 dest_path。"""
+    writer = pypdf.PdfWriter()
+    try:
+        writer.append(pdf_path, pages=(start, end))
+        with open(dest_path, "wb") as f:
+            writer.write(f)
+    finally:
+        writer.close()
+
+
+def _parse_in_batches(
+    render_batch,         # (pdf_path: str, expected_pages: int) -> (list[Element], int)
+    pdf_path: str,
+    total_pages: int,
+    should_pause: Callable[[], bool],
+) -> list[Element]:
+    """Split pdf_path into _BATCH_SIZE_PAGES chunks, render each via
+    render_batch, reassemble with absolute page numbers.
+
+    render_batch is injected by the caller:
+      - worker path: calls MarkerWorkerClient.submit()
+      - in-process path: converter + _rendered_to_elements
+      - tests: fake callable returning preset elements
+    """
+    all_elements: list[Element] = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for batch_idx, start in enumerate(range(0, total_pages, _BATCH_SIZE_PAGES)):
+            if should_pause():
+                raise MarkerParsePaused(f"暂停请求中止了 PDF 解析：{pdf_path}")
+
+            end = min(start + _BATCH_SIZE_PAGES, total_pages)
+            batch_path = str(Path(tmpdir) / f"batch_{batch_idx:04d}.pdf")
+            _write_page_range_pdf(pdf_path, start, end, batch_path)
+
+            expected_pages = end - start
+            batch_elements, section_count = render_batch(batch_path, expected_pages)
+
+            if section_count != expected_pages:
+                print(
+                    f"[warn] MarkerParser 分批解析页码不一致：{pdf_path} "
+                    f"第 {batch_idx + 1} 批（原书第 {start + 1}-{end} 页），"
+                    f"期望 {expected_pages} 页，实际渲染 {section_count} 段。"
+                    f"该批页码可能不准确，照常继续解析。"
+                )
+
+            for elem in batch_elements:
+                elem.page_num += start
+            all_elements.extend(batch_elements)
+
+    return all_elements
 
 
 class MarkerParser(Parser):
@@ -15,6 +114,8 @@ class MarkerParser(Parser):
     Model weights are loaded once at class level and reused across instances.
     """
 
+    # Cached PdfConverter — only used when MARKER_WORKER_DISABLED=1.
+    # In the default worker path, the converter lives in the subprocess.
     _converter = None
     _page_sep = None
 
@@ -25,7 +126,18 @@ class MarkerParser(Parser):
             from marker.models import create_model_dict
             cls._converter = PdfConverter(
                 artifact_dict=create_model_dict(),
-                config={"paginate_output": True},
+                # pdftext_workers 默认是 4——pdftext 会为此起 ProcessPoolExecutor
+                # 起子进程。CUDA 已经初始化过的进程里用 fork/forkserver 起子进程
+                # 是已知会挂起的组合（marker 自己的 CLI scripts/convert.py 也确认
+                # 了这一点，用 disable_multiprocessing 强制单进程）。真实案例：
+                # 2026-07-22 law 导入卡死在 pdftext 的 ProcessPoolExecutor.shutdown()
+                # 上，forkserver 子进程一直没跑起来。改成 1 走单进程路径，彻底
+                # 不建进程池——这一步只是文本层抽取，不是 GPU 瓶颈，单进程够用。
+                config={
+                    "paginate_output": True,
+                    "page_separator": _PAGE_SEP,
+                    "pdftext_workers": 1,
+                },
             )
             # Read the separator marker actually resolves/uses, rather than
             # assuming it matches our own guess — avoids silently breaking
@@ -34,10 +146,54 @@ class MarkerParser(Parser):
             cls._page_sep = resolved_renderer.page_separator
         return cls._converter
 
-    def parse(self, pdf_path: str) -> list[Element]:
-        converter = self._get_converter()
-        rendered = converter(pdf_path)
-        return _rendered_to_elements(rendered, page_sep=self._page_sep)
+    @classmethod
+    def release_models(cls) -> None:
+        from pipeline.parse.marker_worker_client import MarkerWorkerClient
+        MarkerWorkerClient.shutdown()
+
+        cls._converter = None
+        cls._page_sep = None
+        import gc
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
+
+    def parse(self, pdf_path: str, should_pause: Callable[[], bool] = _always_false) -> list[Element]:
+        total_pages = _pdf_page_count(pdf_path)
+
+        if os.environ.get("MARKER_WORKER_DISABLED") == "1":
+            converter = self._get_converter()
+            if total_pages <= _BATCH_SIZE_PAGES:
+                with _PDFIUM_LOCK:
+                    rendered = converter(pdf_path)
+                return _rendered_to_elements(rendered, page_sep=self._page_sep)
+
+            def _render_in_process(batch_path: str, _expected_pages: int) -> tuple[list, int]:
+                with _PDFIUM_LOCK:
+                    rendered = converter(batch_path)
+                elements = _rendered_to_elements(rendered, page_sep=self._page_sep)
+                sc = len(rendered.markdown.split(self._page_sep)) - 1 if getattr(rendered, 'markdown', '') else 0
+                return elements, sc
+
+            return _parse_in_batches(_render_in_process, pdf_path, total_pages, should_pause)
+
+        # Default: worker subprocess path
+        from pipeline.parse.marker_worker_client import MarkerWorkerClient
+
+        # Small files: submit directly — no temp copy, matches current fast path.
+        if total_pages <= _BATCH_SIZE_PAGES:
+            elements, _section_count = MarkerWorkerClient.submit(pdf_path, total_pages, should_pause)
+            return elements
+
+        # Large files: physical split into batches.
+        def _render_via_worker(batch_path: str, expected_pages: int) -> tuple[list, int]:
+            return MarkerWorkerClient.submit(batch_path, expected_pages, should_pause)
+
+        return _parse_in_batches(_render_via_worker, pdf_path, total_pages, should_pause)
 
 
 def _rendered_to_elements(rendered, page_sep: str) -> list[Element]:
@@ -65,6 +221,28 @@ def _rendered_to_elements(rendered, page_sep: str) -> list[Element]:
         # section. It's a pagination artifact, not document content.
         section = re.sub(r"\n\n\{\d+\}\s*$", "", section)
         elements.extend(_markdown_to_elements(section, page_num=i))
+
+    images = getattr(rendered, "images", None)
+    if isinstance(images, dict) and images:
+        for elem in elements:
+            if elem.type != "figure":
+                continue
+            m = re.match(r"^!\[[^\]]*\]\(([^)]+)\)", elem.content)
+            if not m:
+                continue
+            pil_img = images.get(m.group(1))
+            if pil_img is None:
+                continue
+            buf = io.BytesIO()
+            try:
+                pil_img.save(buf, format="PNG")
+            except Exception:
+                try:
+                    pil_img.convert("RGB").save(buf, format="PNG")
+                except Exception:
+                    continue  # 尽力而为：转码失败则维持占位符现状
+            elem.metadata["image_bytes"] = buf.getvalue()
+
     return elements
 
 

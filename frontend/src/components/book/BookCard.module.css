@@ -1,0 +1,89 @@
+.card {
+  position: relative;
+  width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cover {
+  width: 96px;
+  height: 112px;
+  border-radius: var(--radius-card);
+  background: linear-gradient(145deg, var(--card-grad-start), var(--card-grad-end));
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-l1);
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 24, 32, .55);
+  border-radius: var(--radius-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.name {
+  width: 96px;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+}
+
+input.name {
+  font-family: inherit;
+  background: var(--panel-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-button);
+  padding: 2px 4px;
+}
+
+.badge {
+  font-size: var(--font-meta);
+  color: var(--accent-blue);
+}
+
+.btnImport {
+  width: 64px;
+  padding: 5px 0;
+  background: rgba(255, 255, 255, .92);
+  color: var(--overlay-button-text);
+  border: none;
+  border-radius: var(--radius-button);
+  font-size: var(--font-label);
+}
+
+.btnChat {
+  width: 64px;
+  padding: 5px 0;
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-button);
+  font-size: var(--font-label);
+}
+
+.btnChat:disabled {
+  opacity: .5;
+}
+
+.btnDelete {
+  width: 64px;
+  padding: 5px 0;
+  background: rgba(255, 255, 255, .92);
+  color: var(--accent-red);
+  border: 1px solid var(--accent-red);
+  border-radius: var(--radius-button);
+  font-size: var(--font-label);
+}
+
+.btnDelete:disabled {
+  opacity: .5;
+}

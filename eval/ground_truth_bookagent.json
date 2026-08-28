@@ -1,0 +1,459 @@
+{
+  "cs-a01": {
+    "chunk_ids": [
+      "cs-eval/segment-01.mp3/0001"
+    ],
+    "method": "audio_overlap"
+  },
+  "cs-a02": {
+    "chunk_ids": [
+      "cs-eval/segment-01.mp3/0002"
+    ],
+    "method": "audio_overlap"
+  },
+  "cs-a03": {
+    "chunk_ids": [
+      "cs-eval/segment-01.mp3/0002"
+    ],
+    "method": "audio_overlap"
+  },
+  "cs-a04": {
+    "chunk_ids": [
+      "cs-eval/segment-01.mp3/0003"
+    ],
+    "method": "audio_overlap"
+  },
+  "cs-a05": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b001": {
+    "chunk_ids": [
+      "cs-eval/cpu-intro.pdf/p0001/0000",
+      "cs-eval/cpu-intro.pdf/p0002/0002"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b002": {
+    "chunk_ids": [
+      "cs-eval/cpu-intro.pdf/p0002/0002",
+      "cs-eval/cpu-intro.pdf/p0009/0016"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b003": {
+    "chunk_ids": [
+      "cs-eval/cpu-intro.pdf/p0001/0001"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b004": {
+    "chunk_ids": [
+      "cs-eval/cpu-intro.pdf/p0004/0005",
+      "cs-eval/cpu-intro.pdf/p0005/0006"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b005": {
+    "chunk_ids": [
+      "cs-eval/cpu-intro.pdf/p0005/0007",
+      "cs-eval/cpu-intro.pdf/p0006/0009"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b006": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0002/0004"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b007": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b008": {
+    "chunk_ids": [
+      "cs-eval/cpu-api.pdf/p0003/0007",
+      "cs-eval/cpu-api.pdf/p0002/0002"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b009": {
+    "chunk_ids": [
+      "cs-eval/cpu-api.pdf/p0005/0017"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b010": {
+    "chunk_ids": [
+      "cs-eval/cpu-api.pdf/p0004/0010",
+      "cs-eval/cpu-intro.pdf/p0009/0016"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b011": {
+    "chunk_ids": [
+      "cs-eval/cpu-api.pdf/p0006/0020",
+      "cs-eval/cpu-api.pdf/p0007/0022"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b012": {
+    "chunk_ids": [
+      "cs-eval/cpu-api.pdf/p0006/0018",
+      "cs-eval/cpu-api.pdf/p0005/0014"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b013": {
+    "chunk_ids": [
+      "cs-eval/cpu-api.pdf/p0001/0001"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b014": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b015": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0002/0004"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b016": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0003/0010",
+      "cs-eval/cpu-sched.pdf/p0005/0015"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b017": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0004/0011",
+      "cs-eval/cpu-sched.pdf/p0010/0032"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b018": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0006/0018"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b019": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0007/0025",
+      "cs-eval/cpu-sched.pdf/p0008/0026"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b020": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0010/0031",
+      "cs-eval/cpu-sched.pdf/p0009/0028"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b021": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0002/0004"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b022": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched.pdf/p0004/0011"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b023": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b024": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched-multi.pdf/p0005/0010"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b025": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched-multi.pdf/p0006/0011"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b026": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched-multi.pdf/p0007/0016",
+      "cs-eval/cpu-sched-multi.pdf/p0008/0024"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b027": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched-multi.pdf/p0008/0024"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b028": {
+    "chunk_ids": [
+      "cs-eval/threads-intro.pdf/p0002/0002",
+      "cs-eval/threads-intro.pdf/p0001/0000"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b029": {
+    "chunk_ids": [
+      "cs-eval/threads-intro.pdf/p0002/0003"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b030": {
+    "chunk_ids": [
+      "cs-eval/threads-intro.pdf/p0011/0028"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b031": {
+    "chunk_ids": [
+      "cs-eval/threads-intro.pdf/p0013/0036",
+      "cs-eval/threads-intro.pdf/p0011/0028"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b032": {
+    "chunk_ids": [
+      "cs-eval/threads-intro.pdf/p0012/0033",
+      "cs-eval/threads-intro.pdf/p0010/0022"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b033": {
+    "chunk_ids": [
+      "cs-eval/threads-intro.pdf/p0011/0026",
+      "cs-eval/threads-intro.pdf/p0010/0024"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b034": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b035": {
+    "chunk_ids": [
+      "cs-eval/threads-api.pdf/p0001/0002",
+      "cs-eval/threads-api.pdf/p0001/0003"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b036": {
+    "chunk_ids": [
+      "cs-eval/threads-api.pdf/p0002/0009",
+      "cs-eval/threads-api.pdf/p0005/0017",
+      "cs-eval/threads-api.pdf/p0003/0011"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b037": {
+    "chunk_ids": [
+      "cs-eval/threads-api.pdf/p0008/0037"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b038": {
+    "chunk_ids": [
+      "cs-eval/threads-api.pdf/p0006/0023",
+      "cs-eval/threads-api.pdf/p0006/0025"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b039": {
+    "chunk_ids": [
+      "cs-eval/threads-api.pdf/p0006/0021",
+      "cs-eval/threads-api.pdf/p0006/0022"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b040": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b041": {
+    "chunk_ids": [
+      "cs-eval/vm-paging.pdf/p0002/0004"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b042": {
+    "chunk_ids": [
+      "cs-eval/vm-paging.pdf/p0004/0008",
+      "cs-eval/vm-paging.pdf/p0004/0009"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b043": {
+    "chunk_ids": [
+      "cs-eval/vm-paging.pdf/p0006/0016"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b044": {
+    "chunk_ids": [
+      "cs-eval/vm-paging.pdf/p0009/0028"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b045": {
+    "chunk_ids": [
+      "cs-eval/vm-paging.pdf/p0012/0039"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b046": {
+    "chunk_ids": [
+      "cs-eval/vm-paging.pdf/p0005/0014"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b047": {
+    "chunk_ids": [
+      "cs-eval/vm-paging.pdf/p0003/0006",
+      "cs-eval/vm-paging.pdf/p0004/0009"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b048": {
+    "chunk_ids": [
+      "cs-eval/vm-paging.pdf/p0006/0015",
+      "cs-eval/vm-paging.pdf/p0006/0016"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b049": {
+    "chunk_ids": [
+      "cs-eval/vm-segmentation.pdf/p0005/0014",
+      "cs-eval/vm-segmentation.pdf/p0004/0009"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b050": {
+    "chunk_ids": [
+      "cs-eval/vm-segmentation.pdf/p0009/0026"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b051": {
+    "chunk_ids": [
+      "cs-eval/vm-segmentation.pdf/p0002/0003"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b052": {
+    "chunk_ids": [
+      "cs-eval/vm-segmentation.pdf/p0002/0003"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b053": {
+    "chunk_ids": [
+      "cs-eval/vm-segmentation.pdf/p0003/0007"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b054": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b055": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b056": {
+    "chunk_ids": [
+      "cs-eval/cpu-sched-multi.pdf/p0010/0029"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b057": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b058": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b059": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0004/0015",
+      "cs-eval/java-ch1-e2e.epub/p0003/0006"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b060": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0003/0006"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b061": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0004/0018"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b062": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0005/0035"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b063": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0004/0025"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b064": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0008/0084"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b065": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0007/0081"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b066": {
+    "chunk_ids": [
+      "cs-eval/java-ch1-e2e.epub/p0006/0071"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b067": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b068": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b069": {
+    "chunk_ids": [],
+    "method": "no_location_expected"
+  },
+  "cs-b070": {
+    "chunk_ids": [
+      "cs-eval/cs_p2.png/pNone/0000"
+    ],
+    "method": "page_exact"
+  },
+  "cs-b071": {
+    "chunk_ids": [
+      "cs-eval/cs_p3.png/pNone/0000"
+    ],
+    "method": "page_exact"
+  }
+}

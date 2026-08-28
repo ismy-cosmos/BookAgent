@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 .venv/
 bookagent.venv/
+whisperx.venv/
 dist/
 build/
 
@@ -21,6 +22,7 @@ outputs/
 *.faiss
 *.index
 .chroma/
+.chroma-*/
 lancedb/
 
 # Audio/video
@@ -58,3 +60,6 @@ eval/testset/*/chunks/
 # Superpowers internal execution traces
 .superpowers/
 docs/superpowers/
+
+# Local git worktrees for isolated feature work
+.worktrees/

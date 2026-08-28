@@ -1,9 +1,22 @@
 import base64
+import io
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
 
-from pipeline.parse.image import VLMImageParser
+from PIL import Image as PILImage
+from openai import OpenAIError
+
+from pipeline.parse.image import VLMImageParser, _resize_to_limit, describe_image, load_image_element
+
+
+@pytest.fixture(autouse=True)
+def mock_release_call():
+    """Autouse: every parse() call hits release_model() in a finally block.
+    Mock it globally so no test makes a real network call regardless of
+    which path it exercises."""
+    with patch("pipeline.parse.image.release_model") as mock_release:
+        yield mock_release
 
 
 def _make_fake_png(tmp_path) -> str:
@@ -19,15 +32,21 @@ def _make_fake_png(tmp_path) -> str:
     return str(p)
 
 
-def test_image_parser_returns_one_figure_element(tmp_path):
-    img = _make_fake_png(tmp_path)
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"message": {"content": "A red pixel on white background."}}
+def _make_response(content):
+    resp = MagicMock()
+    resp.choices[0].message.content = content
+    return resp
 
-    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp):
-        parser = VLMImageParser(ollama_base="http://fake", model="qwen3:test")
-        elems = parser.parse(img)
+
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_returns_one_figure_element(mock_openai_cls, tmp_path):
+    img = _make_fake_png(tmp_path)
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_response("A red pixel on white background.")
+    )
+
+    parser = VLMImageParser(ollama_base="http://fake", model="qwen3:test")
+    elems = parser.parse(img)
 
     assert len(elems) == 1
     assert elems[0].type == "figure"
@@ -35,48 +54,43 @@ def test_image_parser_returns_one_figure_element(tmp_path):
     assert elems[0].page_num == 0
 
 
-def test_image_parser_sends_base64(tmp_path):
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_sends_base64(mock_openai_cls, tmp_path):
     img = _make_fake_png(tmp_path)
     img_bytes = Path(img).read_bytes()
     expected_b64 = base64.b64encode(img_bytes).decode()
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_response("A pixel.")
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"message": {"content": "A pixel."}}
+    VLMImageParser(ollama_base="http://fake", model="m").parse(img)
 
-    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp) as mock_post:
-        VLMImageParser(ollama_base="http://fake", model="m").parse(img)
-
-    call_json = mock_post.call_args.kwargs["json"]
-    images = call_json["messages"][0]["images"]
-    assert images[0] == expected_b64
+    messages = mock_create.call_args.kwargs["messages"]
+    image_url = messages[0]["content"][1]["image_url"]["url"]
+    assert image_url == f"data:image/png;base64,{expected_b64}"
 
 
-def test_image_parser_jpg(tmp_path):
-    # JPEG magic bytes
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_jpg(mock_openai_cls, tmp_path):
     jpg = tmp_path / "test.jpg"
     jpg.write_bytes(b"\xff\xd8\xff" + b"\x00" * 10)
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_response("A JPEG.")
+    )
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"message": {"content": "A JPEG."}}
-
-    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp):
-        elems = VLMImageParser(ollama_base="http://fake", model="m").parse(str(jpg))
+    elems = VLMImageParser(ollama_base="http://fake", model="m").parse(str(jpg))
 
     assert elems[0].type == "figure"
 
 
-def test_image_parser_jpeg(tmp_path):
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_jpeg(mock_openai_cls, tmp_path):
     jpeg = tmp_path / "test.jpeg"
     jpeg.write_bytes(b"\xff\xd8\xff" + b"\x00" * 10)
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_response("A JPEG.")
+    )
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"message": {"content": "A JPEG."}}
-
-    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp):
-        elems = VLMImageParser(ollama_base="http://fake", model="m").parse(str(jpeg))
+    elems = VLMImageParser(ollama_base="http://fake", model="m").parse(str(jpeg))
 
     assert elems[0].type == "figure"
 
@@ -86,32 +100,146 @@ def test_image_parser_file_not_found(tmp_path):
         VLMImageParser(ollama_base="http://fake", model="m").parse(str(tmp_path / "missing.png"))
 
 
-def test_image_parser_bad_ollama_response(tmp_path):
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_bad_ollama_response(mock_openai_cls, tmp_path):
     img = _make_fake_png(tmp_path)
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"unexpected": "format"}  # 缺少 message.content
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_response(None)
+    )
 
-    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp):
-        with pytest.raises(ValueError, match="Unexpected Ollama response"):
-            VLMImageParser(ollama_base="http://fake", model="m").parse(img)
+    with pytest.raises(ValueError, match="Unexpected Ollama response"):
+        VLMImageParser(ollama_base="http://fake", model="m").parse(img)
 
 
-def test_image_parser_http_error(tmp_path):
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_http_error(mock_openai_cls, tmp_path):
     img = _make_fake_png(tmp_path)
-    mock_resp = MagicMock()
-    mock_resp.raise_for_status.side_effect = Exception("HTTP 500")
+    mock_openai_cls.return_value.chat.completions.create.side_effect = (
+        OpenAIError("connection failed")
+    )
 
-    with patch("pipeline.parse.image.httpx.post", return_value=mock_resp):
-        with pytest.raises(Exception, match="HTTP 500"):
-            VLMImageParser(ollama_base="http://fake", model="m").parse(img)
+    with pytest.raises(ValueError, match="Ollama vision call failed"):
+        VLMImageParser(ollama_base="http://fake", model="m").parse(img)
 
 
 def test_image_parser_svg_conversion_error(tmp_path):
     svg = tmp_path / "bad.svg"
     svg.write_bytes(b"not valid svg")
 
-    with patch("pipeline.parse.image.httpx.post"):
-        with patch("cairosvg.svg2png", side_effect=Exception("SVG parse error")):
-            with pytest.raises(ValueError, match="SVG conversion failed"):
-                VLMImageParser(ollama_base="http://fake", model="m").parse(str(svg))
+    with patch("cairosvg.svg2png", side_effect=Exception("SVG parse error")):
+        with pytest.raises(ValueError, match="SVG conversion failed"):
+            VLMImageParser(ollama_base="http://fake", model="m").parse(str(svg))
+
+
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_releases_model_after_use(mock_openai_cls, mock_release_call, tmp_path):
+    img = _make_fake_png(tmp_path)
+    mock_openai_cls.return_value.chat.completions.create.return_value = (
+        _make_response("A pixel.")
+    )
+
+    VLMImageParser(ollama_base="http://fake", model="m").parse(img)
+
+    mock_release_call.assert_called_once_with("http://fake", "m")
+
+
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_releases_model_even_on_failure(mock_openai_cls, mock_release_call, tmp_path):
+    img = _make_fake_png(tmp_path)
+    mock_openai_cls.return_value.chat.completions.create.side_effect = (
+        OpenAIError("connection failed")
+    )
+
+    with pytest.raises(ValueError):
+        VLMImageParser(ollama_base="http://fake", model="m").parse(img)
+
+    mock_release_call.assert_called_once_with("http://fake", "m")
+
+
+# ── _resize_to_limit / load_image_element ───────────────────────────────────────
+
+def _png_bytes(w, h):
+    buf = io.BytesIO()
+    PILImage.new("RGB", (w, h), color="red").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_resize_large_image_capped_to_2048_long_edge():
+    out = _resize_to_limit(_png_bytes(3000, 1500))
+    img = PILImage.open(io.BytesIO(out))
+    assert max(img.size) == 2048
+    # 长宽比保持（3000:1500 = 2:1）
+    assert img.size == (2048, 1024)
+
+
+def test_resize_small_image_untouched():
+    original = _png_bytes(800, 600)
+    assert _resize_to_limit(original) is original
+
+
+def test_resize_unparseable_bytes_pass_through():
+    garbage = b"\xff\xd8\xff" + b"\x00" * 10
+    assert _resize_to_limit(garbage) is garbage
+
+
+@patch("pipeline.parse.image.OpenAI")
+def test_image_parser_parse_sends_resized_image(mock_openai_cls, tmp_path):
+    big = tmp_path / "big.png"
+    big.write_bytes(_png_bytes(3000, 1500))
+    mock_create = mock_openai_cls.return_value.chat.completions.create
+    mock_create.return_value = _make_response("A big image.")
+
+    VLMImageParser(ollama_base="http://fake", model="m").parse(str(big))
+
+    messages = mock_create.call_args.kwargs["messages"]
+    url = messages[0]["content"][1]["image_url"]["url"]
+    sent = base64.b64decode(url.split("base64,")[1])
+    assert max(PILImage.open(io.BytesIO(sent)).size) == 2048
+
+
+def test_load_image_element_carries_bytes_no_vlm_call(tmp_path):
+    img = _make_fake_png(tmp_path)
+    elem = load_image_element(img)
+    assert elem.type == "figure"
+    assert elem.content == "![](test.png)"
+    assert elem.metadata["image_bytes"] == Path(img).read_bytes()
+
+
+def test_load_image_element_missing_file():
+    with pytest.raises(ValueError, match="File not found"):
+        load_image_element("/nonexistent/x.png")
+
+
+# ── describe_image() on_usage callback（真实 token 用量记录）─────────────────
+
+def test_describe_image_invokes_on_usage_with_real_usage_object():
+    client = MagicMock()
+    resp = _make_response("desc")
+    resp.usage.prompt_tokens = 2772
+    client.chat.completions.create.return_value = resp
+
+    captured = []
+    describe_image(client, "m", "b64data", on_usage=lambda u: captured.append(u.prompt_tokens))
+
+    assert captured == [2772]
+
+
+def test_describe_image_on_usage_not_called_when_usage_is_none():
+    client = MagicMock()
+    resp = _make_response("desc")
+    resp.usage = None
+    client.chat.completions.create.return_value = resp
+
+    captured = []
+    describe_image(client, "m", "b64data", on_usage=lambda u: captured.append(u))
+
+    assert captured == []
+
+
+def test_describe_image_works_without_on_usage_callback():
+    client = MagicMock()
+    client.chat.completions.create.return_value = _make_response("desc")
+
+    result = describe_image(client, "m", "b64data")
+
+    assert result == "desc"
